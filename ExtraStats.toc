@@ -1,0 +1,29 @@
+## Interface: 30400
+## Title: ExtraStats
+## Author: Wuild
+## Version: 1.0.0
+## SavedVariables: ExtraStatsSettings
+
+libraries\LibStub\LibStub.lua
+libraries\CallbackHandler-1.0\CallbackHandler-1.0.xml
+libraries\AceAddon-3.0\AceAddon-3.0.xml
+libraries\AceEvent-3.0\AceEvent-3.0.xml
+libraries\AceHook-3.0\AceHook-3.0.xml
+libraries\AceGUI-3.0\AceGUI-3.0.xml
+libraries\AceTimer-3.0\AceTimer-3.0.xml
+libraries\AceConsole-3.0\AceConsole-3.0.xml
+libraries\AceComm-3.0\AceComm-3.0.xml
+libraries\AceSerializer-3.0\AceSerializer-3.0.xml
+libraries\AceDB-3.0\AceDB-3.0.xml
+libraries\AceConfig-3.0\AceConfig-3.0.xml
+libraries\Semver\Semver.xml
+
+CharacterFrame.xml
+
+core\constants.lua
+core\configs.lua
+core\categories.lua
+core\methods.lua
+core\window.lua
+core\settings.lua
+ExtraStats.lua
