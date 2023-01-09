@@ -26,4 +26,5 @@ core\categories.lua
 core\methods.lua
 core\window.lua
 core\settings.lua
+
 ExtraStats.lua

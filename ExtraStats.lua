@@ -3,6 +3,8 @@ local name, stats = ...;
 CHARACTERFRAME_EXPANDED_WIDTH = 540;
 
 function ExtraStats:EventHandler(event, ...)
+    CURRENT_ROLE = GetTalentGroupRole(GetActiveTalentGroup())
+
     if event == "PLAYER_LOGIN" then
         ExtraStats:UpdateStats()
         C_Timer.After(5, function()

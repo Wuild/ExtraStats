@@ -16,7 +16,7 @@ stats.debug = {
 }
 
 stats.window = {
-    width = 197,
+    width = 237,
     height = 400
 }
 

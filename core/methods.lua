@@ -1025,19 +1025,26 @@ function ExtraStats:UpdateStats()
         if showCat then
             for statIndex = 1, #stats.categories[catIndex].stats do
                 local stat = stats.categories[catIndex].stats[statIndex];
-                local showStat = true;
+                local showStat = false;
 
-                --for _, stats in pairs(CLASS_STATS_ALL) do
-                --    if stats == stat.stat then
-                --        showStat = true
-                --    end
-                --end
+                if ExtraStats.db.char.dynamic and stats.categories[catIndex].id == "attributes" then
+                    for _, stats in pairs(CLASS_STATS_ALL) do
+                        if stats == stat.stat then
+                            showStat = true
+                        end
+                    end
+
+                    for _, stats in pairs(CLASS_STATS[classIndex]) do
+                        if stats == stat.stat then
+                            showStat = true
+                        end
+                    end
+                else
+                    showStat = true
+                end
+
                 --
-                --for _, stats in pairs(CLASS_STATS[classIndex]) do
-                --    if stats == stat.stat then
-                --        showStat = true
-                --    end
-                --end
+
 
                 --if CLASS_ROLE_STATS[classIndex][currentRole] then
                 --    for _, stats in pairs(CLASS_ROLE_STATS[classIndex][currentRole]) do
@@ -1068,7 +1075,7 @@ function ExtraStats:UpdateStats()
                     catFrame:Show()
 
                     if not lastAnchor then
-                        catFrame:SetPoint("TOP", 0, 0);
+                        catFrame:SetPoint("TOPRIGHT", -30, 0);
                     end
 
                     if (numStatInCat == 0) then

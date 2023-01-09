@@ -23,55 +23,55 @@ INDEX_CLASS_DRUID = 11
 
 CLASS_STATS_ALL = {
     "HEALTH",
-    "SPIRIT",
-    "INTELLECT",
-    "AGILITY"
+    "POWER"
 }
 
 CLASS_STATS = {
     [INDEX_CLASS_WARRIOR] = {
         "STAMINA",
         "STRENGTH",
-        "CRITCHANCE",
-        "HASTE",
-        "EXPERTISE",
-        "ATTACKPOWER",
-        "EXPERTISE",
-        "ATTACKPOWER",
-        "MELEEATTACKSPEED",
-        "EXPERTISE"
+        "AGILITY",
     },
-    [INDEX_CLASS_PALADIN] = {},
-    [INDEX_CLASS_HUNTER] = {},
-    [INDEX_CLASS_ROGUE] = {},
-    [INDEX_CLASS_PRIEST] = {},
-    [INDEX_CLASS_DEATH_KNIGHT] = {},
-    [INDEX_CLASS_SHAMAN] = {},
-    [INDEX_CLASS_MAGE] = {},
-    [INDEX_CLASS_WARLOCK] = {},
-    [INDEX_CLASS_DRUID] = {},
-}
-
-CLASS_ROLE_STATS = {
-    [INDEX_CLASS_WARRIOR] = {
-        ["TANK"] = {
-            "ARMOR",
-            "DEFENSE",
-            "DODGE",
-            "PARRY",
-            "BLOCK"
-        },
-        ["DAMAGER"] = {
-
-        }
+    [INDEX_CLASS_PALADIN] = {
+        "STRENGTH",
+        "STAMINA",
+        "AGILITY",
     },
-    [INDEX_CLASS_PALADIN] = {},
-    [INDEX_CLASS_HUNTER] = {},
-    [INDEX_CLASS_ROGUE] = {},
-    [INDEX_CLASS_PRIEST] = {},
-    [INDEX_CLASS_DEATH_KNIGHT] = {},
-    [INDEX_CLASS_SHAMAN] = {},
-    [INDEX_CLASS_MAGE] = {},
-    [INDEX_CLASS_WARLOCK] = {},
-    [INDEX_CLASS_DRUID] = {},
+    [INDEX_CLASS_HUNTER] = {
+        "STAMINA",
+        "AGILITY",
+    },
+    [INDEX_CLASS_ROGUE] = {
+        "STAMINA",
+        "AGILITY",
+    },
+    [INDEX_CLASS_PRIEST] = {
+        "INTELLECT",
+        "SPIRIT",
+    },
+    [INDEX_CLASS_DEATH_KNIGHT] = {
+        "STRENGTH",
+        "STAMINA",
+    },
+    [INDEX_CLASS_SHAMAN] = {
+        "AGILITY",
+        "INTELLECT",
+        "SPIRIT",
+    },
+    [INDEX_CLASS_MAGE] = {
+        "INTELLECT",
+        "SPIRIT",
+    },
+    [INDEX_CLASS_WARLOCK] = {
+        "STAMINA",
+        "INTELLECT",
+        "SPIRIT",
+    },
+    [INDEX_CLASS_DRUID] = {
+        "STAMINA",
+        "STRENGTH",
+        "AGILITY",
+        "INTELLECT",
+        "SPIRIT",
+    },
 }

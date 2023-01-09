@@ -99,7 +99,7 @@ stats.categories = {
                 updateFunc = function(statFrame, unit)
                     ExtraStats.stats:SetMeleeHaste(statFrame, unit)
                 end
-            },
+            }
         }
     },
     {

@@ -1,6 +1,6 @@
 local name, stats = ...;
 
-ExtraStats.window = nil;
+button = nil;
 
 function ExtraStats:CreateCategories()
     ExtraStats.window.AttributesCategory = CreateFrame("Frame", nil, ExtraStats.window.ScrollChild, "CharacterStatFrameCategoryTemplate2")
@@ -27,18 +27,13 @@ function ExtraStats:CreateWindow()
     ExtraStats.window:SetWidth(stats.window.width)
     ExtraStats.window:SetHeight(stats.window.height)
     ExtraStats.window:EnableMouse(true)
-    --ExtraStats.window:SetFrameStrata("BACKGROUND")
+    ExtraStats.window:SetFrameStrata("MEDIUM")
 
     ExtraStats.window:RegisterEvent("PLAYER_ENTERING_WORLD")
     ExtraStats.window:RegisterEvent("ACTIVE_TALENT_GROUP_CHANGED")
     ExtraStats.window:RegisterEvent("PLAYER_TALENT_UPDATE")
     ExtraStats.window:RegisterEvent("CHARACTER_POINTS_CHANGED")
     ExtraStats.window:RegisterEvent("PLAYER_LEVEL_UP")
-
-    ExtraStats.window:SetScript('OnEvent', function(self, event)
-        CURRENT_ROLE = GetTalentGroupRole(GetActiveTalentGroup())
-    end)
-
 
     ExtraStats.window.Background = ExtraStats.window:CreateTexture("CharacterStatsFrameBackground", "BACKGROUND")
     ExtraStats.window.Background:SetTexture("Interface\\FrameGeneral\\UI-Background-Rock")
@@ -87,9 +82,9 @@ function ExtraStats:CreateWindow()
     ExtraStats.window.TopBorder:SetPoint("TOPLEFT", ExtraStats.window.TopLeftCorner, "TOPRIGHT", 0, -4)
     ExtraStats.window.TopBorder:SetPoint("TOPRIGHT", ExtraStats.window.TopRightCorner, "TOPLEFT")
 
-    ExtraStats.window.ScrollFrame = CreateFrame("ScrollFrame", nil, ExtraStats.window, "UIPanelScrollFrameTemplate")
+    ExtraStats.window.ScrollFrame = CreateFrame("ScrollFrame", "ExtraStatsScrollFrame", ExtraStats.window, "ExtraStatsScrollFrame")
     ExtraStats.window.ScrollFrame:SetPoint("TOPLEFT", ExtraStats.window, "TOPLEFT", 0, -10)
-    ExtraStats.window.ScrollFrame:SetPoint("BOTTOMRIGHT", ExtraStats.window, "BOTTOMRIGHT", 0, 10)
+    ExtraStats.window.ScrollFrame:SetPoint("BOTTOMRIGHT", ExtraStats.window, "BOTTOMRIGHT", -28, 10)
 
     ExtraStats.window.ScrollChild = CreateFrame("Frame", ExtraStats.window, ExtraStats.window.ScrollFrame)
     ExtraStats.window.ScrollChild:SetSize(stats.window.width, stats.window.height - 20)
@@ -102,6 +97,37 @@ function ExtraStats:CreateWindow()
 
     ExtraStats.window:SetPoint("CENTER", 0, 0)
     ExtraStats.window:Hide()
+
+    --GearManagerToggleButton:ClearAllPoints()
+    --GearManagerToggleButton:SetPoint("TOPLEFT", PaperDollFrame, "TOPLEFT", 0, 0)
+    --GearManagerToggleButton:SetPoint("BOTTOMRIGHT", PaperDollFrame, "BOTTOMRIGHT", 0, 0)
+    ----GearManagerToggleButton:SetPoint("RIGHT", 0, 60)
+
+    --local button = CreateFrame("Button", nil, UIParent)
+    --button:SetPoint("TOPLEFT", ExtraStats.window, "BOTTOMRIGHT", 0, 0)
+    --button:SetWidth(100)
+    --button:SetHeight(64)
+    --
+    --button:SetText("test")
+    --button:SetNormalFontObject("GameFontNormal")
+    --
+    --local ntex = button:CreateTexture()
+    --ntex:SetTexture("Interface/Buttons/UI-Panel-Button-Up")
+    --ntex:SetTexCoord(0, 0.625, 0, 0.6875)
+    --ntex:SetAllPoints()
+    --button:SetNormalTexture(ntex)
+    --
+    --local htex = button:CreateTexture()
+    --htex:SetTexture("Interface/Buttons/UI-Panel-Button-Highlight")
+    --htex:SetTexCoord(0, 0.625, 0, 0.6875)
+    --htex:SetAllPoints()
+    --button:SetHighlightTexture(htex)
+    --
+    --local ptex = button:CreateTexture()
+    --ptex:SetTexture("Interface/Buttons/UI-Panel-Button-Down")
+    --ptex:SetTexCoord(0, 0.625, 0, 0.6875)
+    --ptex:SetAllPoints()
+    --button:SetPushedTexture(ptex)
 
     PaperDollFrame:HookScript('OnShow', function()
         ExtraStats.window:Show()
