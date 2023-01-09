@@ -97,30 +97,30 @@
         </Layers>
     </ScrollFrame>
 
-    <Button name="CoinPickupRightButton">
-        <Size x="16" y="16"/>
-        <Anchors>
-            <Anchor point="LEFT" relativePoint="CENTER" x="64" y="18"/>
-        </Anchors>
-        <Scripts>
-            <OnClick function="CoinPickupFrameRight_Click"/>
-        </Scripts>
-        <NormalTexture file="Interface\MoneyFrame\Arrow-Right-Up"/>
-        <PushedTexture file="Interface\MoneyFrame\Arrow-Right-Down"/>
-        <DisabledTexture file="Interface\MoneyFrame\Arrow-Right-Disabled"/>
-    </Button>
+<!--    <Button name="CoinPickupRightButton">-->
+<!--        <Size x="16" y="16"/>-->
+<!--        <Anchors>-->
+<!--            <Anchor point="LEFT" relativePoint="CENTER" x="64" y="18"/>-->
+<!--        </Anchors>-->
+<!--        <Scripts>-->
+<!--            <OnClick function="CoinPickupFrameRight_Click"/>-->
+<!--        </Scripts>-->
+<!--        <NormalTexture file="Interface\MoneyFrame\Arrow-Right-Up"/>-->
+<!--        <PushedTexture file="Interface\MoneyFrame\Arrow-Right-Down"/>-->
+<!--        <DisabledTexture file="Interface\MoneyFrame\Arrow-Right-Disabled"/>-->
+<!--    </Button>-->
 
-    <Button name="CoinPickupRightButton">
-        <Size x="16" y="16"/>
-        <Anchors>
-            <Anchor point="LEFT" relativePoint="CENTER" x="64" y="18"/>
-        </Anchors>
-        <Scripts>
-            <OnClick function="CoinPickupFrameRight_Click"/>
-        </Scripts>
-        <NormalTexture file="Interface\MoneyFrame\Arrow-Left-Up"/>
-        <PushedTexture file="Interface\MoneyFrame\Arrow-Left-Down"/>
-        <DisabledTexture file="Interface\MoneyFrame\Arrow-Left-Disabled"/>
-    </Button>
+<!--    <Button name="CoinPickupRightButton">-->
+<!--        <Size x="16" y="16"/>-->
+<!--        <Anchors>-->
+<!--            <Anchor point="LEFT" relativePoint="CENTER" x="64" y="18"/>-->
+<!--        </Anchors>-->
+<!--        <Scripts>-->
+<!--            <OnClick function="CoinPickupFrameRight_Click"/>-->
+<!--        </Scripts>-->
+<!--        <NormalTexture file="Interface\MoneyFrame\Arrow-Left-Up"/>-->
+<!--        <PushedTexture file="Interface\MoneyFrame\Arrow-Left-Down"/>-->
+<!--        <DisabledTexture file="Interface\MoneyFrame\Arrow-Left-Disabled"/>-->
+<!--    </Button>-->
 
 </Ui>
