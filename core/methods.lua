@@ -364,8 +364,6 @@ function ExtraStats:UpdateStats()
                     statFrame.tooltip = nil;
                     statFrame.tooltip2 = nil;
 
-                    statFrame.Value:SetTextColor(1, 1, 1)
-
                     catFrame:Show()
                     if not lastAnchor then
                         catFrame:SetPoint("TOPRIGHT", -30, 0);
@@ -384,8 +382,8 @@ function ExtraStats:UpdateStats()
 
                         ExtraStats:SetLabelAndText(statFrame, stat.name, data.value, data.isPercentage)
 
-                        statFrame.onEnter = stat.onEnter;
-                        statFrame.onUpdate = stat.onUpdate;
+                        statFrame.onEnter = data.onEnter;
+                        statFrame.onUpdate = data.onUpdate;
                     else
                         ExtraStats:SetLabelAndText(statFrame, stat.name, "")
                     end

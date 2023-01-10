@@ -124,6 +124,54 @@ local function ManaRegen()
     }
 end
 
+local function GetTalentSpellHitBonus()
+    local _, _, classId = UnitClass("player")
+    local bonus = 0
+
+    if classId == INDEX_CLASS_PRIEST then
+        local _, _, _, _, points, _, _, _ = GetTalentInfo(3, 3)
+        bonus = points -- 0-3% from Shadow Focus
+    end
+
+    if classId == INDEX_CLASS_MAGE then
+        local _, _, _, _, points, _, _, _ = GetTalentInfo(3, 17)
+        bonus = points * 1 -- 0-3% from Elemental Precision
+    end
+
+    if classId == INDEX_CLASS_SHAMAN then
+        local _, _, _, _, points, _, _, _ = GetTalentInfo(1, 16)
+        bonus = points -- 0-3% from Elemental Precision
+    end
+
+    if classId == INDEX_CLASS_DRUID then
+        local _, _, _, _, points, _, _, _ = GetTalentInfo(1, 13)
+        bonus = points * 2 -- 0-4% from Balance of Power
+    end
+
+    if classId == INDEX_CLASS_WARLOCK then
+        local _, _, _, _, points, _, _, _ = GetTalentInfo(1, 5)
+        bonus = points -- 0-3% from Suppression
+    end
+
+    return bonus
+end
+
+local function GetBuffSpellHitBonus()
+    local buffHit = 0;
+    for i = 1, 40 do
+        local _, _, _, _, _, _, _, _, _, spellId, _ = UnitAura("player", i, "HELPFUL");
+        if spellId == nil then
+            break ;
+        end
+
+        if spellId == 28878 or spellId == 6562 then
+            buffHit = buffHit + 1; -- 1% from Heroic Presence
+            break ;
+        end
+    end
+    return buffHit
+end
+
 local function HitChance()
 
 
@@ -132,7 +180,7 @@ local function HitChance()
     local spellPenetration = GetSpellPenetration();
 
     local rating = GetCombatRating(ratingIndex);
-    local ratingBonus = GetCombatRatingBonus(ratingIndex);
+    local ratingBonus = GetCombatRatingBonus(ratingIndex) + GetTalentSpellHitBonus() + GetBuffSpellHitBonus();
 
     local hitChance = format("%.2f%%", ratingBonus)
 
@@ -152,8 +200,12 @@ function Module:Setup()
         roles = { CLASS_ROLE_DAMAGER, CLASS_ROLE_HEALER },
     })
 
-    Category:Add(ExtraStats:translate("stats.bonus_damage"), SpellBonusDamage)
-    Category:Add(ExtraStats:translate("stats.bonus_healing"), SpellBonusHealing)
+    Category:Add(ExtraStats:translate("stats.bonus_damage"), SpellBonusDamage, {
+        roles = { CLASS_ROLE_DAMAGER }
+    })
+    Category:Add(ExtraStats:translate("stats.bonus_healing"), SpellBonusHealing, {
+        roles = { CLASS_ROLE_HEALER }
+    })
     Category:Add(ExtraStats:translate("stats.hit_chance"), HitChance)
     Category:Add(ExtraStats:translate("stats.crit_chance"), SpellCritChance)
     Category:Add(ExtraStats:translate("stats.penetration"), SpellPenetration)
