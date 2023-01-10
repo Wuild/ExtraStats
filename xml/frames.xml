@@ -1,6 +1,31 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/
 ..\FrameXML\UI.xsd">
 
+    <Frame name="ExtraStatsFrameCategoryTemplate" virtual="true">
+        <Size x="197" y="40"/>
+        <Layers>
+            <Layer level="BACKGROUND">
+                <Texture parentKey="Background" atlas="UI-Character-Info-Title" useAtlasSize="true">
+                    <Anchors>
+                        <Anchor point="TOPLEFT"/>
+                    </Anchors>
+                </Texture>
+            </Layer>
+            <Layer level="ARTWORK">
+                <FontString parentKey="Title" inherits="GameFontHighlight">
+                    <Anchors>
+                        <Anchor point="CENTER" x="0" y="1"/>
+                    </Anchors>
+                </FontString>
+            </Layer>
+        </Layers>
+        <Scripts>
+            <OnLoad>
+                self.Title:SetText(self.titleText);
+            </OnLoad>
+        </Scripts>
+    </Frame>
+
     <Frame name="CharacterStatFrameTemplate" virtual="true">
         <Size x="187" y="15"/>
         <Layers>

@@ -4,11 +4,6 @@ button = nil;
 
 function ExtraStats:CreateCategories()
 
-    for index, category in pairs(ExtraStats.categories) do
-        ExtraStats.window[index] = CreateFrame("Frame", nil, ExtraStats.window.ScrollChild, "CharacterStatFrameCategoryTemplate")
-        ExtraStats.window[index] .Title:SetText(category.text)
-        category.frame = ExtraStats.window[index];
-    end
 
     --ExtraStats.window.AttributesCategory = CreateFrame("Frame", nil, ExtraStats.window.ScrollChild, "CharacterStatFrameCategoryTemplate2")
     --ExtraStats.window.AttributesCategory.Title:SetText(STAT_CATEGORY_ATTRIBUTES)
@@ -98,9 +93,8 @@ function ExtraStats:CreateWindow()
 
     ExtraStats.window.ScrollFrame:SetScrollChild(ExtraStats.window.ScrollChild)
 
+    self.categoryFramePool = CreateFramePool("FRAME", ExtraStats.window.ScrollChild, "ExtraStatsFrameCategoryTemplate");
     self.statsFramePool = CreateFramePool("FRAME", ExtraStats.window.ScrollChild, "CharacterStatFrameTemplate");
-
-    ExtraStats:CreateCategories()
 
     ExtraStats.window:SetPoint("CENTER", 0, 0)
     ExtraStats.window:Hide()
@@ -110,31 +104,26 @@ function ExtraStats:CreateWindow()
     --GearManagerToggleButton:SetPoint("BOTTOMRIGHT", PaperDollFrame, "BOTTOMRIGHT", 0, 0)
     ----GearManagerToggleButton:SetPoint("RIGHT", 0, 60)
 
-    --local button = CreateFrame("Button", nil, UIParent)
-    --button:SetPoint("TOPLEFT", ExtraStats.window, "BOTTOMRIGHT", 0, 0)
-    --button:SetWidth(100)
-    --button:SetHeight(64)
-    --
-    --button:SetText("test")
-    --button:SetNormalFontObject("GameFontNormal")
-    --
-    --local ntex = button:CreateTexture()
-    --ntex:SetTexture("Interface/Buttons/UI-Panel-Button-Up")
-    --ntex:SetTexCoord(0, 0.625, 0, 0.6875)
-    --ntex:SetAllPoints()
-    --button:SetNormalTexture(ntex)
-    --
-    --local htex = button:CreateTexture()
-    --htex:SetTexture("Interface/Buttons/UI-Panel-Button-Highlight")
-    --htex:SetTexCoord(0, 0.625, 0, 0.6875)
-    --htex:SetAllPoints()
-    --button:SetHighlightTexture(htex)
-    --
-    --local ptex = button:CreateTexture()
-    --ptex:SetTexture("Interface/Buttons/UI-Panel-Button-Down")
-    --ptex:SetTexCoord(0, 0.625, 0, 0.6875)
-    --ptex:SetAllPoints()
-    --button:SetPushedTexture(ptex)
+    local button = CreateFrame("Button", nil, ExtraStats.window.ScrollFrame)
+    --button:SetPoint("TOPRIGHT", CharacterFrameCloseButton, "TOPLEFT", -5, -7)
+    button:SetPoint("TOPLEFT", 10, 0)
+    button:SetWidth(14)
+    button:SetHeight(14)
+    button:SetNormalFontObject("GameFontNormal")
+
+    button:SetScript("OnClick", function()
+        ExtraStats:ShowSettings();
+    end)
+
+    local ntex = button:CreateTexture()
+    ntex:SetTexture(stats.iconPath .. "resources\\cog")
+    ntex:SetAllPoints()
+    button:SetNormalTexture(ntex)
+
+    ntex = button:CreateTexture()
+    ntex:SetTexture(stats.iconPath .. "resources\\cog-down")
+    ntex:SetAllPoints()
+    button:SetHighlightTexture(ntex)
 
     PaperDollFrame:HookScript('OnShow', function()
         ExtraStats.window:Show()

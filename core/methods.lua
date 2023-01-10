@@ -212,26 +212,27 @@ end
 
 function ExtraStats:UpdateStats()
     self.statsFramePool:ReleaseAll();
-    local level = UnitLevel("player");
+    self.categoryFramePool:ReleaseAll();
     local categoryYOffset = 0;
     local statYOffset = 0;
-    local classIndex = ExtraStats:GetCurrentClass();
+    local catFrame = self.categoryFramePool:Acquire();
     local statFrame = self.statsFramePool:Acquire();
-    local currentRole = GetTalentGroupRole(GetActiveTalentGroup())
     local lastAnchor;
 
     --table.sort(ExtraStats.categories, function(a, b)
     --    return b.order < a.order
     --end)
 
+    --for index, category in pairs(ExtraStats.categories) do
+    --    --ExtraStats.window[index] = CreateFrame("Frame", "ExtraStatsCategory" .. index, ExtraStats.window.ScrollChild, "ExtraStatsFrameCategoryTemplate")
+    --    ExtraStats.window[index]
+    --    category.frame = ExtraStats.window[index];
+    --end
+
     for catId, category in spairs(ExtraStats.categories, compare) do
         local showCat = true
 
-        if not category.frame then
-            return
-        end
-
-        local catFrame = category.frame;
+        catFrame.Title:SetText(category.text)
         catFrame:Hide()
 
         if not ExtraStats.db.char.dynamic and not ExtraStats.db.char.categories[category.id].enabled then
@@ -358,6 +359,11 @@ function ExtraStats:UpdateStats()
                 end
             end
         end
+
+        if (numStatInCat > 0) then
+            catFrame = self.categoryFramePool:Acquire();
+        end
+
     end
 end
 
