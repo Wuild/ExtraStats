@@ -3,23 +3,30 @@ local name, stats = ...;
 button = nil;
 
 function ExtraStats:CreateCategories()
-    ExtraStats.window.AttributesCategory = CreateFrame("Frame", nil, ExtraStats.window.ScrollChild, "CharacterStatFrameCategoryTemplate2")
-    ExtraStats.window.AttributesCategory.Title:SetText(STAT_CATEGORY_ATTRIBUTES)
 
-    ExtraStats.window.MeleeCategory = CreateFrame("Frame", nil, ExtraStats.window.ScrollChild, "CharacterStatFrameCategoryTemplate2")
-    ExtraStats.window.MeleeCategory.Title:SetText("Melee")
+    for index, category in pairs(ExtraStats.categories) do
+        ExtraStats.window[index] = CreateFrame("Frame", nil, ExtraStats.window.ScrollChild, "CharacterStatFrameCategoryTemplate")
+        ExtraStats.window[index] .Title:SetText(category.text)
+        category.frame = ExtraStats.window[index];
+    end
 
-    ExtraStats.window.RangedCategory = CreateFrame("Frame", nil, ExtraStats.window.ScrollChild, "CharacterStatFrameCategoryTemplate2")
-    ExtraStats.window.RangedCategory.Title:SetText("Ranged")
-
-    ExtraStats.window.SpellCategory = CreateFrame("Frame", nil, ExtraStats.window.ScrollChild, "CharacterStatFrameCategoryTemplate2")
-    ExtraStats.window.SpellCategory.Title:SetText("Spell")
-
-    ExtraStats.window.DefensesCategory = CreateFrame("Frame", nil, ExtraStats.window.ScrollChild, "CharacterStatFrameCategoryTemplate2")
-    ExtraStats.window.DefensesCategory.Title:SetText("Defenses")
-
-    ExtraStats.window.EnhancementsCategory = CreateFrame("Frame", nil, ExtraStats.window.ScrollChild, "CharacterStatFrameCategoryTemplate2")
-    ExtraStats.window.EnhancementsCategory.Title:SetText(STAT_CATEGORY_ENHANCEMENTS)
+    --ExtraStats.window.AttributesCategory = CreateFrame("Frame", nil, ExtraStats.window.ScrollChild, "CharacterStatFrameCategoryTemplate2")
+    --ExtraStats.window.AttributesCategory.Title:SetText(STAT_CATEGORY_ATTRIBUTES)
+    --
+    --ExtraStats.window.MeleeCategory = CreateFrame("Frame", nil, ExtraStats.window.ScrollChild, "CharacterStatFrameCategoryTemplate2")
+    --ExtraStats.window.MeleeCategory.Title:SetText("Melee")
+    --
+    --ExtraStats.window.RangedCategory = CreateFrame("Frame", nil, ExtraStats.window.ScrollChild, "CharacterStatFrameCategoryTemplate2")
+    --ExtraStats.window.RangedCategory.Title:SetText("Ranged")
+    --
+    --ExtraStats.window.SpellCategory = CreateFrame("Frame", nil, ExtraStats.window.ScrollChild, "CharacterStatFrameCategoryTemplate2")
+    --ExtraStats.window.SpellCategory.Title:SetText("Spell")
+    --
+    --ExtraStats.window.DefensesCategory = CreateFrame("Frame", nil, ExtraStats.window.ScrollChild, "CharacterStatFrameCategoryTemplate2")
+    --ExtraStats.window.DefensesCategory.Title:SetText("Defenses")
+    --
+    --ExtraStats.window.EnhancementsCategory = CreateFrame("Frame", nil, ExtraStats.window.ScrollChild, "CharacterStatFrameCategoryTemplate2")
+    --ExtraStats.window.EnhancementsCategory.Title:SetText(STAT_CATEGORY_ENHANCEMENTS)
 end
 
 function ExtraStats:CreateWindow()
@@ -132,6 +139,7 @@ function ExtraStats:CreateWindow()
     PaperDollFrame:HookScript('OnShow', function()
         ExtraStats.window:Show()
         ExtraStats.window:SetPoint("LEFT", PaperDollFrame, "RIGHT", -40, 30)
+        ExtraStats:UpdateStats()
     end)
 
     PaperDollFrame:HookScript('OnHide', function()

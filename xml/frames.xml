@@ -1,31 +1,6 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/
 ..\FrameXML\UI.xsd">
 
-    <Frame name="CharacterStatFrameCategoryTemplate2" virtual="true">
-        <Size x="197" y="40"/>
-        <Layers>
-            <Layer level="BACKGROUND">
-                <Texture parentKey="Background" atlas="UI-Character-Info-Title" useAtlasSize="true">
-                    <Anchors>
-                        <Anchor point="TOPLEFT"/>
-                    </Anchors>
-                </Texture>
-            </Layer>
-            <Layer level="ARTWORK">
-                <FontString parentKey="Title" inherits="GameFontHighlight">
-                    <Anchors>
-                        <Anchor point="CENTER" x="0" y="1"/>
-                    </Anchors>
-                </FontString>
-            </Layer>
-        </Layers>
-        <Scripts>
-            <OnLoad>
-                self.Title:SetText(self.titleText);
-            </OnLoad>
-        </Scripts>
-    </Frame>
-
     <Frame name="CharacterStatFrameTemplate" virtual="true">
         <Size x="187" y="15"/>
         <Layers>
@@ -52,15 +27,15 @@
         <Scripts>
             <OnEnter>
                 if ( self.onEnterFunc ) then
-                self:onEnterFunc();
+                    self:onEnterFunc();
                 else
-                PaperDollStatTooltip(self);
+                    PaperDollStatTooltip(self);
                 end
             </OnEnter>
             <OnLeave function="GameTooltip_Hide"/>
             <OnLoad>
                 if (STATFRAME_STATTEXT_FONT_OVERRIDE) then
-                self.Value:SetFontObject(STATFRAME_STATTEXT_FONT_OVERRIDE);
+                    self.Value:SetFontObject(STATFRAME_STATTEXT_FONT_OVERRIDE);
                 end
             </OnLoad>
         </Scripts>
@@ -96,31 +71,4 @@
             </Layer>
         </Layers>
     </ScrollFrame>
-
-<!--    <Button name="CoinPickupRightButton">-->
-<!--        <Size x="16" y="16"/>-->
-<!--        <Anchors>-->
-<!--            <Anchor point="LEFT" relativePoint="CENTER" x="64" y="18"/>-->
-<!--        </Anchors>-->
-<!--        <Scripts>-->
-<!--            <OnClick function="CoinPickupFrameRight_Click"/>-->
-<!--        </Scripts>-->
-<!--        <NormalTexture file="Interface\MoneyFrame\Arrow-Right-Up"/>-->
-<!--        <PushedTexture file="Interface\MoneyFrame\Arrow-Right-Down"/>-->
-<!--        <DisabledTexture file="Interface\MoneyFrame\Arrow-Right-Disabled"/>-->
-<!--    </Button>-->
-
-<!--    <Button name="CoinPickupRightButton">-->
-<!--        <Size x="16" y="16"/>-->
-<!--        <Anchors>-->
-<!--            <Anchor point="LEFT" relativePoint="CENTER" x="64" y="18"/>-->
-<!--        </Anchors>-->
-<!--        <Scripts>-->
-<!--            <OnClick function="CoinPickupFrameRight_Click"/>-->
-<!--        </Scripts>-->
-<!--        <NormalTexture file="Interface\MoneyFrame\Arrow-Left-Up"/>-->
-<!--        <PushedTexture file="Interface\MoneyFrame\Arrow-Left-Down"/>-->
-<!--        <DisabledTexture file="Interface\MoneyFrame\Arrow-Left-Disabled"/>-->
-<!--    </Button>-->
-
 </Ui>

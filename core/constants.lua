@@ -1,5 +1,7 @@
 local name, stats = ...;
 
+NOT_APPLICABLE = "n/a"
+
 LE_UNIT_STAT_STRENGTH = 1
 LE_UNIT_STAT_AGILITY = 2
 LE_UNIT_STAT_STAMINA = 3
@@ -21,57 +23,61 @@ INDEX_CLASS_MAGE = 8
 INDEX_CLASS_WARLOCK = 9
 INDEX_CLASS_DRUID = 11
 
-CLASS_STATS_ALL = {
-    "HEALTH",
-    "POWER"
-}
+CLASS_ROLE_DAMAGER = "DAMAGER"
+CLASS_ROLE_HEALER = "HEALER"
+CLASS_ROLE_TANK = "TANK"
 
-CLASS_STATS = {
+CURRENT_ROLE = CLASS_ROLE_DAMAGER;
+
+CLASS_TALENTS_ROLE = {
     [INDEX_CLASS_WARRIOR] = {
-        "STAMINA",
-        "STRENGTH",
-        "AGILITY",
+        CLASS_ROLE_DAMAGER,
+        CLASS_ROLE_DAMAGER,
+        CLASS_ROLE_TANK,
     },
     [INDEX_CLASS_PALADIN] = {
-        "STRENGTH",
-        "STAMINA",
-        "AGILITY",
+        CLASS_ROLE_HEALER,
+        CLASS_ROLE_TANK,
+        CLASS_ROLE_DAMAGER,
     },
     [INDEX_CLASS_HUNTER] = {
-        "STAMINA",
-        "AGILITY",
+        CLASS_ROLE_DAMAGER,
+        CLASS_ROLE_DAMAGER,
+        CLASS_ROLE_DAMAGER,
     },
     [INDEX_CLASS_ROGUE] = {
-        "STAMINA",
-        "AGILITY",
+        CLASS_ROLE_DAMAGER,
+        CLASS_ROLE_DAMAGER,
+        CLASS_ROLE_DAMAGER,
     },
     [INDEX_CLASS_PRIEST] = {
-        "INTELLECT",
-        "SPIRIT",
+        CLASS_ROLE_HEALER,
+        CLASS_ROLE_HEALER,
+        CLASS_ROLE_DAMAGER,
     },
     [INDEX_CLASS_DEATH_KNIGHT] = {
-        "STRENGTH",
-        "STAMINA",
+        CLASS_ROLE_TANK,
+        CLASS_ROLE_DAMAGER,
+        CLASS_ROLE_DAMAGER,
     },
     [INDEX_CLASS_SHAMAN] = {
-        "AGILITY",
-        "INTELLECT",
-        "SPIRIT",
+        CLASS_ROLE_DAMAGER,
+        CLASS_ROLE_DAMAGER,
+        CLASS_ROLE_HEALER,
     },
     [INDEX_CLASS_MAGE] = {
-        "INTELLECT",
-        "SPIRIT",
+        CLASS_ROLE_DAMAGER,
+        CLASS_ROLE_DAMAGER,
+        CLASS_ROLE_DAMAGER,
     },
     [INDEX_CLASS_WARLOCK] = {
-        "STAMINA",
-        "INTELLECT",
-        "SPIRIT",
+        CLASS_ROLE_DAMAGER,
+        CLASS_ROLE_DAMAGER,
+        CLASS_ROLE_DAMAGER,
     },
     [INDEX_CLASS_DRUID] = {
-        "STAMINA",
-        "STRENGTH",
-        "AGILITY",
-        "INTELLECT",
-        "SPIRIT",
-    },
+        CLASS_ROLE_DAMAGER,
+        CLASS_ROLE_TANK,
+        CLASS_ROLE_HEALER,
+    }
 }

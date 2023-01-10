@@ -3,7 +3,8 @@ local name, stats = ...;
 CHARACTERFRAME_EXPANDED_WIDTH = 540;
 
 function ExtraStats:EventHandler(event, ...)
-    CURRENT_ROLE = GetTalentGroupRole(GetActiveTalentGroup())
+    ExtraStats:UpdateRole()
+    CURRENT_CLASS = ExtraStats:GetCurrentClass()
 
     if event == "PLAYER_LOGIN" then
         ExtraStats:UpdateStats()
@@ -43,10 +44,18 @@ end
 function ExtraStats:OnInitialize()
 
     self.db = LibStub("AceDB-3.0"):New("ExtraStatsSettings", stats.configsDefaults, true)
-
+    local powerType, powerToken = UnitPowerType("player");
     ExtraStats:RegisterComm(name .. "Ver", "VersionCheck")
     ExtraStats:ScheduleRepeatingTimer("SendVersionCheck", 10)
+    --ExtraStats:ScheduleRepeatingTimer("UpdateRole", 0.5)
     ExtraStats:RegisterChatCommand("stats", "SlashCommand")
+
+    CURRENT_ROLE = GetTalentGroupRole(GetActiveTalentGroup())
+    CURRENT_CLASS = ExtraStats:GetCurrentClass()
+
+    for i, module in pairs(ExtraStats.modules) do
+        module:Setup();
+    end
 
     ExtraStats:RegisterEvent("PLAYER_LOGIN", "EventHandler")
     ExtraStats:RegisterEvent("GROUP_ROSTER_UPDATE", "EventHandler")
@@ -57,6 +66,8 @@ function ExtraStats:OnInitialize()
     ExtraStats:RegisterEvent("UPDATE_SHAPESHIFT_FORM", "EventHandler")
     ExtraStats:RegisterEvent("UPDATE_SHAPESHIFT_FORMS", "EventHandler")
     ExtraStats:RegisterEvent("UPDATE_STEALTH", "EventHandler")
+    ExtraStats:RegisterEvent("CHARACTER_POINTS_CHANGED", "EventHandler")
+    ExtraStats:RegisterEvent("ACTIVE_TALENT_GROUP_CHANGED", "EventHandler")
 
     ExtraStats:CreateWindow()
 

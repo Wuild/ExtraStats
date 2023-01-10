@@ -1,10 +1,14 @@
 local name, stats = ...
 
 local categories = {
-    attributes = {
+    base = {
         stats = {
             health,
-            power,
+            power
+        }
+    },
+    attributes = {
+        stats = {
             strength,
             agility,
             stamina,

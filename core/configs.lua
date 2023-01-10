@@ -5,6 +5,9 @@ stats.version = GetAddOnMetadata(name, "version");
 
 ExtraStats = LibStub("AceAddon-3.0"):NewAddon("ExtraStats", "AceConsole-3.0", "AceEvent-3.0", "AceTimer-3.0", "AceComm-3.0", "AceSerializer-3.0")
 
+ExtraStats.modules = {}
+ExtraStats.categories = {}
+
 stats.DEBUG_DEFAULT = 1;
 stats.DEBUG_NODE = 2;
 stats.DEBUG_FRAME = 3;
@@ -24,7 +27,7 @@ stats.role = GetTalentGroupRole(GetActiveTalentGroup());
 
 stats.iconPath = "Interface\\AddOns\\" .. name .. "\\"
 
-UIPanelWindows["CharacterFrame"] = { area = "left", pushable = 3, whileDead = 1, width = 540 };
+UIPanelWindows["CharacterFrame"] = { area = "left", pushable = 3, whileDead = 1, width = 580 };
 
 stats.configsDefaults = {
     global = {
@@ -35,11 +38,16 @@ stats.configsDefaults = {
     char = {
         dynamic = true,
         categories = {
-            attributes = {
+            base = {
                 enabled = true,
                 stats = {
                     health = true,
                     power = true,
+                }
+            },
+            attributes = {
+                enabled = true,
+                stats = {
                     strength = true,
                     agility = true,
                     stamina = true,
