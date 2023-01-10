@@ -203,7 +203,7 @@ function Module:Setup()
 
                 --return rangedTexture and not hasRelic
 
-                return ExtraStats:IsRanged();
+                return CURRENT_CLASS == INDEX_CLASS_HUNTER;
             end
 
             return true

@@ -115,7 +115,7 @@ function Module:Setup()
     Category:Add(ExtraStats:translate("stats.attributes.agility"), function()
         return GetStat(LE_UNIT_STAT_AGILITY)
     end, {
-        classes = { INDEX_CLASS_ROGUE, INDEX_CLASS_WARRIOR, INDEX_CLASS_DRUID }
+        classes = { INDEX_CLASS_ROGUE, INDEX_CLASS_WARRIOR, INDEX_CLASS_DRUID, INDEX_CLASS_HUNTER }
     })
 
     Category:Add(ExtraStats:translate("stats.attributes.stamina"), function()
