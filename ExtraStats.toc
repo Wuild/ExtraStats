@@ -1,7 +1,7 @@
 ## Interface: 30400
 ## Title: ExtraStats
 ## Author: Wuild
-## Version: 1.2.0
+## Version: 1.2.1
 ## SavedVariables: ExtraStatsSettings
 
 libraries\LibStub\LibStub.lua
