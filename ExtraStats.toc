@@ -1,7 +1,7 @@
 ## Interface: 30400
 ## Title: ExtraStats
 ## Author: Wuild
-## Version: 1.2.1
+## Version: @project-version@
 ## SavedVariables: ExtraStatsSettings
 
 libraries\LibStub\LibStub.lua
@@ -36,12 +36,14 @@ core\methods.lua
 core\window.lua
 core\settings.lua
 
-stats\base.lua
-stats\attributes.lua
-stats\melee.lua
-stats\ranged.lua
-stats\spell.lua
-stats\defense.lua
-stats\enhancements.lua
+modules\stats\base.lua
+modules\stats\attributes.lua
+modules\stats\melee.lua
+modules\stats\ranged.lua
+modules\stats\spell.lua
+modules\stats\defense.lua
+modules\stats\enhancements.lua
+
+modules\gear.lua
 
 ExtraStats.lua

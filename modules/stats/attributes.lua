@@ -126,14 +126,12 @@ function Module:Setup()
         return GetStat(LE_UNIT_STAT_INTELLECT)
     end, {
         classes = { INDEX_CLASS_PALADIN, INDEX_CLASS_MAGE, INDEX_CLASS_PRIEST, INDEX_CLASS_DRUID, INDEX_CLASS_WARLOCK, INDEX_CLASS_SHAMAN },
-        roles = { CLASS_ROLE_DAMAGER, CLASS_ROLE_HEALER }
     })
 
     Category:Add(ExtraStats:translate("stats.attributes.spirit"), function()
         return GetStat(LE_UNIT_STAT_SPIRIT)
     end, {
         classes = { INDEX_CLASS_PALADIN, INDEX_CLASS_PRIEST, INDEX_CLASS_DRUID, INDEX_CLASS_SHAMAN },
-        roles = { CLASS_ROLE_HEALER }
     })
 end
 

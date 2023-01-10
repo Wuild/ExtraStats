@@ -202,6 +202,33 @@ local function Haste()
     }
 end
 
+local function Expertise()
+    local expertise, offhandExpertise = GetExpertise();
+    local speed, offhandSpeed = UnitAttackSpeed("player");
+    local text;
+    local value;
+    if (offhandSpeed) then
+        value = expertise .. " / " .. offhandExpertise;
+    else
+        value = expertise;
+    end
+
+    local expertisePercent, offhandExpertisePercent = GetExpertisePercent();
+    expertisePercent = format("%.2f", expertisePercent);
+    if (offhandSpeed) then
+        offhandExpertisePercent = format("%.2f", offhandExpertisePercent);
+        text = expertisePercent .. "% / " .. offhandExpertisePercent .. "%";
+    else
+        text = expertisePercent .. "%";
+    end
+
+    return {
+        value = value,
+        tooltip = HIGHLIGHT_FONT_COLOR_CODE .. format(PAPERDOLLFRAME_TOOLTIP_FORMAT, _G["COMBAT_RATING_NAME" .. CR_EXPERTISE]) .. " " .. text .. FONT_COLOR_CODE_CLOSE,
+        tooltip2 = format(CR_EXPERTISE_TOOLTIP, text, GetCombatRating(CR_EXPERTISE), GetCombatRatingBonus(CR_EXPERTISE))
+    }
+end
+
 local Module = {  }
 
 function Module:Setup()
@@ -240,6 +267,7 @@ function Module:Setup()
     Category:Add(ExtraStats:translate("stats.hit_chance"), HitChance)
     Category:Add(ExtraStats:translate("stats.crit_chance"), CriticalChance)
     Category:Add(ExtraStats:translate("stats.haste_rating"), Haste)
+    Category:Add(ExtraStats:translate("stats.expertise"), Expertise)
 end
 
 do

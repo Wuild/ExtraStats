@@ -73,7 +73,7 @@ local CategoryClass = {
 
 --- @param name string
 --- @param value function|string
---- @param options {show, role, onEnter, roles, classes}
+--- @param options {show, role, onEnter, onUpdate, roles, classes}
 function CategoryClass:Add(name, value, options)
     local data = {
         name = name,
@@ -82,7 +82,9 @@ function CategoryClass:Add(name, value, options)
         classes = {},
         show = function()
             return true
-        end
+        end,
+        onEnter = nil,
+        onUpdate = nil
     }
 
     if options then
@@ -210,7 +212,18 @@ local function spairs(t, order)
     end
 end
 
+function ExtraStats:UpdateStatsDelayed()
+    C_Timer.After(0.2, function()
+        ExtraStats:UpdateStats()
+    end)
+end
+
 function ExtraStats:UpdateStats()
+
+    if not ExtraStats.window:IsVisible() then
+        return
+    end
+
     self.statsFramePool:ReleaseAll();
     self.categoryFramePool:ReleaseAll();
     local categoryYOffset = 0;
@@ -218,6 +231,8 @@ function ExtraStats:UpdateStats()
     local catFrame = self.categoryFramePool:Acquire();
     local statFrame = self.statsFramePool:Acquire();
     local lastAnchor;
+
+    ExtraStats:debug("Update stats")
 
     --table.sort(ExtraStats.categories, function(a, b)
     --    return b.order < a.order
@@ -308,7 +323,8 @@ function ExtraStats:UpdateStats()
 
                 if (showStat) then
                     statFrame:Hide()
-                    statFrame.onEnterFunc = nil;
+                    statFrame.onEnter = nil;
+                    statFrame.onUpdate = nil;
                     statFrame.UpdateTooltip = nil;
                     statFrame.tooltip = nil;
                     statFrame.tooltip2 = nil;
@@ -331,10 +347,8 @@ function ExtraStats:UpdateStats()
 
                         ExtraStats:SetLabelAndText(statFrame, stat.name, data.value, data.isPercentage)
 
-                        if data.onEnter then
-                            statFrame:SetScript("OnEnter", data.onEnter);
-                        end
-
+                        statFrame.onEnter = stat.onEnter;
+                        statFrame.onUpdate = stat.onUpdate;
                     else
                         ExtraStats:SetLabelAndText(statFrame, stat.name, "")
                     end

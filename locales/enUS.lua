@@ -8,11 +8,16 @@ L["stats.spell"] = "Spell"
 L["stats.defense"] = "Defenses"
 L["stats.enhancements"] = "Enhancements"
 
+
 L["stats.health"] = "Health"
+L["stats.movespeed"] = "Speed"
 L["stats.rage"] = "Rage"
 L["stats.energy"] = "Energy"
 L["stats.mana"] = "Mana"
 L["stats.runes"] = "Runes"
+
+L["stats.tooltip.movementspeed"] = "Movement speed"
+L["stats.tooltip.movementspeed_description"] = "Your current movement speed"
 
 L["stats.attributes.strength"] = "Strength"
 L["stats.attributes.agility"] = "Agility"

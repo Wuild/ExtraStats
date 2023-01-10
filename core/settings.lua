@@ -70,7 +70,7 @@ for name, object in pairs(categories) do
         order = index,
         set = function(info, val)
             ExtraStats.db.char.categories[name].enabled = val;
-            ExtraStats:UpdateStats()
+            ExtraStats:UpdateStatsDelayed()
         end,
         get = function(info)
             return ExtraStats.db.char.categories[name].enabled
@@ -90,7 +90,7 @@ LibStub("AceConfig-3.0"):RegisterOptionsTable("ExtraStats", {
             order = index,
             set = function(info, val)
                 ExtraStats.db.char.dynamic = val;
-                ExtraStats:UpdateStats()
+                ExtraStats:UpdateStatsDelayed()
             end,
             get = function(info)
                 return ExtraStats.db.char.dynamic

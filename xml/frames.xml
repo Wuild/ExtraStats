@@ -51,18 +51,23 @@
         </Layers>
         <Scripts>
             <OnEnter>
-                if ( self.onEnterFunc ) then
-                    self:onEnterFunc();
+                if self.onEnter ~= nil then
+                self.onEnter(self);
                 else
-                    PaperDollStatTooltip(self);
+                PaperDollStatTooltip(self);
                 end
             </OnEnter>
             <OnLeave function="GameTooltip_Hide"/>
             <OnLoad>
                 if (STATFRAME_STATTEXT_FONT_OVERRIDE) then
-                    self.Value:SetFontObject(STATFRAME_STATTEXT_FONT_OVERRIDE);
+                self.Value:SetFontObject(STATFRAME_STATTEXT_FONT_OVERRIDE);
                 end
             </OnLoad>
+            <OnUpdate>
+                if self.onUpdate ~= nil then
+                self.onUpdate(self);
+                end
+            </OnUpdate>
         </Scripts>
     </Frame>
 

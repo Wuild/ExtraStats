@@ -7,14 +7,19 @@ function ExtraStats:EventHandler(event, ...)
     CURRENT_CLASS = ExtraStats:GetCurrentClass()
 
     if event == "PLAYER_LOGIN" then
-        ExtraStats:UpdateStats()
+        ExtraStats:UpdateStatsDelayed()
         C_Timer.After(5, function()
             ExtraStats:print(ExtraStats:Colorize(stats.version, "blue"), "has been loaded");
             ExtraStats:print("use |cFF00FF00/stats|r to access addon settings");
             ExtraStats:print("Keep this addon alive by donating a coffee at " .. ExtraStats:Colorize("https://www.buymeacoffee.com/yuImx6KOY", "cyan"));
         end);
     else
-        ExtraStats:UpdateStats()
+        for i, module in pairs(ExtraStats.modules) do
+            if module.Update then
+                module:Update();
+            end
+        end
+        ExtraStats:UpdateStatsDelayed()
     end
 end
 
@@ -61,11 +66,13 @@ function ExtraStats:OnInitialize()
     ExtraStats:RegisterEvent("GROUP_ROSTER_UPDATE", "EventHandler")
     ExtraStats:RegisterEvent("PLAYER_EQUIPMENT_CHANGED", "EventHandler")
     ExtraStats:RegisterEvent("SOCKET_INFO_SUCCESS", "EventHandler")
-    ExtraStats:RegisterEvent("INSPECT_READY", "EventHandler")
+    ExtraStats:RegisterEvent("UNIT_SPELLCAST_START", "EventHandler")
+    ExtraStats:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED", "EventHandler")
+    --ExtraStats:RegisterEvent("INSPECT_READY", "EventHandler")
     ExtraStats:RegisterEvent("UNIT_AURA", "EventHandler")
-    ExtraStats:RegisterEvent("UPDATE_SHAPESHIFT_FORM", "EventHandler")
-    ExtraStats:RegisterEvent("UPDATE_SHAPESHIFT_FORMS", "EventHandler")
-    ExtraStats:RegisterEvent("UPDATE_STEALTH", "EventHandler")
+    --ExtraStats:RegisterEvent("UPDATE_SHAPESHIFT_FORM", "EventHandler")
+    --ExtraStats:RegisterEvent("UPDATE_SHAPESHIFT_FORMS", "EventHandler")
+    --ExtraStats:RegisterEvent("UPDATE_STEALTH", "EventHandler")
     ExtraStats:RegisterEvent("CHARACTER_POINTS_CHANGED", "EventHandler")
     ExtraStats:RegisterEvent("ACTIVE_TALENT_GROUP_CHANGED", "EventHandler")
 
