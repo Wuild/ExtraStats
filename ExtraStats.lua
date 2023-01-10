@@ -58,6 +58,8 @@ function ExtraStats:OnInitialize()
     CURRENT_ROLE = GetTalentGroupRole(GetActiveTalentGroup())
     CURRENT_CLASS = ExtraStats:GetCurrentClass()
 
+    ExtraStats:CreateWindow()
+
     for i, module in pairs(ExtraStats.modules) do
         module:Setup();
     end
@@ -76,6 +78,9 @@ function ExtraStats:OnInitialize()
     ExtraStats:RegisterEvent("CHARACTER_POINTS_CHANGED", "EventHandler")
     ExtraStats:RegisterEvent("ACTIVE_TALENT_GROUP_CHANGED", "EventHandler")
 
-    ExtraStats:CreateWindow()
+
+    for i, plugin in pairs(ExtraStats.plugins) do
+        plugin:Setup();
+    end
 
 end

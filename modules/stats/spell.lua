@@ -125,17 +125,21 @@ local function ManaRegen()
 end
 
 local function HitChance()
+
+
     local ratingIndex = CR_HIT_SPELL;
     local statName = _G["COMBAT_RATING_NAME" .. ratingIndex];
+    local spellPenetration = GetSpellPenetration();
+
     local rating = GetCombatRating(ratingIndex);
     local ratingBonus = GetCombatRatingBonus(ratingIndex);
 
-    local hitChance = format("%.2f%%", ExtraStats:GetHitRatingBonus())
+    local hitChance = format("%.2f%%", ratingBonus)
 
     return {
         value = hitChance,
-        tooltip = HIGHLIGHT_FONT_COLOR_CODE .. format(PAPERDOLLFRAME_TOOLTIP_FORMAT, statName) .. " " .. rating .. FONT_COLOR_CODE_CLOSE,
-        tooltip2 = format(CR_HIT_RANGED_TOOLTIP, UnitLevel("player"), ratingBonus, GetCombatRating(CR_ARMOR_PENETRATION), GetArmorPenetration())
+        tooltip = HIGHLIGHT_FONT_COLOR_CODE .. format(PAPERDOLLFRAME_TOOLTIP_FORMAT, statName) .. " " .. rating .. FONT_COLOR_CODE_CLOSE;
+        tooltip2 = format(CR_HIT_SPELL_TOOLTIP, UnitLevel("player"), ratingBonus, spellPenetration, spellPenetration)
     }
 end
 

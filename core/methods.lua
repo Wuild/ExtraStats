@@ -4,6 +4,8 @@ local Semver = LibStub("Semver");
 
 local L = LibStub("AceLocale-3.0"):GetLocale("ExtraStats", true)
 
+local events = {};
+
 ExtraStats.stats = {}
 ExtraStats.modules = {}
 
@@ -37,6 +39,32 @@ function ExtraStats:Colorize(str, color)
         c = "|cff00FFFF"
     end
     return c .. str .. "|r"
+end
+
+function ExtraStats:On(event, callback)
+    if not events[event] then
+        events[event] = {}
+    end
+
+    events[event][ExtraStats:tablelength(events[event]) + 1] = callback;
+end
+
+function ExtraStats:Trigger(event, ...)
+    if events[event] then
+        for key = 1, ExtraStats:tablelength(events[event]) do
+            events[event][key](...);
+        end
+    end
+end
+
+function ExtraStats:tablelength(T)
+    local count = 0
+    if T then
+        for _ in pairs(T) do
+            count = count + 1
+        end
+    end
+    return count
 end
 
 function ExtraStats:GetCurrentClass()
@@ -120,7 +148,13 @@ end
 ---@param id string
 --- @return CategoryClass
 function ExtraStats:GetCategory(id)
-    return ExtraStats.categories[id]
+    for catId, category in pairs(ExtraStats.categories) do
+        if category.id == id then
+            return ExtraStats.categories[catId]
+        end
+    end
+
+    return false
 end
 
 function ExtraStats:translate(key, ...)
@@ -226,8 +260,7 @@ function ExtraStats:UpdateStats()
 
     self.statsFramePool:ReleaseAll();
     self.categoryFramePool:ReleaseAll();
-    local categoryYOffset = 0;
-    local statYOffset = 0;
+
     local catFrame = self.categoryFramePool:Acquire();
     local statFrame = self.statsFramePool:Acquire();
     local lastAnchor;
@@ -249,6 +282,8 @@ function ExtraStats:UpdateStats()
 
         catFrame.Title:SetText(category.text)
         catFrame:Hide()
+
+        ExtraStats:Trigger("category:build", catFrame)
 
         if not ExtraStats.db.char.dynamic and not ExtraStats.db.char.categories[category.id].enabled then
             showCat = false
@@ -329,6 +364,8 @@ function ExtraStats:UpdateStats()
                     statFrame.tooltip = nil;
                     statFrame.tooltip2 = nil;
 
+                    statFrame.Value:SetTextColor(1, 1, 1)
+
                     catFrame:Show()
                     if not lastAnchor then
                         catFrame:SetPoint("TOPRIGHT", -30, 0);
@@ -355,12 +392,12 @@ function ExtraStats:UpdateStats()
 
                     if (numStatInCat == 0) then
                         if (lastAnchor) then
-                            catFrame:SetPoint("TOP", lastAnchor, "BOTTOM", 0, categoryYOffset);
+                            catFrame:SetPoint("TOP", lastAnchor, "BOTTOM", 0, ExtraStats.categoryYOffset);
                         end
                         lastAnchor = catFrame;
                         statFrame:SetPoint("TOP", catFrame, "BOTTOM", 0, -2);
                     else
-                        statFrame:SetPoint("TOP", lastAnchor, "BOTTOM", 0, statYOffset);
+                        statFrame:SetPoint("TOP", lastAnchor, "BOTTOM", 0, ExtraStats.statYOffset);
                     end
 
                     statFrame:Show()
@@ -368,6 +405,8 @@ function ExtraStats:UpdateStats()
                     numStatInCat = numStatInCat + 1;
                     statFrame.Background:SetShown((numStatInCat % 2) == 0);
                     lastAnchor = statFrame;
+
+                    ExtraStats:Trigger("stat:build", statFrame)
 
                     statFrame = self.statsFramePool:Acquire();
                 end

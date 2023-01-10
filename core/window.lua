@@ -25,11 +25,11 @@ function ExtraStats:CreateCategories()
 end
 
 function ExtraStats:CreateWindow()
-    ExtraStats.window = CreateFrame("Frame", nil, UIParent)
+    ExtraStats.window = CreateFrame("Frame", nil, PaperDollFrame)
     ExtraStats.window:SetWidth(stats.window.width)
     ExtraStats.window:SetHeight(stats.window.height)
     ExtraStats.window:EnableMouse(true)
-    ExtraStats.window:SetFrameStrata("MEDIUM")
+    ExtraStats.window:SetFrameStrata("BACKGROUND")
 
     ExtraStats.window:RegisterEvent("PLAYER_ENTERING_WORLD")
     ExtraStats.window:RegisterEvent("ACTIVE_TALENT_GROUP_CHANGED")
@@ -43,10 +43,11 @@ function ExtraStats:CreateWindow()
 
     ExtraStats.window.Inset = CreateFrame("Frame", nil, ExtraStats.window, "InsetFrameTemplate")
     ExtraStats.window.Inset:ClearAllPoints()
-    ExtraStats.window.Inset:SetPoint("TOPLEFT", 4, -4)
+    ExtraStats.window.Inset:SetPoint("TOPLEFT", 0, -4)
     ExtraStats.window.Inset:SetPoint("BOTTOMRIGHT", 0, 4)
 
     ExtraStats.window.TopLeftCorner = ExtraStats.window:CreateTexture(nil, "OVERLAY", "UI-Frame-TopCornerLeft")
+    ExtraStats.window.TopLeftCorner:SetTexture("")
     ExtraStats.window.TopLeftCorner:ClearAllPoints()
     ExtraStats.window.TopLeftCorner:SetPoint("TOPLEFT", ExtraStats.window, -8, 6)
 
@@ -60,11 +61,12 @@ function ExtraStats:CreateWindow()
 
     ExtraStats.window.BotLeftCorner = ExtraStats.window:CreateTexture(nil, "OVERLAY", "UI-Frame-BotCornerLeft")
     ExtraStats.window.BotLeftCorner:ClearAllPoints()
+    ExtraStats.window.BotLeftCorner:SetTexture("")
     ExtraStats.window.BotLeftCorner:SetPoint("BOTTOMLEFT", ExtraStats.window, -8, -6)
 
     ExtraStats.window.BottomBorder = ExtraStats.window:CreateTexture(nil, "OVERLAY", "_UI-Frame-Bot")
     ExtraStats.window.BottomBorder:ClearAllPoints()
-    ExtraStats.window.BottomBorder:SetPoint("BOTTOMLEFT", ExtraStats.window.BotLeftCorner, "BOTTOMRIGHT")
+    ExtraStats.window.BottomBorder:SetPoint("BOTTOMLEFT", ExtraStats.window.BotLeftCorner, "BOTTOMRIGHT", -6, 0)
     ExtraStats.window.BottomBorder:SetPoint("BOTTOMRIGHT", ExtraStats.window.BotRightCorner, "BOTTOMLEFT")
 
     ExtraStats.window.RightBorder = ExtraStats.window:CreateTexture(nil, "OVERLAY", "!UI-Frame-RightTile")
@@ -76,12 +78,13 @@ function ExtraStats:CreateWindow()
 
     ExtraStats.window.LeftBorder = ExtraStats.window:CreateTexture(nil, "OVERLAY", "!UI-Frame-LeftTile")
     ExtraStats.window.LeftBorder:ClearAllPoints()
+    ExtraStats.window.LeftBorder:SetTexture("")
     ExtraStats.window.LeftBorder:SetPoint("TOPLEFT", ExtraStats.window.TopLeftCorner, "BOTTOMLEFT", 0, 0)
     ExtraStats.window.LeftBorder:SetPoint("BOTTOMLEFT", ExtraStats.window.BotLeftCorner, "TOPLEFT")
 
     ExtraStats.window.TopBorder = ExtraStats.window:CreateTexture(nil, "OVERLAY", "_UI-Frame-TitleTile")
     ExtraStats.window.TopBorder:ClearAllPoints()
-    ExtraStats.window.TopBorder:SetPoint("TOPLEFT", ExtraStats.window.TopLeftCorner, "TOPRIGHT", 0, -4)
+    ExtraStats.window.TopBorder:SetPoint("TOPLEFT", ExtraStats.window.TopLeftCorner, "TOPRIGHT", -6, -4)
     ExtraStats.window.TopBorder:SetPoint("TOPRIGHT", ExtraStats.window.TopRightCorner, "TOPLEFT")
 
     ExtraStats.window.ScrollFrame = CreateFrame("ScrollFrame", "ExtraStatsScrollFrame", ExtraStats.window, "ExtraStatsScrollFrame")
@@ -96,8 +99,7 @@ function ExtraStats:CreateWindow()
     self.categoryFramePool = CreateFramePool("FRAME", ExtraStats.window.ScrollChild, "ExtraStatsFrameCategoryTemplate");
     self.statsFramePool = CreateFramePool("FRAME", ExtraStats.window.ScrollChild, "CharacterStatFrameTemplate");
 
-    ExtraStats.window:SetPoint("CENTER", 0, 0)
-    ExtraStats.window:Hide()
+    ExtraStats.window:SetPoint("LEFT", PaperDollFrame, "RIGHT", -35, 30)
 
     --GearManagerToggleButton:ClearAllPoints()
     --GearManagerToggleButton:SetPoint("TOPLEFT", PaperDollFrame, "TOPLEFT", 0, 0)
@@ -126,12 +128,7 @@ function ExtraStats:CreateWindow()
     button:SetHighlightTexture(ntex)
 
     PaperDollFrame:HookScript('OnShow', function()
-        ExtraStats.window:Show()
-        ExtraStats.window:SetPoint("LEFT", PaperDollFrame, "RIGHT", -40, 30)
         ExtraStats:UpdateStats()
     end)
 
-    PaperDollFrame:HookScript('OnHide', function()
-        ExtraStats.window:Hide()
-    end)
 end

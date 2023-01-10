@@ -3,6 +3,7 @@
 ## Author: Wuild
 ## Version: @project-version@
 ## SavedVariables: ExtraStatsSettings
+##OptionalDeps: ElvUI TacoTip
 
 libraries\LibStub\LibStub.lua
 libraries\CallbackHandler-1.0\CallbackHandler-1.0.xml
@@ -45,5 +46,8 @@ modules\stats\defense.lua
 modules\stats\enhancements.lua
 
 modules\gear.lua
+
+plugins\elvui.lua
+plugins\tacotip.lua
 
 ExtraStats.lua
