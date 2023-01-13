@@ -22,6 +22,7 @@
         <Scripts>
             <OnLoad>
                 self.Title:SetText(self.titleText);
+<!--                self:RegisterForDrag("LeftButton");-->
             </OnLoad>
         </Scripts>
     </Frame>
@@ -101,4 +102,34 @@
             </Layer>
         </Layers>
     </ScrollFrame>
+
+    <Button name="CharacterFrameExpandButtonTemplate" virtual="true">
+        <Size x="32" y="32"/>
+        <Anchors>
+            <Anchor point="TOPRIGHT" relativeTo="CharacterTrinket1Slot" x="-2" y="-39"/>
+        </Anchors>
+        <Scripts>
+            <OnLoad>
+                self:SetFrameLevel(self:GetParent():GetFrameLevel() + 2);
+            </OnLoad>
+            <OnClick>
+
+            </OnClick>
+            <OnEnter>
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
+                if (CharacterFrame.db.char.enabled) then
+                GameTooltip:SetText(HIGHLIGHT_FONT_COLOR_CODE..self.collapseTooltip..FONT_COLOR_CODE_CLOSE);
+                else
+                GameTooltip:SetText(HIGHLIGHT_FONT_COLOR_CODE..self.expandTooltip..FONT_COLOR_CODE_CLOSE);
+                end
+            </OnEnter>
+            <OnLeave>
+                GameTooltip:Hide();
+            </OnLeave>
+        </Scripts>
+        <NormalTexture file="Interface\Buttons\UI-SpellbookIcon-PrevPage-Up"/>
+        <PushedTexture file="Interface\Buttons\UI-SpellbookIcon-PrevPage-Down"/>
+        <DisabledTexture file="Interface\Buttons\UI-SpellbookIcon-PrevPage-Disabled"/>
+        <HighlightTexture file="Interface\Buttons\UI-Common-MouseHilight" alphaMode="ADD"/>
+    </Button>
 </Ui>

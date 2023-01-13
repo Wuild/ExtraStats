@@ -44,6 +44,7 @@ modules\stats\ranged.lua
 modules\stats\spell.lua
 modules\stats\defense.lua
 modules\stats\enhancements.lua
+modules\stats\settings.lua
 
 modules\gear.lua
 

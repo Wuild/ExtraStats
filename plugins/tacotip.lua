@@ -1,4 +1,7 @@
-local Plugin = {  }
+local name = "TacoTip"
+local Plugin = {
+    name = name
+}
 
 table.insert(ExtraStats.plugins, Plugin)
 
@@ -8,6 +11,10 @@ end
 
 function Plugin:Setup()
     if not TacoTip then
+        return
+    end
+
+    if ExtraStats.db.char.disabledPlugins[name] == true then
         return
     end
 

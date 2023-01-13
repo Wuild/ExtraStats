@@ -46,6 +46,50 @@ function ExtraStats:SlashCommand(input)
 
 end
 
+function ExtraStats:DefaultSettings()
+    return {
+        general = {
+            name = function()
+                return "General";
+            end,
+            type = "group",
+            order = 1,
+            args = {
+                dynamic = {
+                    name = "Dynamic",
+                    type = "toggle",
+                    order = index,
+                    set = function(info, val)
+                        ExtraStats.db.char.dynamic = val;
+                        ExtraStats:UpdateStatsDelayed()
+                    end,
+                    get = function(info)
+                        return ExtraStats.db.char.dynamic
+                    end
+                },
+            }
+        },
+
+        categories = {
+            name = function()
+                return "Categories";
+            end,
+            type = "group",
+            order = 2,
+            args = {}
+        },
+
+        plugins = {
+            name = function()
+                return "Plugins";
+            end,
+            type = "group",
+            order = 3,
+            args = {}
+        }
+    }
+end
+
 function ExtraStats:OnInitialize()
 
     self.db = LibStub("AceDB-3.0"):New("ExtraStatsSettings", stats.configsDefaults, true)
@@ -55,13 +99,23 @@ function ExtraStats:OnInitialize()
     --ExtraStats:ScheduleRepeatingTimer("UpdateRole", 0.5)
     ExtraStats:RegisterChatCommand("stats", "SlashCommand")
 
+    local configsTable = ExtraStats:DefaultSettings()
+
     CURRENT_ROLE = GetTalentGroupRole(GetActiveTalentGroup())
     CURRENT_CLASS = ExtraStats:GetCurrentClass()
 
     ExtraStats:CreateWindow()
 
     for i, module in pairs(ExtraStats.modules) do
-        module:Setup();
+        if module.Setup then
+            module:Setup();
+        end
+    end
+
+    for i, module in pairs(ExtraStats.modules) do
+        if module.Settings then
+            module:Settings(configsTable);
+        end
     end
 
     ExtraStats:RegisterEvent("PLAYER_LOGIN", "EventHandler")
@@ -78,9 +132,53 @@ function ExtraStats:OnInitialize()
     ExtraStats:RegisterEvent("CHARACTER_POINTS_CHANGED", "EventHandler")
     ExtraStats:RegisterEvent("ACTIVE_TALENT_GROUP_CHANGED", "EventHandler")
 
+    local needReload = false;
 
     for i, plugin in pairs(ExtraStats.plugins) do
         plugin:Setup();
+
+        local name = plugin.name;
+        configsTable.plugins.args["plugin." .. name] = {
+            name = name,
+            type = "toggle",
+            set = function(info, val)
+                if not val then
+                    ExtraStats.db.char.disabledPlugins[name] = true
+                else
+                    ExtraStats.db.char.disabledPlugins[name] = nil
+                end
+
+                needReload = true;
+            end,
+            get = function(info)
+                return ExtraStats.db.char.disabledPlugins[name] == nil
+            end
+        }
     end
 
+    configsTable.plugins.args["reloadUI"] = {
+        name = function()
+            return "Reload ui";
+        end,
+        type = "execute",
+        order = 99999,
+        hidden = function()
+            return not needReload
+        end,
+        func = function()
+            ReloadUI();
+        end
+    }
+
+    --for i, plugin in pairs(ExtraStats.plugins) do
+    --    if plugin.Settings then
+    --        plugin:Settings(configsTable);
+    --    end
+    --end
+
+    LibStub("AceConfig-3.0"):RegisterOptionsTable("ExtraStats", {
+        type = "group",
+        childGroups = "tab",
+        args = configsTable,
+    })
 end

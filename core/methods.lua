@@ -258,163 +258,157 @@ function ExtraStats:UpdateStats()
         return
     end
 
-    self.statsFramePool:ReleaseAll();
-    self.categoryFramePool:ReleaseAll();
+    if not ExtraStats.lastUpdate or ExtraStats.lastUpdate < GetTime() - 1 then
+        ExtraStats.lastUpdate = GetTime();
 
-    local catFrame = self.categoryFramePool:Acquire();
-    local statFrame = self.statsFramePool:Acquire();
-    local lastAnchor;
+        self.statsFramePool:ReleaseAll();
+        self.categoryFramePool:ReleaseAll();
 
-    ExtraStats:debug("Update stats")
+        local catFrame = self.categoryFramePool:Acquire();
+        local statFrame = self.statsFramePool:Acquire();
+        local lastAnchor;
 
-    --table.sort(ExtraStats.categories, function(a, b)
-    --    return b.order < a.order
-    --end)
+        ExtraStats:debug("Update stats")
 
-    --for index, category in pairs(ExtraStats.categories) do
-    --    --ExtraStats.window[index] = CreateFrame("Frame", "ExtraStatsCategory" .. index, ExtraStats.window.ScrollChild, "ExtraStatsFrameCategoryTemplate")
-    --    ExtraStats.window[index]
-    --    category.frame = ExtraStats.window[index];
-    --end
+        for catId, category in spairs(ExtraStats.categories, compare) do
+            local showCat = true
 
-    for catId, category in spairs(ExtraStats.categories, compare) do
-        local showCat = true
+            catFrame.Title:SetText(category.text)
+            catFrame:Hide()
 
-        catFrame.Title:SetText(category.text)
-        catFrame:Hide()
+            ExtraStats:Trigger("category:build", catFrame)
 
-        ExtraStats:Trigger("category:build", catFrame)
-
-        if not ExtraStats.db.char.dynamic and not ExtraStats.db.char.categories[category.id].enabled then
-            showCat = false
-        end
-
-        if ExtraStats.db.char.dynamic then
-            local foundRole = false
-            local foundClass = false
-
-            if #category.classes > 0 then
-                for _, class in pairs(category.classes) do
-                    if class == CURRENT_CLASS then
-                        foundClass = true
-                    end
-                end
-            end
-
-            if #category.roles > 0 then
-                for _, role in pairs(category.roles) do
-                    if role == CURRENT_ROLE then
-                        foundRole = true
-                    end
-                end
-            end
-
-            if #category.classes > 0 and not foundClass then
+            if not ExtraStats.db.char.dynamic and not ExtraStats.db.char.categories[category.id].enabled then
                 showCat = false
             end
 
-            if #category.roles > 0 and not foundRole then
-                showCat = false
-            end
-        end
+            if ExtraStats.db.char.dynamic then
+                local foundRole = false
+                local foundClass = false
 
-        if showCat and category.show then
-            showCat = category.show()
-        end
-
-        local numStatInCat = 0;
-        if showCat then
-            for index, stat in pairs(category.stats) do
-                local showStat = stat.show();
-
-                if ExtraStats.db.char.dynamic then
-                    local foundRole = false
-                    local foundClass = false
-
-                    if #stat.classes > 0 then
-                        for _, class in pairs(stat.classes) do
-                            if class == CURRENT_CLASS then
-                                foundClass = true
-                                showStat = true
-                            end
-                            if not foundClass and class ~= CURRENT_CLASS then
-                                showStat = false
-                            end
-                        end
-                    end
-
-                    if #stat.roles > 0 then
-                        for _, role in pairs(stat.roles) do
-                            if role == CURRENT_ROLE then
-                                foundRole = true
-                                showStat = true
-                            end
-                            if not foundRole and role ~= CURRENT_ROLE then
-                                showStat = false
-                            end
+                if #category.classes > 0 then
+                    for _, class in pairs(category.classes) do
+                        if class == CURRENT_CLASS then
+                            foundClass = true
                         end
                     end
                 end
 
-                if (showStat) then
-                    statFrame:Hide()
-                    statFrame.onEnter = nil;
-                    statFrame.onUpdate = nil;
-                    statFrame.UpdateTooltip = nil;
-                    statFrame.tooltip = nil;
-                    statFrame.tooltip2 = nil;
-
-                    catFrame:Show()
-                    if not lastAnchor then
-                        catFrame:SetPoint("TOPRIGHT", -30, 0);
+                if #category.roles > 0 then
+                    for _, role in pairs(category.roles) do
+                        if role == CURRENT_ROLE then
+                            foundRole = true
+                        end
                     end
+                end
 
-                    if stat.value then
-                        local data = stat.value()
-                        statFrame.tooltip = data.tooltip
-                        statFrame.tooltip2 = data.tooltip2
+                if #category.classes > 0 and not foundClass then
+                    showCat = false
+                end
 
-                        if data then
-                            for k, v in pairs(data) do
-                                statFrame[k] = v
+                if #category.roles > 0 and not foundRole then
+                    showCat = false
+                end
+            end
+
+            if showCat and category.show then
+                showCat = category.show()
+            end
+
+            local numStatInCat = 0;
+            if showCat then
+                for index, stat in pairs(category.stats) do
+                    local showStat = stat.show();
+
+                    if ExtraStats.db.char.dynamic then
+                        local foundRole = false
+                        local foundClass = false
+
+                        if #stat.classes > 0 then
+                            for _, class in pairs(stat.classes) do
+                                if class == CURRENT_CLASS then
+                                    foundClass = true
+                                    showStat = true
+                                end
+                                if not foundClass and class ~= CURRENT_CLASS then
+                                    showStat = false
+                                end
                             end
                         end
 
-                        ExtraStats:SetLabelAndText(statFrame, stat.name, data.value, data.isPercentage)
-
-                        statFrame.onEnter = data.onEnter;
-                        statFrame.onUpdate = data.onUpdate;
-                    else
-                        ExtraStats:SetLabelAndText(statFrame, stat.name, "")
-                    end
-
-                    if (numStatInCat == 0) then
-                        if (lastAnchor) then
-                            catFrame:SetPoint("TOP", lastAnchor, "BOTTOM", 0, ExtraStats.categoryYOffset);
+                        if #stat.roles > 0 then
+                            for _, role in pairs(stat.roles) do
+                                if role == CURRENT_ROLE then
+                                    foundRole = true
+                                    showStat = true
+                                end
+                                if not foundRole and role ~= CURRENT_ROLE then
+                                    showStat = false
+                                end
+                            end
                         end
-                        lastAnchor = catFrame;
-                        statFrame:SetPoint("TOP", catFrame, "BOTTOM", 0, -2);
-                    else
-                        statFrame:SetPoint("TOP", lastAnchor, "BOTTOM", 0, ExtraStats.statYOffset);
                     end
 
-                    statFrame:Show()
+                    if (showStat) then
+                        statFrame:Hide()
+                        statFrame.onEnter = nil;
+                        statFrame.onUpdate = nil;
+                        statFrame.UpdateTooltip = nil;
+                        statFrame.tooltip = nil;
+                        statFrame.tooltip2 = nil;
 
-                    numStatInCat = numStatInCat + 1;
-                    statFrame.Background:SetShown((numStatInCat % 2) == 0);
-                    lastAnchor = statFrame;
+                        catFrame:Show()
+                        if not lastAnchor then
+                            catFrame:SetPoint("TOPRIGHT", -30, 0);
+                        end
 
-                    ExtraStats:Trigger("stat:build", statFrame)
+                        if stat.value then
+                            local data = stat.value()
+                            statFrame.tooltip = data.tooltip
+                            statFrame.tooltip2 = data.tooltip2
 
-                    statFrame = self.statsFramePool:Acquire();
+                            if data then
+                                for k, v in pairs(data) do
+                                    statFrame[k] = v
+                                end
+                            end
+
+                            ExtraStats:SetLabelAndText(statFrame, stat.name, data.value, data.isPercentage)
+
+                            statFrame.onEnter = data.onEnter;
+                            statFrame.onUpdate = data.onUpdate;
+                        else
+                            ExtraStats:SetLabelAndText(statFrame, stat.name, "")
+                        end
+
+                        if (numStatInCat == 0) then
+                            if (lastAnchor) then
+                                catFrame:SetPoint("TOP", lastAnchor, "BOTTOM", 0, ExtraStats.categoryYOffset);
+                            end
+                            lastAnchor = catFrame;
+                            statFrame:SetPoint("TOP", catFrame, "BOTTOM", 0, -2);
+                        else
+                            statFrame:SetPoint("TOP", lastAnchor, "BOTTOM", 0, ExtraStats.statYOffset);
+                        end
+
+                        statFrame:Show()
+
+                        numStatInCat = numStatInCat + 1;
+                        statFrame.Background:SetShown((numStatInCat % 2) == 0);
+                        lastAnchor = statFrame;
+
+                        ExtraStats:Trigger("stat:build", statFrame)
+
+                        statFrame = self.statsFramePool:Acquire();
+                    end
                 end
             end
-        end
 
-        if (numStatInCat > 0) then
-            catFrame = self.categoryFramePool:Acquire();
-        end
+            if (numStatInCat > 0) then
+                catFrame = self.categoryFramePool:Acquire();
+            end
 
+        end
     end
 end
 

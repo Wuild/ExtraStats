@@ -2,28 +2,6 @@ local name, stats = ...;
 
 button = nil;
 
-function ExtraStats:CreateCategories()
-
-
-    --ExtraStats.window.AttributesCategory = CreateFrame("Frame", nil, ExtraStats.window.ScrollChild, "CharacterStatFrameCategoryTemplate2")
-    --ExtraStats.window.AttributesCategory.Title:SetText(STAT_CATEGORY_ATTRIBUTES)
-    --
-    --ExtraStats.window.MeleeCategory = CreateFrame("Frame", nil, ExtraStats.window.ScrollChild, "CharacterStatFrameCategoryTemplate2")
-    --ExtraStats.window.MeleeCategory.Title:SetText("Melee")
-    --
-    --ExtraStats.window.RangedCategory = CreateFrame("Frame", nil, ExtraStats.window.ScrollChild, "CharacterStatFrameCategoryTemplate2")
-    --ExtraStats.window.RangedCategory.Title:SetText("Ranged")
-    --
-    --ExtraStats.window.SpellCategory = CreateFrame("Frame", nil, ExtraStats.window.ScrollChild, "CharacterStatFrameCategoryTemplate2")
-    --ExtraStats.window.SpellCategory.Title:SetText("Spell")
-    --
-    --ExtraStats.window.DefensesCategory = CreateFrame("Frame", nil, ExtraStats.window.ScrollChild, "CharacterStatFrameCategoryTemplate2")
-    --ExtraStats.window.DefensesCategory.Title:SetText("Defenses")
-    --
-    --ExtraStats.window.EnhancementsCategory = CreateFrame("Frame", nil, ExtraStats.window.ScrollChild, "CharacterStatFrameCategoryTemplate2")
-    --ExtraStats.window.EnhancementsCategory.Title:SetText(STAT_CATEGORY_ENHANCEMENTS)
-end
-
 function ExtraStats:CreateWindow()
     ExtraStats.window = CreateFrame("Frame", nil, PaperDollFrame)
     ExtraStats.window:SetWidth(stats.window.width)
@@ -131,4 +109,50 @@ function ExtraStats:CreateWindow()
         ExtraStats:UpdateStats()
     end)
 
+    ExtraStats.window.ExpandButton = CreateFrame("Button", "$parentExpandButton", PaperDollFrame, "CharacterFrameExpandButtonTemplate");
+
+    ExtraStats.window.ExpandButton:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
+        if (ExtraStats.db.char.enabled) then
+            GameTooltip:SetText(HIGHLIGHT_FONT_COLOR_CODE .. "Hide ExtraStats" .. FONT_COLOR_CODE_CLOSE);
+        else
+            GameTooltip:SetText(HIGHLIGHT_FONT_COLOR_CODE .. "Show ExtraStats" .. FONT_COLOR_CODE_CLOSE);
+        end
+    end);
+
+    ExtraStats.window.ExpandButton:SetScript("OnClick", function()
+        ExtraStats.db.char.enabled = not ExtraStats.db.char.enabled;
+
+        if ExtraStats.db.char.enabled then
+            ExtraStats.window:Show()
+            PlaySound(SOUNDKIT.IG_CHARACTER_INFO_OPEN);
+        else
+            ExtraStats.window:Hide()
+            PlaySound(SOUNDKIT.IG_CHARACTER_INFO_CLOSE);
+        end
+
+        ExtraStats:FixToggleButton()
+    end)
+
+    if ExtraStats.db.char.enabled then
+        ExtraStats.window:Show()
+    else
+        ExtraStats.window:Hide()
+    end
+
+    ExtraStats:FixToggleButton()
+end
+
+function ExtraStats:FixToggleButton()
+    if not ExtraStats.db.char.enabled then
+        ExtraStats.window.ExpandButton:SetNormalTexture("Interface\\Buttons\\UI-SpellbookIcon-NextPage-Up");
+        ExtraStats.window.ExpandButton:SetPushedTexture("Interface\\Buttons\\UI-SpellbookIcon-NextPage-Down");
+        ExtraStats.window.ExpandButton:SetDisabledTexture("Interface\\Buttons\\UI-SpellbookIcon-NextPage-Disabled");
+    else
+        ExtraStats.window.ExpandButton:SetNormalTexture("Interface\\Buttons\\UI-SpellbookIcon-PrevPage-Up");
+        ExtraStats.window.ExpandButton:SetPushedTexture("Interface\\Buttons\\UI-SpellbookIcon-PrevPage-Down");
+        ExtraStats.window.ExpandButton:SetDisabledTexture("Interface\\Buttons\\UI-SpellbookIcon-PrevPage-Disabled");
+    end
+
+    ExtraStats:UpdateStats()
 end

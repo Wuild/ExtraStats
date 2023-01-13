@@ -1,10 +1,17 @@
-local Plugin = {  }
+local name = "ElvUI"
+local Plugin = {
+    name = name
+}
 
 table.insert(ExtraStats.plugins, Plugin)
 
 function Plugin:Setup()
 
     if not ElvUI then
+        return
+    end
+
+    if ExtraStats.db.char.disabledPlugins[name] == true then
         return
     end
 

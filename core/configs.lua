@@ -40,7 +40,9 @@ stats.configsDefaults = {
         },
     },
     char = {
+        enabled = true,
         dynamic = true,
+        disabledPlugins = {},
         categories = {
             base = {
                 enabled = true,
