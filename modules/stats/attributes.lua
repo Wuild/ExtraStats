@@ -102,7 +102,10 @@ end
 local Module = {  }
 
 function Module:Setup()
-    local Category = ExtraStats:CreateCategory("attributes", ExtraStats:translate("stats.attributes"), {
+
+    local stats = ExtraStats:LoadModule("character.stats")
+
+    local Category = stats:CreateCategory("attributes", ExtraStats:translate("stats.attributes"), {
         order = -10
     })
 

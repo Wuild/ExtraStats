@@ -18,7 +18,9 @@ function Plugin:Setup()
         return
     end
 
-    local Base = ExtraStats:GetCategory("base")
+    local stats = ExtraStats:LoadModule("character.stats")
+
+    local Base = stats:GetCategory("base")
     Base:Add("GearScore", function()
         local MyGearScore, MyAverageScore, r, g, b = 0, 0, 0, 0, 0
         MyGearScore, MyAverageScore = TT_GS:GetScore("player")
@@ -46,5 +48,10 @@ function Plugin:Setup()
             return MyAverageScore > 0
         end
     })
+
+    PersonalGearScore:Hide()
+    PersonalGearScoreText:Hide()
+    PersonalAvgItemLvl:Hide()
+    PersonalAvgItemLvlText:Hide()
 
 end

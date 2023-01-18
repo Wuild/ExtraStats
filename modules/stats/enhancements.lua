@@ -13,12 +13,13 @@ end
 local Module = {  }
 
 function Module:Setup()
-    local Category = ExtraStats:CreateCategory("enhancements", ExtraStats:translate("stats.enhancements"), {
+    local stats = ExtraStats:LoadModule("character.stats")
+
+    local Category = stats:CreateCategory("enhancements", ExtraStats:translate("stats.enhancements"), {
         order = 999,
     })
 
     Category:Add(ExtraStats:translate("stats.resiliance"), Resilience)
-
 end
 
 do

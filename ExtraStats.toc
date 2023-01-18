@@ -1,4 +1,4 @@
-## Interface: 30400
+## Interface: 30401
 ## Title: ExtraStats
 ## Author: Wuild
 ## Version: @project-version@
@@ -21,6 +21,8 @@ libraries\AceLocale-3.0\AceLocale-3.0.xml
 libraries\Semver\Semver.xml
 
 xml\frames.xml
+xml\textures.xml
+xml\gearmanager.xml
 
 locales\enUS.lua
 locales\deDE.lua
@@ -46,9 +48,14 @@ modules\stats\defense.lua
 modules\stats\enhancements.lua
 modules\stats\settings.lua
 
+core\character\stats.lua
+core\character\titles.lua
+core\character\gear.lua
+
 modules\gear.lua
 
 plugins\elvui.lua
+
 plugins\tacotip.lua
 
 ExtraStats.lua

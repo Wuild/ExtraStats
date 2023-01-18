@@ -232,7 +232,10 @@ end
 local Module = {  }
 
 function Module:Setup()
-    local Category = ExtraStats:CreateCategory("melee", ExtraStats:translate("stats.melee"), {
+
+    local stats = ExtraStats:LoadModule("character.stats")
+
+    local Category = stats:CreateCategory("melee", ExtraStats:translate("stats.melee"), {
         order = 1,
         classes = {
             INDEX_CLASS_WARRIOR,

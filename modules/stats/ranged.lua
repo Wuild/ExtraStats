@@ -1,5 +1,3 @@
-ExtraStats.stats.ranged = {}
-
 local function RangedDamageFrame_OnEnter (self)
     if (not self.damage) then
         return ;
@@ -20,7 +18,6 @@ local function Damage()
     if (rangedTexture and not hasRelic) then
         PaperDollFrame.noRanged = nil;
     else
-        text:SetText(NOT_APPLICABLE);
         PaperDollFrame.noRanged = 1;
         return ;
     end
@@ -190,7 +187,9 @@ end
 local Module = {  }
 
 function Module:Setup()
-    local Category = ExtraStats:CreateCategory("ranged", ExtraStats:translate("stats.ranged"), {
+    local stats = ExtraStats:LoadModule("character.stats")
+
+    local Category = stats:CreateCategory("ranged", ExtraStats:translate("stats.ranged"), {
         order = 2,
         classes = { INDEX_CLASS_HUNTER },
         show = function()

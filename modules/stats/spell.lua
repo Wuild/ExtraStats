@@ -1,5 +1,3 @@
-ExtraStats.stats.spell = {}
-
 local function SpellBonusDamage_OnEnter (self)
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
     GameTooltip:SetText(HIGHLIGHT_FONT_COLOR_CODE .. format(PAPERDOLLFRAME_TOOLTIP_FORMAT, BONUS_DAMAGE) .. " " .. self.minModifier .. FONT_COLOR_CODE_CLOSE);
@@ -194,7 +192,9 @@ end
 local Module = {  }
 
 function Module:Setup()
-    local Category = ExtraStats:CreateCategory("spell", ExtraStats:translate("stats.spell"), {
+    local stats = ExtraStats:LoadModule("character.stats")
+
+    local Category = stats:CreateCategory("spell", ExtraStats:translate("stats.spell"), {
         order = 3,
         classes = { INDEX_CLASS_MAGE, INDEX_CLASS_PRIEST, INDEX_CLASS_SHAMAN, INDEX_CLASS_DRUID, INDEX_CLASS_PALADIN },
         roles = { CLASS_ROLE_DAMAGER, CLASS_ROLE_HEALER },

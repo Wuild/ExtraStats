@@ -1,0 +1,414 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/
+..\FrameXML\UI.xsd">
+    <Texture name="ExtraPaperDollFrameBgTemplate" file="Interface\FrameGeneral\UI-Background-Rock" horizTile="true"
+             vertTile="true" virtual="true">
+        <Anchors>
+            <Anchor point="TOPLEFT" x="16" y="-33"/> <!-- By default it's x="2" y="-21" -->
+            <Anchor point="BOTTOMRIGHT" x="-36" y="78"/> <!-- By default it's x="-2" y="2" -->
+        </Anchors>
+    </Texture>
+    <Texture name="ExtraPaperDollFrameTitleBgTemplate" inherits="_UI-Frame-TitleTileBg" virtual="true">
+        <Anchors>
+            <Anchor point="TOPLEFT" x="16" y="-17"/> <!-- By default it's x="2" y="-3" -->
+            <Anchor point="TOPRIGHT" x="-35" y="-17"/> <!-- By default it's x="-25" y="-3" -->
+        </Anchors>
+    </Texture>
+    <Texture name="ExtraPaperDollPortraitFrameTemplate" inherits="UI-Frame-Portrait" parentKey="portraitFrame"
+             virtual="true">
+        <Anchors>
+            <Anchor point="TOPLEFT" x="1" y="-3"/> <!-- By default it's x="-14" y="11" -->
+        </Anchors>
+    </Texture>
+    <Texture name="ExtraTopRightCornerTemplate" inherits="UI-Frame-TopCornerRight" virtual="true">
+        <Anchors>
+            <Anchor point="TOPRIGHT" x="-32" y="-13"/> <!-- By default it's x="0" y="1" -->
+        </Anchors>
+    </Texture>
+    <Texture name="ExtraTopLeftCornerTemplate" inherits="UI-Frame-TopLeftCorner" hidden="true" parentKey="topLeftCorner"
+             virtual="true">
+        <Anchors>
+            <Anchor point="TOPLEFT" x="10" y="-13"/> <!-- By default it's x="-6" y="1" -->
+        </Anchors>
+    </Texture>
+    <Texture name="ExtraTopBorderTemplate" inherits="_UI-Frame-TitleTile" parentKey="topBorderBar" virtual="true">
+        <Anchors>
+            <Anchor point="TOPLEFT" relativeTo="$parentPortraitFrame" relativePoint="TOPRIGHT" x="0" y="-10"/>
+            <Anchor point="TOPRIGHT" relativeTo="$parentTopRightCorner" relativePoint="TOPLEFT"/>
+        </Anchors>
+    </Texture>
+    <Texture name="ExtraTopTileStreaksTemplate" inherits="_UI-Frame-TopTileStreaks" parentKey="TopTileStreaks"
+             virtual="true">
+        <Anchors>
+            <Anchor point="TOPLEFT" x="16" y="-35"/> <!-- By default it's x="0" y="-21" -->
+            <Anchor point="TOPRIGHT" x="-34" y="-35"/> <!-- By default it's x="-2" y="-21" -->
+        </Anchors>
+    </Texture>
+    <Texture name="ExtraBotLeftCornerTemplate" inherits="UI-Frame-BotCornerLeft" virtual="true">
+        <Anchors>
+            <Anchor point="BOTTOMLEFT" x="9" y="70"/> <!-- By default it's x="-6" y="-5" -->
+        </Anchors>
+    </Texture>
+    <Texture name="ExtraBotRightCornerTemplate" inherits="UI-Frame-BotCornerRight" virtual="true">
+        <Anchors>
+            <Anchor point="BOTTOMRIGHT" x="-32" y="70"/> <!-- By default it's x="0" y="-5" -->
+        </Anchors>
+    </Texture>
+    <Texture name="ExtraBottomBorderTemplate" inherits="_UI-Frame-Bot" virtual="true">
+        <Anchors>
+            <Anchor point="BOTTOMLEFT" relativeTo="$parentBotLeftCorner" relativePoint="BOTTOMRIGHT" y="0"/>
+            <Anchor point="BOTTOMRIGHT" relativeTo="$parentBotRightCorner" relativePoint="BOTTOMLEFT" y="0"/>
+        </Anchors>
+    </Texture>
+    <Texture name="ExtraLeftBorderTemplate" inherits="!UI-Frame-LeftTile" parentKey="leftBorderBar" virtual="true">
+        <Anchors>
+            <Anchor point="TOPLEFT" relativeTo="$parentPortraitFrame" relativePoint="BOTTOMLEFT" x="8" y="0"/>
+            <Anchor point="BOTTOMLEFT" relativeTo="$parentBotLeftCorner" relativePoint="TOPLEFT"/>
+        </Anchors>
+    </Texture>
+    <Texture name="ExtraRightBorderTemplate" inherits="!UI-Frame-RightTile" virtual="true">
+        <Anchors>
+            <Anchor point="TOPRIGHT" relativeTo="$parentTopRightCorner" relativePoint="BOTTOMRIGHT" x="1"/>
+            <Anchor point="BOTTOMRIGHT" relativeTo="$parentBotRightCorner" relativePoint="TOPRIGHT"/>
+        </Anchors>
+    </Texture>
+
+    <!-- Background texture templates for CharacterModelFrame -->
+    <Texture name="ExtraCharacterModelFrameBackgroundTopLeft" parentKey="BackgroundTopLeft" virtual="true">
+        <Size x="212" y="245"/>
+        <Anchors>
+            <Anchor point="TOPLEFT" x="0" y="0"/>
+        </Anchors>
+        <TexCoords left="0.171875" right="1" top="0.0392156862745098" bottom="1"/>
+    </Texture>
+    <Texture name="ExtraCharacterModelFrameBackgroundTopRight" parentKey="BackgroundTopRight" virtual="true">
+        <Size x="19" y="245"/>
+        <Anchors>
+            <Anchor point="TOPLEFT" relativeTo="CharacterModelFrameBackgroundTopLeft" relativePoint="TOPRIGHT"/>
+        </Anchors>
+        <TexCoords left="0" right="0.296875" top="0.0392156862745098" bottom="1"/>
+    </Texture>
+    <Texture name="ExtraCharacterModelFrameBackgroundBotLeft" parentKey="BackgroundBotLeft" virtual="true">
+        <Size x="212" y="128"/>
+        <Anchors>
+            <Anchor point="TOPLEFT" relativeTo="CharacterModelFrameBackgroundTopLeft" relativePoint="BOTTOMLEFT"/>
+        </Anchors>
+        <TexCoords left="0.171875" right="1" top="0" bottom="1"/>
+    </Texture>
+    <Texture name="ExtraCharacterModelFrameBackgroundBotRight" parentKey="BackgroundBotRight" virtual="true">
+        <Size x="19" y="128"/>
+        <Anchors>
+            <Anchor point="TOPLEFT" relativeTo="CharacterModelFrameBackgroundTopLeft" relativePoint="BOTTOMRIGHT"/>
+        </Anchors>
+        <TexCoords left="0" right="0.296875" top="0" bottom="1"/>
+    </Texture>
+    <Texture name="ExtraCharacterModelFrameBackgroundOverlay" parentKey="BackgroundOverlay" virtual="true">
+        <Anchors>
+            <Anchor point="TOPLEFT" relativeTo="CharacterModelFrameBackgroundTopLeft"/>
+            <Anchor point="BOTTOMRIGHT" relativeTo="CharacterModelFrameBackgroundBotRight" x="0" y="52"/>
+        </Anchors>
+        <Color r="0" g="0" b="0"/>
+    </Texture>
+    <!-- Border texture templates for CharacterModelFrame -->
+    <Texture name="ExtraPaperDollInnerBorderTopLeftTemplate" inherits="Char-Corner-UpperLeft" virtual="true">
+        <Anchors>
+            <Anchor point="TOPLEFT" relativeTo="CharacterFrameInset" x="45" y="-4"/>
+        </Anchors>
+    </Texture>
+    <Texture name="ExtraPaperDollInnerBorderTopRightTemplate" inherits="Char-Corner-UpperRight" virtual="true">
+        <Anchors>
+            <Anchor point="TOPRIGHT" relativeTo="CharacterFrameInset" x="-49" y="-4"/>
+        </Anchors>
+    </Texture>
+    <Texture name="ExtraPaperDollInnerBorderBottomLeftTemplate" inherits="Char-Corner-LowerLeft" virtual="true">
+        <Anchors>
+            <Anchor point="BOTTOMLEFT" relativeTo="CharacterFrameInset" x="45" y="31"/>
+        </Anchors>
+    </Texture>
+    <Texture name="ExtraPaperDollInnerBorderBottomRightTemplate" inherits="Char-Corner-LowerRight" virtual="true">
+        <Anchors>
+            <Anchor point="BOTTOMRIGHT" relativeTo="CharacterFrameInset" x="-49" y="31"/>
+        </Anchors>
+    </Texture>
+    <Texture name="ExtraPaperDollInnerBorderLeftTemplate" inherits="Char-Inner-Left" virtual="true">
+        <Anchors>
+            <Anchor point="TOPLEFT" relativeTo="PaperDollInnerBorderTopLeft" relativePoint="BOTTOMLEFT" x="-1"/>
+            <Anchor point="BOTTOMLEFT" relativeTo="PaperDollInnerBorderBottomLeft" relativePoint="TOPLEFT" x="-1"/>
+        </Anchors>
+    </Texture>
+    <Texture name="ExtraPaperDollInnerBorderRightTemplate" inherits="Char-Inner-Right" virtual="true">
+        <Anchors>
+            <Anchor point="TOPRIGHT" relativeTo="PaperDollInnerBorderTopRight" relativePoint="BOTTOMRIGHT" x="1"/>
+            <Anchor point="BOTTOMRIGHT" relativeTo="PaperDollInnerBorderBottomRight" relativePoint="TOPRIGHT" x="1"/>
+        </Anchors>
+    </Texture>
+    <Texture name="ExtraPaperDollInnerBorderTopTemplate" inherits="Char-Inner-Top" virtual="true">
+        <Anchors>
+            <Anchor point="TOPLEFT" relativeTo="PaperDollInnerBorderTopLeft" relativePoint="TOPRIGHT" y="1"/>
+            <Anchor point="TOPRIGHT" relativeTo="PaperDollInnerBorderTopRight" relativePoint="TOPLEFT" y="1"/>
+        </Anchors>
+    </Texture>
+    <Texture name="ExtraPaperDollInnerBorderBottomTemplate" inherits="Char-Inner-Bottom" virtual="true">
+        <Anchors>
+            <Anchor point="BOTTOMLEFT" relativeTo="PaperDollInnerBorderBottomLeft" relativePoint="BOTTOMRIGHT" y="-1"/>
+            <Anchor point="BOTTOMRIGHT" relativeTo="PaperDollInnerBorderBottomRight" relativePoint="BOTTOMLEFT" y="-1"/>
+        </Anchors>
+    </Texture>
+    <Texture name="ExtraPaperDollInnerBorderBottom2Template" inherits="Char-Inner-Bottom" virtual="true">
+        <Anchors>
+            <Anchor point="BOTTOMLEFT" relativeTo="CharacterFrameInset" y="27"/>
+            <Anchor point="BOTTOMRIGHT" relativeTo="CharacterFrameInset" y="27"/>
+        </Anchors>
+    </Texture>
+    <!-- Item slot button texture templates -->
+    <Texture name="ExtraLeftItemSlotTemplate" inherits="Char-LeftSlot" virtual="true">
+        <Anchors>
+            <Anchor point="TOPLEFT" x="-4" y="1"/>
+            <Anchor point="BOTTOMRIGHT" x="9" y="-7"/>
+        </Anchors>
+    </Texture>
+    <Texture name="ExtraRightItemSlotTemplate" inherits="Char-RightSlot" virtual="true">
+        <Anchors>
+            <Anchor point="TOPLEFT" x="-9" y="1"/>
+            <Anchor point="BOTTOMRIGHT" x="4" y="-7"/>
+        </Anchors>
+    </Texture>
+    <Texture name="ExtraBottomItemSlotTemplate" inherits="Char-BottomSlot" virtual="true">
+        <Anchors>
+            <Anchor point="TOPLEFT" x="-4" y="8"/>
+            <Anchor point="BOTTOMRIGHT" x="1" y="-8"/>
+        </Anchors>
+    </Texture>
+    <Texture name="ExtraBottomItemSlotLeftBorderTemplate" inherits="Char-Slot-Bottom-Left" virtual="true">
+        <Anchors>
+            <Anchor point="TOPRIGHT" relativeTo="$parentFrame" relativePoint="TOPLEFT"/>
+        </Anchors>
+    </Texture>
+    <Texture name="ExtraBottomItemSlotRightBorderTemplate" inherits="Char-Slot-Bottom-Right" virtual="true">
+        <Anchors>
+            <Anchor point="TOPLEFT" relativeTo="$parentFrame" relativePoint="TOPRIGHT"/>
+        </Anchors>
+    </Texture>
+
+    <Frame parentKey="EditButtonDropdown" name="GearSetEditButtonDropDown" inherits="UIDropDownMenuTemplate"/>
+    <Frame name="ExtraPaperDollSidebarTabsTemplate" parent="CharacterFrameInsetRight" hidden="true" virtual="true">
+        <Size x="168" y="35"/>
+        <Anchors>
+            <Anchor point="BOTTOM" relativePoint="TOP" x="-6" y="-1"/>
+        </Anchors>
+        <Layers>
+            <Layer level="ARTWORK">
+                <Texture parentKey="DecorLeft" file="Interface\PaperDollInfoFrame\PaperDollSidebarTabs">
+                    <Size x="28" y="11"/>
+                    <Anchors>
+                        <Anchor point="BOTTOMLEFT"/>
+                    </Anchors>
+                    <TexCoords left="0.01562500" right="0.45312500" top="0.00390625" bottom="0.04687500"/>
+                </Texture>
+                <Texture parentKey="DecorRight" file="Interface\PaperDollInfoFrame\PaperDollSidebarTabs">
+                    <Size x="28" y="13"/>
+                    <Anchors>
+                        <Anchor point="BOTTOMRIGHT"/>
+                    </Anchors>
+                    <TexCoords left="0.01562500" right="0.45312500" top="0.05468750" bottom="0.10546875"/>
+                </Texture>
+            </Layer>
+        </Layers>
+        <Frames>
+            <Button name="PaperDollSidebarTab3" parentKey="tab3" inherits="ExtraPaperDollSidebarTabTemplate" id="3">
+                <Anchors>
+                    <Anchor point="BOTTOMRIGHT" x="-30" y="0"/>
+                </Anchors>
+            </Button>
+            <Button name="PaperDollSidebarTab2" parentKey="tab2" inherits="ExtraPaperDollSidebarTabTemplate" id="2">
+                <Anchors>
+                    <Anchor point="RIGHT" relativeTo="PaperDollSidebarTab3" relativePoint="LEFT" x="-4"/>
+                </Anchors>
+            </Button>
+            <Button name="PaperDollSidebarTab1" parentKey="tab1" inherits="ExtraPaperDollSidebarTabTemplate" id="1">
+                <Anchors>
+                    <Anchor point="RIGHT" relativeTo="PaperDollSidebarTab2" relativePoint="LEFT" x="-4"/>
+                </Anchors>
+                <Scripts>
+                    <OnLoad>
+                        self:RegisterEvent("UNIT_PORTRAIT_UPDATE");
+                        self:RegisterEvent("PLAYER_ENTERING_WORLD");
+
+                        local tcoords = ES_PAPERDOLL_SIDEBARS[self:GetID()].texCoords;
+                        self.Icon:SetTexCoord(tcoords[1], tcoords[2], tcoords[3], tcoords[4]);
+                        self.Icon:SetSize(29, 31);
+                        self.Icon:SetPoint("BOTTOM", 1, 0);
+                    </OnLoad>
+                    <OnEvent>
+                        if ( event == "UNIT_PORTRAIT_UPDATE" ) then
+                        local unit = ...;
+                        if ( unit == "player" ) then
+                        SetPortraitTexture(self.Icon, unit);
+                        end
+                        elseif ( event == "PLAYER_ENTERING_WORLD" ) then
+                        SetPortraitTexture(self.Icon, "player");
+                        end
+                    </OnEvent>
+                </Scripts>
+            </Button>
+        </Frames>
+    </Frame>
+
+    <Button name="ExtraPaperDollSidebarTabTemplate" virtual="true">
+        <Size x="33" y="35"/>
+        <Layers>
+            <Layer level="BACKGROUND">
+                <Texture file="Interface\PaperDollInfoFrame\PaperDollSidebarTabs" parentKey="TabBg">
+                    <Size x="50" y="43"/>
+                    <Anchors>
+                        <Anchor point="BOTTOMLEFT" x="-9" y="-2"/>
+                    </Anchors>
+                    <TexCoords left="0.01562500" right="0.79687500" top="0.61328125" bottom="0.78125000"/>
+                </Texture>
+            </Layer>
+            <Layer level="ARTWORK">
+                <Texture parentKey="Icon">
+                    <Size x="33" y="35"/>
+                    <Anchors>
+                        <Anchor point="BOTTOM" x="1" y="-2"/>
+                    </Anchors>
+                </Texture>
+            </Layer>
+            <Layer level="OVERLAY">
+                <Texture parentKey="Hider" file="Interface\PaperDollInfoFrame\PaperDollSidebarTabs">
+                    <Size x="34" y="19"/>
+                    <Anchors>
+                        <Anchor point="BOTTOM"/>
+                    </Anchors>
+                    <TexCoords left="0.01562500" right="0.54687500" top="0.11328125" bottom="0.18750000"/>
+                </Texture>
+            </Layer>
+            <Layer level="HIGHLIGHT">
+                <Texture parentKey="Highlight" file="Interface\PaperDollInfoFrame\PaperDollSidebarTabs">
+                    <Size x="31" y="31"/>
+                    <Anchors>
+                        <Anchor point="TOPLEFT" x="2" y="-3"/>
+                    </Anchors>
+                    <TexCoords left="0.01562500" right="0.50000000" top="0.19531250" bottom="0.31640625"/>
+                </Texture>
+            </Layer>
+        </Layers>
+        <Scripts>
+            <OnLoad>
+                self.Icon:SetTexture(ES_PAPERDOLL_SIDEBARS[self:GetID()].icon);
+                local tcoords = ES_PAPERDOLL_SIDEBARS[self:GetID()].texCoords;
+                self.disabledTooltip = ES_PAPERDOLL_SIDEBARS[self:GetID()].disabledTooltip;
+                self.Icon:SetTexCoord(tcoords[1], tcoords[2], tcoords[3], tcoords[4]);
+            </OnLoad>
+            <OnEnable>
+                self:SetAlpha(1);
+                self.Icon:SetDesaturation(0);
+            </OnEnable>
+            <OnDisable>
+                self:SetAlpha(0.5);
+                self.Icon:SetDesaturation(1);
+            </OnDisable>
+            <OnEnter>
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
+                GameTooltip_SetTitle(GameTooltip, ES_PAPERDOLL_SIDEBARS[self:GetID()].name);
+                if not self:IsEnabled() and self.disabledTooltip then
+                local disabledTooltipText = GetValueOrCallFunction(self, "disabledTooltip");
+                GameTooltip_AddErrorLine(GameTooltip, disabledTooltipText, true);
+                end
+                GameTooltip:Show();
+            </OnEnter>
+            <OnLeave>
+                GameTooltip:Hide();
+            </OnLeave>
+        </Scripts>
+    </Button>
+
+    <Button name="PlayerTitleButtonTemplate" virtual="true">
+        <Size x="229" y="32"/>
+        <Anchors>
+            <Anchor point="LEFT">
+                <Offset x="2" y="0"/>
+            </Anchor>
+        </Anchors>
+        <Layers>
+            <Layer level="BACKGROUND">
+                <Texture name="$parentBgMiddle" file="Interface\CharacterFrame\Char-Stat-Middle" parentKey="BgMiddle"
+                         vertTile="true">
+                    <Size x="229" y="8"/>
+                    <Anchors>
+                        <Anchor point="LEFT" x="1"/>
+                    </Anchors>
+                    <TexCoords left="0.00390625" right="0.66406250" top="0.00000000" bottom="1.00000000"/>
+                </Texture>
+            </Layer>
+            <Layer level="BACKGROUND" textureSubLevel="1">
+                <Texture name="$parentStripe" parentKey="Stripe">
+                    <Anchors>
+                        <Anchor point="TOPLEFT" x="1" y="0"/>
+                        <Anchor point="BOTTOMRIGHT" x="0" y="0"/>
+                    </Anchors>
+                </Texture>
+            </Layer>
+            <Layer level="BORDER">
+                <Texture name="$parentCheck" file="Interface\Buttons\UI-CheckBox-Check" parentKey="Check" hidden="true">
+                    <Size x="16" y="16"/>
+                    <Anchors>
+                        <Anchor point="LEFT">
+                            <Offset x="8" y="0"/>
+                        </Anchor>
+                    </Anchors>
+                </Texture>
+            </Layer>
+            <Layer level="OVERLAY">
+                <Texture name="$parentSelectedBar" parentKey="SelectedBar"
+                         file="Interface\FriendsFrame\UI-FriendsFrame-HighlightBar" alpha="0.4" alphaMode="ADD"
+                         hidden="true"/>
+            </Layer>
+        </Layers>
+        <ButtonText name="$parentTitleText" inherits="GameFontNormalSmallLeft" justifyH="LEFT" parentKey="text">
+            <Anchors>
+                <Anchor point="LEFT" relativeTo="$parentCheck" relativePoint="RIGHT" x="3" y="0"/>
+                <Anchor point="RIGHT" x="-3" y="0"/>
+            </Anchors>
+        </ButtonText>
+        <HighlightTexture file="Interface\FriendsFrame\UI-FriendsFrame-HighlightBar-Blue" alphaMode="ADD"/>
+    </Button>
+
+    <ScrollFrame name="CharacterStatsPaneScrollViewTemplate" hidden="true" inherits="UIPanelScrollFrameTemplate"
+                 virtual="true">
+        <Anchors>
+            <Anchor point="TOPLEFT" relativeTo="CharacterFrameInsetRight" x="4" y="-4"/>
+            <Anchor point="BOTTOMRIGHT" relativeTo="CharacterFrameInsetRight" x="-27" y="2"/>
+        </Anchors>
+        <Frames>
+            <Slider name="$parentScrollBar" inherits="HybridScrollBarTemplate" parentKey="scrollBar">
+                <Anchors>
+                    <Anchor point="TOPLEFT" relativePoint="TOPRIGHT">
+                        <Offset x="4" y="-13"/>
+                    </Anchor>
+                    <Anchor point="BOTTOMLEFT" relativePoint="BOTTOMRIGHT">
+                        <Offset x="4" y="14"/>
+                    </Anchor>
+                </Anchors>
+            </Slider>
+        </Frames>
+    </ScrollFrame>
+
+    <ScrollFrame name="PaperDollTitlesPaneTemplate" inherits="HybridScrollFrameTemplate" hidden="true" virtual="true">
+        <Anchors>
+            <Anchor point="TOPLEFT" relativeTo="CharacterFrameInsetRight" x="4" y="-4"/>
+            <Anchor point="BOTTOMRIGHT" relativeTo="CharacterFrameInsetRight" x="-27" y="2"/>
+        </Anchors>
+        <Frames>
+            <Slider name="$parentScrollBar" inherits="HybridScrollBarTemplate" parentKey="scrollBar">
+                <Anchors>
+                    <Anchor point="TOPLEFT" relativePoint="TOPRIGHT">
+                        <Offset x="4" y="-13"/>
+                    </Anchor>
+                    <Anchor point="BOTTOMLEFT" relativePoint="BOTTOMRIGHT">
+                        <Offset x="4" y="14"/>
+                    </Anchor>
+                </Anchors>
+            </Slider>
+        </Frames>
+    </ScrollFrame>
+</Ui>

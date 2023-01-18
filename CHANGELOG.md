@@ -1,3 +1,11 @@
+# 1.3.0
+
+* Revamped character window
+* Added title select tab
+* Added equipment manager
+* Updated ace library
+* Updated ELV UI theme
+
 # 1.2.2
 
 * Fixed a bug where auras did not update the stats

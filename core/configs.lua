@@ -7,7 +7,8 @@ ExtraStats = LibStub("AceAddon-3.0"):NewAddon("ExtraStats", "AceConsole-3.0", "A
 
 ExtraStats.modules = {}
 ExtraStats.plugins = {}
-ExtraStats.categories = {}
+
+ExtraStats.modules = {}
 
 ExtraStats.categoryYOffset = -5;
 ExtraStats.statYOffset = 0;

@@ -1,5 +1,3 @@
-ExtraStats.stats.defense = {}
-
 local function GetDodgeBlockParryChanceFromDefense()
     local base, modifier = UnitDefense("player");
     --local defensePercent = DODGE_PARRY_BLOCK_PERCENT_PER_DEFENSE * modifier;
@@ -92,7 +90,9 @@ end
 local Module = {  }
 
 function Module:Setup()
-    local Category = ExtraStats:CreateCategory("defenses", ExtraStats:translate("stats.defense"), {
+    local stats = ExtraStats:LoadModule("character.stats")
+
+    local Category = stats:CreateCategory("defenses", ExtraStats:translate("stats.defense"), {
         order = 20,
         roles = { CLASS_ROLE_TANK },
     })
