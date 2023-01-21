@@ -345,6 +345,7 @@ function Module:PaperDollBgDesaturate(on)
 end
 
 function Module:Expand()
+    ExtraStats:debug("expand character frame")
     Module.PaperDollFrame.bg:SetPoint("BOTTOMRIGHT", Module.CharacterFrame, "BOTTOMRIGHT", -36 + expandedWidth, 78);
     Module.PaperDollFrame.TitleBg:SetPoint("TOPRIGHT", Module.CharacterFrame, "TOPRIGHT", -35 + expandedWidth, -17);
     Module.PaperDollFrame.TopRightCorner:SetPoint("TOPRIGHT", Module.CharacterFrame, "TOPRIGHT", -32 + expandedWidth, -13);
@@ -368,6 +369,7 @@ function Module:Expand()
 end
 
 function Module:Collapse()
+    ExtraStats:debug("collapse character frame")
     Module.PaperDollFrame.bg:SetPoint("BOTTOMRIGHT", CharacterFrame, "BOTTOMRIGHT", -36, 78);
     Module.PaperDollFrame.TitleBg:SetPoint("TOPRIGHT", CharacterFrame, "TOPRIGHT", -35, -17);
     Module.PaperDollFrame.TopRightCorner:SetPoint("TOPRIGHT", CharacterFrame, "TOPRIGHT", -32, -13);
@@ -386,10 +388,8 @@ function Module:Collapse()
 
     Module.CharacterFrame.Sidebar:Hide()
     Module.CharacterFrame.InsetRight:Hide()
-end
 
-function Module:SetupEvents()
-
+    CharacterFrame.Expanded = false;
 end
 
 function Module:GetPrimaryTalentTree(tab)
@@ -435,12 +435,12 @@ function Module:SetLevel()
     --end
 end
 
-function Module:EventHandler(event, eventTarget, ...)
+function Module:EventHandler(event, ...)
     local arg1, arg2 = ...;
 
     Module:SetLevel()
-
-    if event == "PLAYER_ENTERING_WORLD" then
+    
+    if event == "PLAYER_ENTERING_WORLD" and (arg1 or arg2) then
         Module:CleanDefaultFrame();
         Module:DeleteFrameTextures(Module.PaperDollFrame)
         Module:CreateFrameTextures()
