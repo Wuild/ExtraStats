@@ -2,25 +2,24 @@ local name, stats = ...;
 
 CHARACTERFRAME_EXPANDED_WIDTH = 540;
 
-function ExtraStats:EventHandler(event, ...)
+function ExtraStats:EventHandler(event, target, ...)
     ExtraStats:UpdateRole()
     CURRENT_CLASS = ExtraStats:GetCurrentClass()
 
     if event == "PLAYER_LOGIN" then
-        ExtraStats:UpdateStatsDelayed()
         C_Timer.After(5, function()
             ExtraStats:print(ExtraStats:Colorize(stats.version, "blue"), "has been loaded");
             ExtraStats:print("use |cFF00FF00/stats|r to access addon settings");
             ExtraStats:print("Keep this addon alive by donating a coffee at " .. ExtraStats:Colorize("https://www.buymeacoffee.com/yuImx6KOY", "cyan"));
         end);
     else
-        for i, module in pairs(ExtraStats.modules) do
-            if module.Update then
-                module:Update();
-            end
-        end
         ExtraStats:UpdateStatsDelayed()
     end
+    
+    if target == "player" then
+        ExtraStats:UpdateStatsDelayed()
+    end
+
 end
 
 function ExtraStats:ShowSettings()
@@ -122,8 +121,8 @@ function ExtraStats:OnInitialize()
     ExtraStats:RegisterEvent("GROUP_ROSTER_UPDATE", "EventHandler")
     ExtraStats:RegisterEvent("PLAYER_EQUIPMENT_CHANGED", "EventHandler")
     ExtraStats:RegisterEvent("SOCKET_INFO_SUCCESS", "EventHandler")
-    ExtraStats:RegisterEvent("UNIT_SPELLCAST_START", "EventHandler")
-    ExtraStats:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED", "EventHandler")
+    --ExtraStats:RegisterEvent("UNIT_SPELLCAST_START", "EventHandler")
+    --ExtraStats:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED", "EventHandler")
     --ExtraStats:RegisterEvent("INSPECT_READY", "EventHandler")
     ExtraStats:RegisterEvent("UNIT_AURA", "EventHandler")
     --ExtraStats:RegisterEvent("UPDATE_SHAPESHIFT_FORM", "EventHandler")

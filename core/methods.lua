@@ -128,9 +128,7 @@ function ExtraStats:SetLabelAndText(statFrame, label, text)
 end
 
 function ExtraStats:UpdateStatsDelayed()
-    C_Timer.After(0.2, function()
-        ExtraStats:UpdateStats()
-    end)
+    ExtraStats:UpdateStats()
 end
 
 function ExtraStats:UpdateStats()
@@ -206,15 +204,21 @@ function ExtraStats:UpdateRole()
     end
 end
 
+local lastSent
+
 function ExtraStats:SendVersionCheck()
     --CURRENT_ROLE = GetTalentGroupRole(GetActiveTalentGroup())
-    CURRENT_CLASS = ExtraStats:GetCurrentClass()
+    --CURRENT_CLASS = ExtraStats:GetCurrentClass()
 
-    if IsInGuild() then
-        ExtraStats:SendCommMessage(stats.name .. "Ver", ExtraStats:Serialize(stats.version), "GUILD")
+    if not lastSent or lastSent < GetTime() - 1 then
+        lastSent = GetTime();
+
+        if IsInGuild() then
+            ExtraStats:SendCommMessage(stats.name .. "Ver", ExtraStats:Serialize(stats.version), "GUILD")
+        end
+
+        ExtraStats:SendCommMessage(stats.name .. "Ver", ExtraStats:Serialize(stats.version), "YELL")
     end
-
-    ExtraStats:SendCommMessage(stats.name .. "Ver", ExtraStats:Serialize(stats.version), "YELL")
 end
 
 function ExtraStats:VersionCheck(event, msg, channel, sender)

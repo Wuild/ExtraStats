@@ -31,7 +31,6 @@ function ExtraStats:LoadModule(name)
     end
 end
 
-
 local name, addon = ...
 local Module = {}
 
@@ -436,12 +435,12 @@ function Module:SetLevel()
     --end
 end
 
-function Module:EventHandler(event, ...)
+function Module:EventHandler(event, eventTarget, ...)
     local arg1, arg2 = ...;
 
     Module:SetLevel()
 
-    if (event == "PLAYER_ENTERING_WORLD" and (arg1 or arg2)) then
+    if event == "PLAYER_ENTERING_WORLD" then
         Module:CleanDefaultFrame();
         Module:DeleteFrameTextures(Module.PaperDollFrame)
         Module:CreateFrameTextures()
@@ -480,7 +479,6 @@ function Module:EventHandler(event, ...)
         end)
 
         ExtraStats:Trigger("character.window")
-
     end
 end
 
@@ -511,14 +509,18 @@ function Module:PaperDollFrame_OnLoad(self)
     self:RegisterEvent("UNIT_MAXHEALTH");
 end
 
-
 function ExtraStats:CreateWindow()
     Module:PaperDollFrame_OnLoad(PaperDollFrame);
     local mainFrame = CreateFrame("Frame");
     mainFrame:RegisterEvent("PLAYER_ENTERING_WORLD");
     mainFrame:SetScript("OnEvent", Module.EventHandler);
+    --mainFrame:SetScript("OnUpdate", function()
+    --
+    --end);
 
     ExtraStats:On("character.stats", function()
-        Module:SetLevel()
+        if CharacterFrame:IsVisible() then
+            Module:SetLevel()
+        end
     end)
 end

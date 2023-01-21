@@ -44,6 +44,7 @@ stats.configsDefaults = {
         enabled = true,
         dynamic = true,
         disabledPlugins = {},
+        sets = {},
         categories = {
             base = {
                 enabled = true,

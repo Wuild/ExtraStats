@@ -122,11 +122,11 @@ function ExtraStats_PaperDollEquipmentManagerPaneEquipSet_OnClick (index)
     if (InCombatLockdown()) then
         UIErrorsFrame:AddMessage(ERR_CLIENT_LOCKED_OUT, 1.0, 0.1, 0.1, 1.0);
     elseif (selectedSetID) then
-        if C_EquipmentSet.GetEquipmentSetAssignedSpec(selectedSetID) then
-            if C_EquipmentSet.GetEquipmentSetAssignedSpec(selectedSetID) == GetActiveTalentGroup() then
+        if GetEquipmentSetAssignedSpec(selectedSetID) then
+            if GetEquipmentSetAssignedSpec(selectedSetID) == GetActiveTalentGroup() then
                 C_EquipmentSet.UseEquipmentSet(selectedSetID);
             else
-                SetActiveTalentGroup(C_EquipmentSet.GetEquipmentSetAssignedSpec(selectedSetID))
+                SetActiveTalentGroup(GetEquipmentSetAssignedSpec(selectedSetID))
             end
         else
             C_EquipmentSet.UseEquipmentSet(selectedSetID);
@@ -694,15 +694,15 @@ function GearSetEditButtonDropDown_Initialize(dropdownFrame, level, menuList)
     for i = 1, 2 do
         info = UIDropDownMenu_CreateInfo();
         info.checked = function()
-            return C_EquipmentSet.GetEquipmentSetAssignedSpec(equipmentSetID) == i;
+            return GetEquipmentSetAssignedSpec(equipmentSetID) == i;
         end;
 
         info.func = function()
-            local currentSpecIndex = C_EquipmentSet.GetEquipmentSetAssignedSpec(equipmentSetID);
+            local currentSpecIndex = GetEquipmentSetAssignedSpec(equipmentSetID);
             if (currentSpecIndex ~= i) then
-                C_EquipmentSet.AssignSpecToEquipmentSet(equipmentSetID, i);
+                AssignSpecToEquipmentSet(equipmentSetID, i);
             else
-                C_EquipmentSet.UnassignEquipmentSetSpec(equipmentSetID);
+                UnassignEquipmentSetSpec(equipmentSetID);
             end
             ExtraStats_PaperDollEquipmentManagerPane_Update(true);
         end;
@@ -711,6 +711,27 @@ function GearSetEditButtonDropDown_Initialize(dropdownFrame, level, menuList)
         info.text = GetTalentTabInfo(specID);
         UIDropDownMenu_AddButton(info, UIDROPDOWN_MENU_LEVEL);
     end
+end
+
+function AssignSpecToEquipmentSet(SetId, SpecId)
+    ExtraStats.db.char.sets[SetId] = SpecId
+end
+
+function GetEquipmentSetAssignedSpec(SetId)
+    return ExtraStats.db.char.sets[SetId]
+end
+
+function UnassignEquipmentSetSpec(SetId)
+    ExtraStats.db.char.sets[SetId] = nil
+end
+
+function GetEquipmentSetForSpec(SpecId)
+    for set, spec in pairs(ExtraStats.db.char.sets) do
+        if spec == SpecId then
+            return set;
+        end
+    end
+    return nil
 end
 
 function GearSetButton_SetSpecInfo(self, specID)
@@ -733,7 +754,7 @@ function GearSetButton_UpdateSpecInfo(self)
         return ;
     end
 
-    local specIndex = C_EquipmentSet.GetEquipmentSetAssignedSpec(self.setID);
+    local specIndex = GetEquipmentSetAssignedSpec(self.setID);
     if (not specIndex) then
         GearSetButton_SetSpecInfo(self, nil);
         return ;
@@ -776,7 +797,7 @@ function tab:init()
 
     frame:SetScript("OnEvent", function(self, event)
         if event == "ACTIVE_TALENT_GROUP_CHANGED" then
-            C_EquipmentSet.UseEquipmentSet(C_EquipmentSet.GetEquipmentSetForSpec(GetActiveTalentGroup()));
+            C_EquipmentSet.UseEquipmentSet(GetEquipmentSetForSpec(GetActiveTalentGroup()));
         end
 
         ExtraStats_PaperDollEquipmentManagerPane_Update()
