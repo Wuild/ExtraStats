@@ -439,7 +439,7 @@ function Module:EventHandler(event, ...)
     local arg1, arg2 = ...;
 
     Module:SetLevel()
-    
+
     if event == "PLAYER_ENTERING_WORLD" and (arg1 or arg2) then
         Module:CleanDefaultFrame();
         Module:DeleteFrameTextures(Module.PaperDollFrame)

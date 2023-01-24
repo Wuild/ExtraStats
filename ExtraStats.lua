@@ -12,13 +12,18 @@ function ExtraStats:EventHandler(event, target, ...)
             ExtraStats:print("use |cFF00FF00/stats|r to access addon settings");
             ExtraStats:print("Keep this addon alive by donating a coffee at " .. ExtraStats:Colorize("https://www.buymeacoffee.com/yuImx6KOY", "cyan"));
         end);
+    elseif event == "PLAYER_EQUIPMENT_CHANGED" then
+        ExtraStats:UpdateStatsDelayed()
     else
-        ExtraStats:UpdateStatsDelayed()
+        if not event == "UNIT_AURA" then
+            ExtraStats:UpdateStatsDelayed()
+        end
+        
+        if event == "UNIT_AURA" and target == "player" then
+            ExtraStats:UpdateStatsDelayed()
+        end
     end
-    
-    if target == "player" then
-        ExtraStats:UpdateStatsDelayed()
-    end
+
 
 end
 

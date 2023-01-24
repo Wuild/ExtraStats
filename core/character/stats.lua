@@ -152,10 +152,14 @@ function tab:GetCategory(id)
     return false
 end
 
+local lastUpdate;
+
 function tab:update()
     if not tab:IsVisible() then
         return
     end
+
+    ExtraStats:debug("Updating stats")
 
     for i, module in pairs(ExtraStats.modules) do
         if module.Update then
@@ -312,6 +316,5 @@ function tab:update()
         if (numStatInCat > 0) then
             catFrame = categoryFramePool:Acquire();
         end
-
     end
 end

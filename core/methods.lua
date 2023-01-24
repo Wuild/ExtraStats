@@ -127,8 +127,11 @@ function ExtraStats:SetLabelAndText(statFrame, label, text)
     statFrame.Value:SetText(text);
 end
 
+local updateTimer
+
 function ExtraStats:UpdateStatsDelayed()
-    ExtraStats:UpdateStats()
+    ExtraStats:CancelTimer(updateTimer)
+    updateTimer = ExtraStats:ScheduleTimer("UpdateStats", 0.5)
 end
 
 function ExtraStats:UpdateStats()
