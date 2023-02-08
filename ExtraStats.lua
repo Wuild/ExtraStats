@@ -18,13 +18,11 @@ function ExtraStats:EventHandler(event, target, ...)
         if not event == "UNIT_AURA" then
             ExtraStats:UpdateStatsDelayed()
         end
-        
+
         if event == "UNIT_AURA" and target == "player" then
             ExtraStats:UpdateStatsDelayed()
         end
     end
-
-
 end
 
 function ExtraStats:ShowSettings()
@@ -102,7 +100,9 @@ function ExtraStats:OnInitialize()
     ExtraStats:ScheduleRepeatingTimer("SendVersionCheck", 10)
     --ExtraStats:ScheduleRepeatingTimer("UpdateRole", 0.5)
     ExtraStats:RegisterChatCommand("stats", "SlashCommand")
+end
 
+function ExtraStats:OnEnable()
     local configsTable = ExtraStats:DefaultSettings()
 
     CURRENT_ROLE = GetTalentGroupRole(GetActiveTalentGroup())

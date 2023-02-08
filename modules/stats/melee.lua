@@ -163,12 +163,14 @@ local function HitChance()
     local rating = GetCombatRating(ratingIndex);
     local ratingBonus = GetCombatRatingBonus(ratingIndex);
 
-    local hitChance = format("%.2f%%", ExtraStats:GetHitRatingBonus())
+    local a =ExtraStats:GetHitRatingBonus()
+
+    local hitChance = format("%.2f%%", a)
 
     return {
         value = hitChance,
         tooltip = HIGHLIGHT_FONT_COLOR_CODE .. format(PAPERDOLLFRAME_TOOLTIP_FORMAT, statName) .. " " .. rating .. FONT_COLOR_CODE_CLOSE,
-        tooltip2 = format(CR_HIT_MELEE_TOOLTIP, UnitLevel("player"), ratingBonus, GetCombatRating(CR_ARMOR_PENETRATION), GetArmorPenetration())
+        tooltip2 = format(CR_HIT_MELEE_TOOLTIP, UnitLevel("player"), a, GetCombatRating(CR_ARMOR_PENETRATION), GetArmorPenetration())
     }
 end
 

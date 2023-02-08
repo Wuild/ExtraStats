@@ -34,7 +34,6 @@ locales\zhCN.lua
 
 core\constants.lua
 core\configs.lua
-core\categories.lua
 core\methods.lua
 core\window.lua
 core\settings.lua

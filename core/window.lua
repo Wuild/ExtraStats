@@ -277,9 +277,6 @@ function Module:CreateCharacterFrames()
     ntex:SetAllPoints()
     button:SetHighlightTexture(ntex)
 
-    --frame.TitlesPane = CreateFrame("ScrollFrame", "PaperDollTitlesPane", PaperDollFrame, "CharacterStatsPaneScrollViewTemplate");
-    --frame.EquipmentPane = CreateFrame("ScrollFrame", "PaperDollEquipmentManagerPane", PaperDollFrame, "CharacterStatsPaneScrollViewTemplate");
-
     for _, tab in pairs(tabs) do
         if tab.init then
             tab:init()
@@ -359,7 +356,7 @@ function Module:Expand()
     CharacterNameText:SetSize(420, 12);
     -- Fixing CharacterLevelText coordinates
     CharacterLevelText:SetPoint("TOP", CharacterNameText, "TOP", 0, -31);
-    UpdateUIPanelPositions(Module.CharacterFrame);
+    --UpdateUIPanelPositions(Module.CharacterFrame);
 
     Module.CharacterFrame.Sidebar:Show()
     Module.CharacterFrame.InsetRight:Show()
@@ -478,7 +475,13 @@ function Module:EventHandler(event, ...)
             Module.CharacterFrame.Sidebar:Hide();
         end)
 
+        Module:Expand()
+
         ExtraStats:Trigger("character.window")
+
+        ShowUIPanel(CharacterFrame)
+        HideUIPanel(CharacterFrame)
+
     end
 end
 

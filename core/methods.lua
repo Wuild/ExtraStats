@@ -155,6 +155,9 @@ function ExtraStats:GetHitRatingBonus()
         end
     end
 
+    --hit = (GetCombatRatingBonus(CR_HIT_MELEE) + hitModifier);
+    --hitRating = math.ceil((GetCombatRatingBonus(CR_HIT_MELEE) + hitModifier - 5) * 32.78)
+
     hit = hit + (GetCombatRatingBonus(CR_HIT_SPELL) + hitModifier);
     hitRating = math.ceil((hit) * 26.23)
 
