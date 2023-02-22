@@ -125,6 +125,6 @@ function tab:update()
     tab.frame.titles = playerTitles;
 
     tab.frame.scrollBar.doNotHide = true
-    HybridScrollFrame_Update(tab.frame, titleCount * PLAYER_TITLE_HEIGHT + 20, tab.frame:GetHeight());
+    HybridScrollFrame_Update(tab.frame, titleCount * PLAYER_TITLE_HEIGHT + 32, tab.frame:GetHeight());
     PaperDollTitlesPane_UpdateScrollFrame()
 end
