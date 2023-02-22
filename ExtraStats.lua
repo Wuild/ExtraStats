@@ -97,7 +97,7 @@ function ExtraStats:OnInitialize()
     self.db = LibStub("AceDB-3.0"):New("ExtraStatsSettings", stats.configsDefaults, true)
     local powerType, powerToken = UnitPowerType("player");
     ExtraStats:RegisterComm(name .. "Ver", "VersionCheck")
-    ExtraStats:ScheduleRepeatingTimer("SendVersionCheck", 10)
+    --ExtraStats:ScheduleRepeatingTimer("SendVersionCheck", 10)
     --ExtraStats:ScheduleRepeatingTimer("UpdateRole", 0.5)
     ExtraStats:RegisterChatCommand("stats", "SlashCommand")
 end

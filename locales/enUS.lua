@@ -43,4 +43,4 @@ L["stats.block"] = "Block"
 L["stats.parry"] = "Parry"
 
 L["stats.expertise"] = "Expertise"
-L["stats.resiliance"] = "Resiliance"
+L["stats.resilience"] = "Resilience"

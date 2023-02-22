@@ -19,7 +19,7 @@ function Module:Setup()
         order = 999,
     })
 
-    Category:Add(ExtraStats:translate("stats.resiliance"), Resilience)
+    Category:Add(ExtraStats:translate("stats.resilience"), Resilience)
 end
 
 do
