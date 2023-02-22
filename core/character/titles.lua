@@ -5,45 +5,6 @@ local STRIPE_COLOR = { r = 0.9, g = 0.9, b = 1 };
 local PLAYER_TITLE_HEIGHT = 32;
 
 tab.frame = nil
-function tab:init()
-    local mainFrame = CreateFrame("Frame")
-    --mainFrame:RegisterEvent("KNOWN_TITLES_UPDATE")
-    mainFrame:RegisterEvent("UNIT_NAME_UPDATE")
-
-    local frame = CreateFrame("ScrollFrame", "PaperDollTitlesPane", PaperDollFrame, "PaperDollTitlesPaneTemplate")
-
-    frame:SetScript("OnLoad", function(self)
-        frame.scrollBar.doNotHide = 1;
-        frame:SetFrameLevel(CharacterFrameInsetRight:GetFrameLevel() + 1);
-
-        HybridScrollFrame_OnLoad(tab.frame);
-        frame.update = tab.update;
-        HybridScrollFrame_CreateButtons(tab.frame, "PlayerTitleButtonTemplate", 2, -4);
-    end)
-
-    frame:SetScript("OnShow", function()
-        HybridScrollFrame_CreateButtons(tab.frame, "PlayerTitleButtonTemplate");
-        tab:update()
-    end)
-
-    mainFrame:SetScript("OnEvent", function(self, event, ...)
-        local unit = ...;
-        if (event == "KNOWN_TITLES_UPDATE" or (event == "UNIT_NAME_UPDATE" and unit == "player")) then
-            if (tab:IsVisible()) then
-                HybridScrollFrame_CreateButtons(tab.frame, "PlayerTitleButtonTemplate");
-                tab:update()
-            end
-        end
-
-
-    end)
-
-    tab.frame = frame
-end
-
-function tab:IsVisible()
-    return tab.frame and tab.frame:IsVisible()
-end
 
 local function TitleSort(a, b)
     return a.name < b.name;
@@ -90,6 +51,45 @@ local function PaperDollTitlesPane_UpdateScrollFrame()
     end
 end
 
+function tab:init()
+    local mainFrame = CreateFrame("Frame")
+    --mainFrame:RegisterEvent("KNOWN_TITLES_UPDATE")
+    mainFrame:RegisterEvent("UNIT_NAME_UPDATE")
+
+    local frame = CreateFrame("ScrollFrame", "PaperDollTitlesPane", PaperDollFrame, "PaperDollTitlesPaneTemplate")
+    frame.update = PaperDollTitlesPane_UpdateScrollFrame;
+
+    frame:SetScript("OnLoad", function(self)
+        frame.scrollBar.doNotHide = 1;
+        frame:SetFrameLevel(CharacterFrameInsetRight:GetFrameLevel() + 1);
+
+        HybridScrollFrame_OnLoad(tab.frame);
+
+        HybridScrollFrame_CreateButtons(tab.frame, "PlayerTitleButtonTemplate", 2, -4);
+    end)
+
+    frame:SetScript("OnShow", function()
+        HybridScrollFrame_CreateButtons(tab.frame, "PlayerTitleButtonTemplate");
+        tab:update()
+    end)
+
+    mainFrame:SetScript("OnEvent", function(self, event, ...)
+        local unit = ...;
+        if (event == "KNOWN_TITLES_UPDATE" or (event == "UNIT_NAME_UPDATE" and unit == "player")) then
+            if (tab:IsVisible()) then
+                HybridScrollFrame_CreateButtons(tab.frame, "PlayerTitleButtonTemplate");
+                tab:update()
+            end
+        end
+    end)
+
+    tab.frame = frame
+end
+
+function tab:IsVisible()
+    return tab.frame and tab.frame:IsVisible()
+end
+
 function tab:update()
     local playerTitles = { };
     local currentTitle = GetCurrentTitle();
@@ -120,11 +120,13 @@ function tab:update()
         end
     end
 
+    print(titleCount)
+
     table.sort(playerTitles, TitleSort);
     playerTitles[1].name = PLAYER_TITLE_NONE;
     tab.frame.titles = playerTitles;
 
     tab.frame.scrollBar.doNotHide = true
-    HybridScrollFrame_Update(tab.frame, titleCount * PLAYER_TITLE_HEIGHT + 32, tab.frame:GetHeight());
+    HybridScrollFrame_Update(tab.frame, titleCount * PLAYER_TITLE_HEIGHT, tab.frame:GetHeight());
     PaperDollTitlesPane_UpdateScrollFrame()
 end
