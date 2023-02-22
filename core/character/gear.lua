@@ -796,8 +796,11 @@ function tab:init()
     frame:RegisterEvent("UNIT_MAXHEALTH");
 
     frame:SetScript("OnEvent", function(self, event)
-        if event == "ACTIVE_TALENT_GROUP_CHANGED" then
-            C_EquipmentSet.UseEquipmentSet(GetEquipmentSetForSpec(GetActiveTalentGroup()));
+
+        local setForSpec = GetEquipmentSetForSpec(GetActiveTalentGroup());
+
+        if event == "ACTIVE_TALENT_GROUP_CHANGED" and setForSpec then
+            C_EquipmentSet.UseEquipmentSet(setForSpec);
         end
 
         ExtraStats_PaperDollEquipmentManagerPane_Update()
