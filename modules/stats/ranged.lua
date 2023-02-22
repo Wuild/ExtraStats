@@ -184,9 +184,9 @@ local function Haste()
     }
 end
 
-local Module = {  }
+local Module = ExtraStats.modules:NewModule("ranged")
 
-function Module:Setup()
+function Module:OnEnable()
     local stats = ExtraStats:LoadModule("character.stats")
 
     local Category = stats:CreateCategory("ranged", ExtraStats:translate("stats.ranged"), {
@@ -215,8 +215,4 @@ function Module:Setup()
     Category:Add(ExtraStats:translate("stats.hit_chance"), HitChance)
     Category:Add(ExtraStats:translate("stats.crit_chance"), CriticalChance)
     Category:Add(ExtraStats:translate("stats.haste_rating"), Haste)
-end
-
-do
-    table.insert(ExtraStats.modules, Module)
 end

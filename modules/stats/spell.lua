@@ -189,9 +189,9 @@ local function HitChance()
     }
 end
 
-local Module = {  }
+local Module = ExtraStats.modules:NewModule("spell")
 
-function Module:Setup()
+function Module:OnEnable()
     local stats = ExtraStats:LoadModule("character.stats")
 
     local Category = stats:CreateCategory("spell", ExtraStats:translate("stats.spell"), {
@@ -213,6 +213,3 @@ function Module:Setup()
     Category:Add(ExtraStats:translate("stats.regen"), ManaRegen)
 end
 
-do
-    table.insert(ExtraStats.modules, Module)
-end

@@ -15,11 +15,17 @@ local function Power()
     local power = UnitPowerMax("player") or 0;
     local powerText = BreakUpLargeNumbers(power);
 
-    return {
-        value = powerText,
-        tooltip = HIGHLIGHT_FONT_COLOR_CODE .. format(PAPERDOLLFRAME_TOOLTIP_FORMAT, ExtraStats:translate("stats." .. string.lower(powerToken))) .. " " .. powerText .. FONT_COLOR_CODE_CLOSE,
-        tooltip1 = _G["STAT_" .. powerToken .. "_TOOLTIP"]
-    }
+    if powerToken then
+        return {
+            value = powerText,
+            tooltip = HIGHLIGHT_FONT_COLOR_CODE .. format(PAPERDOLLFRAME_TOOLTIP_FORMAT, ExtraStats:translate("stats." .. string.lower(powerToken))) .. " " .. powerText .. FONT_COLOR_CODE_CLOSE,
+            tooltip1 = _G["STAT_" .. powerToken .. "_TOOLTIP"]
+        }
+    else
+        return {
+            value = powerText,
+        }
+    end
 end
 
 LEGENDARY_FONT_COLOR_CODE = "|cffff8000"
@@ -75,9 +81,9 @@ local function MoveSpeed()
     }
 end
 
-local Module = {  }
+local Module = ExtraStats.modules:NewModule("base")
 
-function Module:Setup()
+function Module:OnEnable()
     local stats = ExtraStats:LoadModule("character.stats")
 
     local Category = stats:CreateCategory("base", ExtraStats:translate("stats.base"), {
@@ -97,8 +103,4 @@ function Module:Setup()
             end
         end
     })
-end
-
-do
-    table.insert(ExtraStats.modules, Module)
 end

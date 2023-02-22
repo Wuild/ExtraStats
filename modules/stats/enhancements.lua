@@ -10,9 +10,9 @@ local function Resilience()
     }
 end
 
-local Module = {  }
+local Module = ExtraStats.modules:NewModule("enhancements")
 
-function Module:Setup()
+function Module:OnEnable()
     local stats = ExtraStats:LoadModule("character.stats")
 
     local Category = stats:CreateCategory("enhancements", ExtraStats:translate("stats.enhancements"), {

@@ -1,4 +1,4 @@
-local Module = {  }
+local Module = ExtraStats.modules:NewModule("settings")
 
 local categories = {
     base = {
@@ -81,10 +81,5 @@ function Module:Settings(tab)
         index = index + 1
     end
 
-
     tab.categories.args = categoriesSettings;
-end
-
-do
-    table.insert(ExtraStats.modules, Module)
 end

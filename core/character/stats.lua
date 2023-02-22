@@ -161,7 +161,7 @@ function tab:update()
 
     ExtraStats:debug("Updating stats")
 
-    for i, module in pairs(ExtraStats.modules) do
+    for name, module in ExtraStats.modules:IterateModules() do
         if module.Update then
             module:Update();
         end

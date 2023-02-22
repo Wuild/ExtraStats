@@ -110,13 +110,9 @@ function ExtraStats:OnEnable()
 
     ExtraStats:CreateWindow()
 
-    for i, module in pairs(ExtraStats.modules) do
-        if module.Setup then
-            module:Setup();
-        end
-    end
+    for name, module in ExtraStats.modules:IterateModules() do
+        module:Enable()
 
-    for i, module in pairs(ExtraStats.modules) do
         if module.Settings then
             module:Settings(configsTable);
         end

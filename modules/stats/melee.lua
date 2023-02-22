@@ -231,10 +231,9 @@ local function Expertise()
     }
 end
 
-local Module = {  }
+local Module = ExtraStats.modules:NewModule("melee")
 
-function Module:Setup()
-
+function Module:OnEnable()
     local stats = ExtraStats:LoadModule("character.stats")
 
     local Category = stats:CreateCategory("melee", ExtraStats:translate("stats.melee"), {
@@ -273,8 +272,4 @@ function Module:Setup()
     Category:Add(ExtraStats:translate("stats.crit_chance"), CriticalChance)
     Category:Add(ExtraStats:translate("stats.haste_rating"), Haste)
     Category:Add(ExtraStats:translate("stats.expertise"), Expertise)
-end
-
-do
-    table.insert(ExtraStats.modules, Module)
 end

@@ -99,10 +99,9 @@ local function GetStat(statIndex)
     }
 end
 
-local Module = {  }
+local Module = ExtraStats.modules:NewModule("attributes")
 
-function Module:Setup()
-
+function Module:OnEnable()
     local stats = ExtraStats:LoadModule("character.stats")
 
     local Category = stats:CreateCategory("attributes", ExtraStats:translate("stats.attributes"), {
@@ -136,8 +135,4 @@ function Module:Setup()
     end, {
         classes = { INDEX_CLASS_PALADIN, INDEX_CLASS_PRIEST, INDEX_CLASS_DRUID, INDEX_CLASS_SHAMAN },
     })
-end
-
-do
-    table.insert(ExtraStats.modules, Module)
 end

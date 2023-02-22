@@ -87,9 +87,9 @@ local function Parry()
     }
 end
 
-local Module = {  }
+local Module = ExtraStats.modules:NewModule("defense")
 
-function Module:Setup()
+function Module:OnEnable()
     local stats = ExtraStats:LoadModule("character.stats")
 
     local Category = stats:CreateCategory("defenses", ExtraStats:translate("stats.defense"), {
@@ -102,8 +102,4 @@ function Module:Setup()
     Category:Add(ExtraStats:translate("stats.dodge"), Dodge)
     Category:Add(ExtraStats:translate("stats.block"), Block)
     Category:Add(ExtraStats:translate("stats.parry"), Parry)
-end
-
-do
-    table.insert(ExtraStats.modules, Module)
 end
