@@ -120,8 +120,6 @@ function tab:update()
         end
     end
 
-    print(titleCount)
-
     table.sort(playerTitles, TitleSort);
     playerTitles[1].name = PLAYER_TITLE_NONE;
     tab.frame.titles = playerTitles;
