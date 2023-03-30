@@ -155,11 +155,11 @@ local function HitChance()
     local rating = GetCombatRating(ratingIndex);
     local ratingBonus = GetCombatRatingBonus(ratingIndex);
 
-    local hitChance = format("%.2f%%", ExtraStats:GetHitRatingBonus())
+    local hitChance = format("%.2f%%", ExtraStats:GetHitRatingBonus(CR_HIT_RANGED))
 
     return {
         value = hitChance,
-        tooltip = HIGHLIGHT_FONT_COLOR_CODE .. format(PAPERDOLLFRAME_TOOLTIP_FORMAT, statName) .. " " .. rating .. FONT_COLOR_CODE_CLOSE,
+        tooltip = HIGHLIGHT_FONT_COLOR_CODE .. format(PAPERDOLLFRAME_TOOLTIP_FORMAT, statName) .. " " .. rating + ratingBonus .. FONT_COLOR_CODE_CLOSE,
         tooltip2 = format(CR_HIT_RANGED_TOOLTIP, UnitLevel("player"), ratingBonus, GetCombatRating(CR_ARMOR_PENETRATION), GetArmorPenetration())
     }
 end
@@ -178,7 +178,7 @@ local function Haste()
     end
 
     return {
-        value = format("%.2f%%", GetCombatRatingBonus(CR_HASTE_MELEE)),
+        value = format("%.2f%%", GetRangedHaste()),
         tooltip = HIGHLIGHT_FONT_COLOR_CODE .. format(PAPERDOLLFRAME_TOOLTIP_FORMAT, ATTACK_SPEED) .. " " .. text .. FONT_COLOR_CODE_CLOSE,
         tooltip2 = format(CR_HASTE_RATING_TOOLTIP, GetCombatRating(CR_HASTE_RANGED), GetCombatRatingBonus(CR_HASTE_RANGED))
     }
