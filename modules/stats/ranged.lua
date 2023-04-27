@@ -104,9 +104,7 @@ local function Damage()
 end
 
 local function RangedAttackSpeed()
-    local text;
-
-    text = UnitRangedDamage("player");
+    local text = UnitRangedDamage("player");
     return {
         value = format("%.2f", text),
         tooltip = HIGHLIGHT_FONT_COLOR_CODE .. format(PAPERDOLLFRAME_TOOLTIP_FORMAT, ATTACK_SPEED) .. " " .. text .. FONT_COLOR_CODE_CLOSE,
@@ -152,34 +150,24 @@ end
 local function HitChance()
     local ratingIndex = CR_HIT_RANGED;
     local statName = _G["COMBAT_RATING_NAME" .. ratingIndex];
-    local rating = GetCombatRating(ratingIndex);
-    local ratingBonus = GetCombatRatingBonus(ratingIndex);
+    local hitModifier = GetHitModifier();
 
-    local hitChance = format("%.2f%%", ExtraStats:GetHitRatingBonus(CR_HIT_RANGED))
+    local rangedHit = math.floor((GetCombatRatingBonus(CR_HIT_RANGED) + hitModifier) * 100) / 100;
 
     return {
-        value = hitChance,
-        tooltip = HIGHLIGHT_FONT_COLOR_CODE .. format(PAPERDOLLFRAME_TOOLTIP_FORMAT, statName) .. " " .. rating + ratingBonus .. FONT_COLOR_CODE_CLOSE,
-        tooltip2 = format(CR_HIT_RANGED_TOOLTIP, UnitLevel("player"), ratingBonus, GetCombatRating(CR_ARMOR_PENETRATION), GetArmorPenetration())
+        value = format("%.2f%%", rangedHit),
+        tooltip = HIGHLIGHT_FONT_COLOR_CODE .. format(PAPERDOLLFRAME_TOOLTIP_FORMAT, statName) .. " " .. rangedHit .. FONT_COLOR_CODE_CLOSE,
+        tooltip2 = format(CR_HIT_RANGED_TOOLTIP, UnitLevel("player"), rangedHit, GetCombatRating(CR_ARMOR_PENETRATION), GetArmorPenetration())
     }
 end
 
 local function Haste()
-    local speed, offhandSpeed = UnitAttackSpeed("player");
+    local speed = GetCombatRating(CR_HASTE_RANGED);
     speed = format("%.2f", speed);
-    if (offhandSpeed) then
-        offhandSpeed = format("%.2f", offhandSpeed);
-    end
-    local text;
-    if (offhandSpeed) then
-        text = speed .. " / " .. offhandSpeed;
-    else
-        text = speed;
-    end
 
     return {
         value = format("%.2f%%", GetRangedHaste()),
-        tooltip = HIGHLIGHT_FONT_COLOR_CODE .. format(PAPERDOLLFRAME_TOOLTIP_FORMAT, ATTACK_SPEED) .. " " .. text .. FONT_COLOR_CODE_CLOSE,
+        tooltip = HIGHLIGHT_FONT_COLOR_CODE .. format(PAPERDOLLFRAME_TOOLTIP_FORMAT, ATTACK_SPEED) .. " " .. speed .. FONT_COLOR_CODE_CLOSE,
         tooltip2 = format(CR_HASTE_RATING_TOOLTIP, GetCombatRating(CR_HASTE_RANGED), GetCombatRatingBonus(CR_HASTE_RANGED))
     }
 end
@@ -194,14 +182,6 @@ function Module:OnEnable()
         classes = { INDEX_CLASS_HUNTER },
         show = function()
             if ExtraStats.db.char.dynamic then
-
-                local hasRelic = UnitHasRelicSlot("player");
-                local rangedTexture = GetInventoryItemTexture("player", 18);
-
-
-
-                --return rangedTexture and not hasRelic
-
                 return CURRENT_CLASS == INDEX_CLASS_HUNTER;
             end
 
