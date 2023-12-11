@@ -32,7 +32,7 @@
         </Scripts>
     </Frame>
 
-    <Frame name="CharacterStatFrameTemplate" virtual="true">
+    <Frame name="ExtraStatsCharacterStatFrameTemplate" virtual="true">
         <Size x="187" y="18"/>
         <Layers>
             <Layer level="BACKGROUND">

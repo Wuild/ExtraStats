@@ -120,16 +120,6 @@ local function RangedAttackPower()
 
     local totalAP = base + posBuff + negBuff;
     tooltip2 = format(RANGED_ATTACK_POWER_TOOLTIP, max((totalAP), 0) / ATTACK_POWER_MAGIC_NUMBER);
-    local petAPBonus = ComputePetBonus("PET_BONUS_RAP_TO_AP", totalAP);
-    if (petAPBonus > 0) then
-        tooltip2 = tooltip2 .. "\n" .. format(PET_BONUS_TOOLTIP_RANGED_ATTACK_POWER, petAPBonus);
-    end
-
-    local petSpellDmgBonus = ComputePetBonus("PET_BONUS_RAP_TO_SPELLDMG", totalAP);
-    if (petSpellDmgBonus > 0) then
-        tooltip2 = tooltip2 .. "\n" .. format(PET_BONUS_TOOLTIP_SPELLDAMAGE, petSpellDmgBonus);
-    end
-
     return {
         value = value,
         tooltip = tooltip,

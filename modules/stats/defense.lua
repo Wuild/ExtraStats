@@ -1,9 +1,15 @@
+DODGE_PARRY_BLOCK_PERCENT_PER_DEFENSE = 0.04;
+
 local function GetDodgeBlockParryChanceFromDefense()
     local base, modifier = UnitDefense("player");
     --local defensePercent = DODGE_PARRY_BLOCK_PERCENT_PER_DEFENSE * modifier;
     local defensePercent = DODGE_PARRY_BLOCK_PERCENT_PER_DEFENSE * ((base + modifier) - (UnitLevel("player") * 5));
     defensePercent = max(defensePercent, 0);
     return defensePercent;
+end
+
+function PaperDollFrame_GetArmorReduction(armor, attackerLevel)
+    return C_PaperDollInfo.GetArmorEffectiveness(armor, attackerLevel) * 100;
 end
 
 local function Armor()

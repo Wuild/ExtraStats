@@ -46,51 +46,53 @@ local function GetStat(statIndex)
 
     tooltip2 = _G["DEFAULT_STAT" .. statIndex .. "_TOOLTIP"];
 
-    if (statIndex == 1) then
-        local attackPower = GetAttackPowerForStat(statIndex, effectiveStat);
-        tooltip2 = format(tooltip2, attackPower);
-        if (unitClass == "WARRIOR" or unitClass == "SHAMAN" or unitClass == "PALADIN") then
-            tooltip2 = tooltip2 .. "\n" .. format(STAT_BLOCK_TOOLTIP, max(0, effectiveStat * BLOCK_PER_STRENGTH - 10));
-        end
-    elseif (statIndex == 3) then
-        local baseStam = min(20, effectiveStat);
-        local moreStam = effectiveStat - baseStam;
-        tooltip2 = format(tooltip2, (baseStam + (moreStam * HEALTH_PER_STAMINA)) * GetUnitMaxHealthModifier("player"));
-        local petStam = ComputePetBonus("PET_BONUS_STAM", effectiveStat);
-        if (petStam > 0) then
-            tooltip2 = tooltip2 .. "\n" .. format(PET_BONUS_TOOLTIP_STAMINA, petStam);
-        end
-    elseif (statIndex == 2) then
-        local attackPower = GetAttackPowerForStat(statIndex, effectiveStat);
-        if (attackPower > 0) then
-            tooltip2 = format(STAT_ATTACK_POWER, attackPower) .. format(tooltip2, GetCritChanceFromAgility("player"), effectiveStat * ARMOR_PER_AGILITY);
-        else
-            tooltip2 = format(tooltip2, GetCritChanceFromAgility("player"), effectiveStat * ARMOR_PER_AGILITY);
-        end
-    elseif (statIndex == 4) then
-        local baseInt = min(20, effectiveStat);
-        local moreInt = effectiveStat - baseInt
-        if (UnitHasMana("player")) then
-            tooltip2 = format(tooltip2, baseInt + moreInt * MANA_PER_INTELLECT, GetSpellCritChanceFromIntellect("player"));
-        else
-            tooltip2 = nil;
-        end
-        local petInt = ComputePetBonus("PET_BONUS_INT", effectiveStat);
-        if (petInt > 0) then
-            if (not tooltip2) then
-                tooltip2 = "";
-            end
-            tooltip2 = tooltip2 .. "\n" .. format(PET_BONUS_TOOLTIP_INTELLECT, petInt);
-        end
-    elseif (statIndex == 5) then
-        -- All mana regen stats are displayed as mana/5 sec.
-        tooltip2 = format(tooltip2, GetUnitHealthRegenRateFromSpirit("player"));
-        if (UnitHasMana("player")) then
-            local regen = GetUnitManaRegenRateFromSpirit("player");
-            regen = floor(regen * 5.0);
-            tooltip2 = tooltip2 .. "\n" .. format(MANA_REGEN_FROM_SPIRIT, regen);
-        end
-    end
+    --if (statIndex == 1) then
+    --    local attackPower = GetAttackPowerForStat(statIndex, effectiveStat);
+    --    if tooltip2 then
+    --        tooltip2 = format(tooltip2, attackPower);
+    --    end
+    --    --if (unitClass == "WARRIOR" or unitClass == "SHAMAN" or unitClass == "PALADIN") then
+    --    --    tooltip2 = tooltip2 .. "\n" .. format(STAT_BLOCK_TOOLTIP, max(0, effectiveStat * BLOCK_PER_STRENGTH - 10));
+    --    --end
+    --elseif (statIndex == 3) then
+    --    local baseStam = min(20, effectiveStat);
+    --    local moreStam = effectiveStat - baseStam;
+    --    tooltip2 = format(tooltip2, (baseStam + (moreStam * HEALTH_PER_STAMINA)) * GetUnitMaxHealthModifier("player"));
+    --    local petStam = ComputePetBonus("PET_BONUS_STAM", effectiveStat);
+    --    if (petStam > 0) then
+    --        tooltip2 = tooltip2 .. "\n" .. format(PET_BONUS_TOOLTIP_STAMINA, petStam);
+    --    end
+    --elseif (statIndex == 2) then
+    --    local attackPower = GetAttackPowerForStat(statIndex, effectiveStat);
+    --    if (attackPower > 0) then
+    --        tooltip2 = format(STAT_ATTACK_POWER, attackPower) .. format(tooltip2, GetCritChanceFromAgility("player"), effectiveStat * ARMOR_PER_AGILITY);
+    --    else
+    --        tooltip2 = format(tooltip2, GetCritChanceFromAgility("player"), effectiveStat * ARMOR_PER_AGILITY);
+    --    end
+    --elseif (statIndex == 4) then
+    --    local baseInt = min(20, effectiveStat);
+    --    local moreInt = effectiveStat - baseInt
+    --    if (UnitHasMana("player")) then
+    --        tooltip2 = format(tooltip2, baseInt + moreInt * MANA_PER_INTELLECT, GetSpellCritChanceFromIntellect("player"));
+    --    else
+    --        tooltip2 = nil;
+    --    end
+    --    local petInt = ComputePetBonus("PET_BONUS_INT", effectiveStat);
+    --    if (petInt > 0) then
+    --        if (not tooltip2) then
+    --            tooltip2 = "";
+    --        end
+    --        tooltip2 = tooltip2 .. "\n" .. format(PET_BONUS_TOOLTIP_INTELLECT, petInt);
+    --    end
+    --elseif (statIndex == 5) then
+    --    -- All mana regen stats are displayed as mana/5 sec.
+    --    tooltip2 = format(tooltip2, GetUnitHealthRegenRateFromSpirit("player"));
+    --    if (UnitHasMana("player")) then
+    --        local regen = GetUnitManaRegenRateFromSpirit("player");
+    --        regen = floor(regen * 5.0);
+    --        tooltip2 = tooltip2 .. "\n" .. format(MANA_REGEN_FROM_SPIRIT, regen);
+    --    end
+    --end
 
     return {
         value = textValue,

@@ -1,3 +1,5 @@
+MAX_SPELL_SCHOOLS = 7
+
 local function SpellBonusDamage_OnEnter (self)
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
     GameTooltip:SetText(HIGHLIGHT_FONT_COLOR_CODE .. format(PAPERDOLLFRAME_TOOLTIP_FORMAT, BONUS_DAMAGE) .. " " .. self.minModifier .. FONT_COLOR_CODE_CLOSE);

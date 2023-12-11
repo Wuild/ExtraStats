@@ -6,6 +6,7 @@ ExtraStats_EQUIPMENTSET_BUTTON_HEIGHT = 44;
 
 local STRIPE_COLOR = { r = 0.9, g = 0.9, b = 1 };
 local itemSlotButtons = {
+    CharacterAmmoSlot, -- 0
     CharacterHeadSlot, -- 1
     CharacterNeckSlot, -- 2
     CharacterShoulderSlot, -- 3

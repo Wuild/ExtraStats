@@ -271,5 +271,4 @@ function Module:OnEnable()
     Category:Add(ExtraStats:translate("stats.hit_chance"), HitChance)
     Category:Add(ExtraStats:translate("stats.crit_chance"), CriticalChance)
     Category:Add(ExtraStats:translate("stats.haste_rating"), Haste)
-    Category:Add(ExtraStats:translate("stats.expertise"), Expertise)
 end

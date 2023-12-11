@@ -3,7 +3,7 @@
 ## Author: Wuild
 ## Version: @project-version@
 ## SavedVariables: ExtraStatsSettings
-##OptionalDeps: ElvUI TacoTip
+## OptionalDeps: ElvUI TacoTip
 
 libraries\LibStub\LibStub.lua
 libraries\CallbackHandler-1.0\CallbackHandler-1.0.xml
@@ -19,10 +19,9 @@ libraries\AceDB-3.0\AceDB-3.0.xml
 libraries\AceConfig-3.0\AceConfig-3.0.xml
 libraries\AceLocale-3.0\AceLocale-3.0.xml
 libraries\Semver\Semver.xml
-
 xml\frames.xml
 xml\textures.xml
-xml\gearmanager.xml
+# xml\gearmanager.xml
 
 locales\enUS.lua
 locales\deDE.lua
@@ -31,30 +30,25 @@ locales\frFR.lua
 locales\itIT.lua
 locales\ruRU.lua
 locales\zhCN.lua
-
 core\constants.lua
 core\configs.lua
 core\methods.lua
 core\window.lua
 core\settings.lua
-
 modules\stats\base.lua
 modules\stats\attributes.lua
 modules\stats\melee.lua
 modules\stats\ranged.lua
 modules\stats\spell.lua
 modules\stats\defense.lua
-modules\stats\enhancements.lua
 modules\stats\settings.lua
-
 core\character\stats.lua
 core\character\titles.lua
-core\character\gear.lua
+# core\character\gear.lua
 
-modules\gear.lua
+# modules\engraving.lua
 
 plugins\elvui.lua
-
 plugins\tacotip.lua
-
+plugins\engraving.lua
 ExtraStats.lua
