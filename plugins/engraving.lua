@@ -44,7 +44,7 @@ function Plugin:Setup()
         C_Engraving.SetSearchFilter("");
 
         EngravingFrame_UpdateRuneList(self);
-        
+
         self:RegisterEvent("PLAYER_EQUIPMENT_CHANGED");
         self:RegisterEvent("NEW_RECIPE_LEARNED");
 
