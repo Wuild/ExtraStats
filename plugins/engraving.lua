@@ -5,6 +5,26 @@ local Plugin = {
 
 table.insert(ExtraStats.plugins, Plugin)
 
+local GEAR_SLOT_FRAMES = {
+    CharacterHeadSlot,
+    CharacterNeckSlot,
+    CharacterShoulderSlot,
+    CharacterBackSlot,
+    CharacterChestSlot,
+    CharacterWristSlot,
+    CharacterHandsSlot,
+    CharacterWaistSlot,
+    CharacterLegsSlot,
+    CharacterFeetSlot,
+    CharacterFinger0Slot,
+    CharacterFinger1Slot,
+    CharacterTrinket0Slot,
+    CharacterTrinket1Slot,
+    CharacterMainHandSlot,
+    CharacterSecondaryHandSlot,
+    CharacterRangedSlot
+}
+
 function Plugin:Setup()
     if not C_Engraving.IsEngravingEnabled() then
         return ;
@@ -28,11 +48,9 @@ function Plugin:Setup()
         RefreshRuneFrameControlButton();
     end
 
-    print(EngravingFrame)
-
     ExtraStats:On("character.window.show", function()
         RuneFrameControlButton:ClearAllPoints();
-        RuneFrameControlButton:SetPoint("BOTTOMRIGHT", CharacterFrame.Sidebar, 30, 0)
+        RuneFrameControlButton:SetPoint("BOTTOMRIGHT", CharacterFrame.Sidebar, 35, 0)
 
         SetUIPanelAttribute(CharacterFrame, "width", 580);
         UpdateUIPanelPositions(CharacterFrame);
@@ -52,6 +70,10 @@ function Plugin:Setup()
 
         SetUIPanelAttribute(CharacterFrame, "width", 790);
         UpdateUIPanelPositions(CharacterFrame);
+
+        for _, slot in pairs(GEAR_SLOT_FRAMES) do
+            PaperDollItemSlotButton_RefreshRuneIcon(slot, true);
+        end
 
         OpenAllBags(self)
 

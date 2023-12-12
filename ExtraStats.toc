@@ -42,6 +42,7 @@ modules\stats\ranged.lua
 modules\stats\spell.lua
 modules\stats\defense.lua
 modules\stats\settings.lua
+# modules\Vanilla.lua
 core\character\stats.lua
 core\character\titles.lua
 # core\character\gear.lua

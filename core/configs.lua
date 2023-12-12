@@ -15,7 +15,7 @@ ExtraStats.modules:SetDefaultModuleState(false)
 
 
 ExtraStats.categoryYOffset = -5;
-ExtraStats.statYOffset = 0;
+ExtraStats.statYOffset = 2;
 
 stats.DEBUG_DEFAULT = 1;
 stats.DEBUG_NODE = 2;
