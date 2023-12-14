@@ -114,8 +114,6 @@ function CategoryClass:Add(name, value, options)
         for k, v in pairs(options) do
             data[k] = v
         end
-
-        print(options.onEnter)
     end
 
     table.insert(self.stats, data)

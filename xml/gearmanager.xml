@@ -196,7 +196,7 @@
                     <OnMouseDown>
                         self.texture:SetPoint("TOPLEFT", 1, -1);
 
-                        GearSetButton_OnClick(self:GetParent(), button);
+<!--                        GearSetButton_OnClick(self:GetParent(), button);-->
 
                         if ( self.Dropdown.gearSetButton ~= self:GetParent() ) then
                         HideDropDownMenu(1);
@@ -247,7 +247,7 @@
     </Button>
 
 
-    <Frame name="MCF-GearManagerDialogPopupTemplate" hidden="true" parent="PaperDollFrame" virtual="true">
+    <Frame name="ExtraGearManagerDialogPopupTemplate" hidden="true" parent="PaperDollFrame" virtual="true">
         <Size x="525" y="475"/>
         <Anchors>
             <Anchor point="TOPLEFT" relativePoint="TOPRIGHT" x="220" y="-12"/>
@@ -520,5 +520,24 @@
         <HighlightTexture alphaMode="ADD" file="Interface\Buttons\ButtonHilight-Square"/>
         <CheckedTexture alphaMode="ADD" file="Interface\Buttons\CheckButtonHilight"/>
     </CheckButton>
+
+    <Button name="ExtraStatsPopoutButtonTemplate" hidden="true" virtual="true">
+        <Size>
+            <AbsDimension x="16" y="32"/>
+        </Size>
+        <Anchors>
+            <Anchor point="LEFT" relativePoint="RIGHT"/>
+        </Anchors>
+        <Scripts>
+            <OnLoad>
+                PaperDollFrameItemPopoutButton_OnLoad(self);
+            </OnLoad>
+            <OnClick>
+                PaperDollFrameItemPopoutButton_OnClick(self);
+            </OnClick>
+        </Scripts>
+        <NormalTexture file="Interface\PaperDollInfoFrame\UI-GearManager-FlyoutButton"/>
+        <HighlightTexture file="Interface\PaperDollInfoFrame\UI-GearManager-FlyoutButton"/>
+    </Button>
 
 </Ui>

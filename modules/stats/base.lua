@@ -86,7 +86,7 @@ local Module = ExtraStats.modules:NewModule("base")
 function Module:OnEnable()
     local stats = ExtraStats:LoadModule("character.stats")
 
-    local Category = stats:CreateCategory("base", ExtraStats:translate("stats.base"), {
+    local Category = stats:CreateCategory("base", UnitName("player"), {
         order = -999
     })
 

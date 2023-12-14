@@ -77,19 +77,20 @@ ES_PAPERDOLL_SIDEBARS = {
         disabledTooltip = NO_TITLES_TOOLTIP;
         IsActive = function()
             -- You always have the "No Title" title so you need to have more than one to have an option.
-            return #GetKnownTitles() > 1;
+            --return #GetKnownTitles() > 1;
+            return true
         end
-    }
-    --{
-    --    name = PAPERDOLL_EQUIPMENTMANAGER;
-    --    frame = "PaperDollEquipmentManagerPane";
-    --    icon = "Interface\\PaperDollInfoFrame\\PaperDollSidebarTabs";
-    --    texCoords = { 0.01562500, 0.53125000, 0.46875000, 0.60546875 };
-    --
-    --    IsActive = function()
-    --        return true
-    --    end
-    --},
+    },
+    {
+        name = PAPERDOLL_EQUIPMENTMANAGER;
+        frame = "PaperDollEquipmentManagerPane";
+        icon = "Interface\\PaperDollInfoFrame\\PaperDollSidebarTabs";
+        texCoords = { 0.01562500, 0.53125000, 0.46875000, 0.60546875 };
+
+        IsActive = function()
+            return true
+        end
+    },
 };
 
 local defaultWith = 384;
@@ -246,9 +247,9 @@ function Module:CreateCharacterFrames()
     frame.Sidebar.tab2:SetScript("OnClick", function(self)
         Module:HandleTabClick(2)
     end)
-    --frame.Sidebar.tab3:SetScript("OnClick", function(self)
-    --    Module:HandleTabClick(3)
-    --end)
+    frame.Sidebar.tab3:SetScript("OnClick", function(self)
+        Module:HandleTabClick(3)
+    end)
 
     local button = CreateFrame("Button", nil, CharacterModelFrame)
     --button:SetPoint("TOPRIGHT", CharacterFrameCloseButton, "TOPLEFT", -5, -7)

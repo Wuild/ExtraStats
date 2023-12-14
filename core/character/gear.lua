@@ -1,12 +1,22 @@
 local tab = ExtraStats:CreateModule("character.gear")
 
+EquipmentSet = ExtraStats:GetModule("EquipmentSet")
+
 tab.frame = nil
 
 ExtraStats_EQUIPMENTSET_BUTTON_HEIGHT = 44;
+MAX_EQUIPMENT_SETS_PER_PLAYER = 10;
+NUM_GEARSET_ICONS_SHOWN = 80;
+NUM_GEARSET_ICONS_PER_ROW = 10;
+NUM_GEARSET_ICON_ROWS = 8;
+
+--NUM_GEARSET_ICONS_SHOWN = 15;
+--NUM_GEARSET_ICONS_PER_ROW = 5;
+--NUM_GEARSET_ICON_ROWS = 3;
+GEARSET_ICON_ROW_HEIGHT = 36;
 
 local STRIPE_COLOR = { r = 0.9, g = 0.9, b = 1 };
 local itemSlotButtons = {
-    CharacterAmmoSlot, -- 0
     CharacterHeadSlot, -- 1
     CharacterNeckSlot, -- 2
     CharacterShoulderSlot, -- 3
@@ -28,6 +38,41 @@ local itemSlotButtons = {
     CharacterTabardSlot         -- 19
 };
 
+StaticPopupDialogs["CONFIRM_SAVE_EQUIPMENT_SET"] = {
+    text = CONFIRM_SAVE_EQUIPMENT_SET,
+    button1 = YES,
+    button2 = NO,
+    OnAccept = function(self)
+        EquipmentSet:SaveEquipmentSet(self.data);
+        ExtraStats_PaperDollEquipmentManagerPane_Update()
+    end,
+    OnCancel = function(self)
+    end,
+    OnHide = function(self)
+        self.data = nil;
+    end,
+    hideOnEscape = 1,
+    timeout = 0,
+    exclusive = 1,
+    whileDead = 1,
+}
+
+StaticPopupDialogs["CONFIRM_DELETE_EQUIPMENT_SET"] = {
+    text = CONFIRM_DELETE_EQUIPMENT_SET,
+    button1 = YES,
+    button2 = NO,
+    OnAccept = function(self)
+        EquipmentSet:DeleteEquipmentSet(self.data);
+        ExtraStats_PaperDollEquipmentManagerPane_Update()
+    end,
+    OnCancel = function(self)
+    end,
+    hideOnEscape = 1,
+    timeout = 0,
+    exclusive = 1,
+    whileDead = 1,
+}
+
 function ExtraStats_PaperDollEquipmentManagerPane_OnLoad(self)
     HybridScrollFrame_OnLoad(self);
     self.update = ExtraStats_PaperDollEquipmentManagerPane_Update;
@@ -46,20 +91,18 @@ function ExtraStats_PaperDollEquipmentManagerPane_OnShow(self)
     HybridScrollFrame_CreateButtons(tab.frame, "ExtraGearSetButtonTemplate");
     ExtraStats_PaperDollEquipmentManagerPane_Update();
 
-    C_EquipmentSet.ClearIgnoredSlotsForSave(); -- added this line because default one has it
-
-    PaperDollFrameItemPopoutButton_ShowAll();
+    --EquipmentSet:ClearIgnoredSlotsForSave(); -- added this line because default one has it
 end
 
 function ExtraStats_PaperDollEquipmentManagerPane_OnHide(self)
-    PaperDollFrameItemPopoutButton_HideAll();
+    --PaperDollFrameItemPopoutButton_HideAll();
 
     ExtraStats_PaperDollFrame_ClearIgnoredSlots();
 
     ExtraStats_GearManagerDialogPopup:Hide();
     StaticPopup_Hide("CONFIRM_SAVE_EQUIPMENT_SET");
     StaticPopup_Hide("ExtraStats_CONFIRM_OVERWRITE_EQUIPMENT_SET");
-    GearManagerDialog:Hide();
+    --GearManagerDialog:Hide();
 end
 
 function ExtraStats_PaperDollEquipmentManagerPane_OnEvent(self, event, ...)
@@ -123,15 +166,7 @@ function ExtraStats_PaperDollEquipmentManagerPaneEquipSet_OnClick (index)
     if (InCombatLockdown()) then
         UIErrorsFrame:AddMessage(ERR_CLIENT_LOCKED_OUT, 1.0, 0.1, 0.1, 1.0);
     elseif (selectedSetID) then
-        if GetEquipmentSetAssignedSpec(selectedSetID) then
-            if GetEquipmentSetAssignedSpec(selectedSetID) == GetActiveTalentGroup() then
-                C_EquipmentSet.UseEquipmentSet(selectedSetID);
-            else
-                SetActiveTalentGroup(GetEquipmentSetAssignedSpec(selectedSetID))
-            end
-        else
-            C_EquipmentSet.UseEquipmentSet(selectedSetID);
-        end
+        EquipmentSet:UseEquipmentSet(selectedSetID);
     end
 end
 
@@ -152,8 +187,8 @@ function ExtraStats_PaperDollEquipmentManagerPane_Update()
     -- HACK to make ignore slots working "correct"
     if (tab.frame.tempSetID) then
         return ;
-    elseif (C_EquipmentSet.GetEquipmentSetID("ExtraStats_TEMP_SET")) then
-        C_EquipmentSet.DeleteEquipmentSet(C_EquipmentSet.GetEquipmentSetID("ExtraStats_TEMP_SET"));
+    elseif (EquipmentSet:GetEquipmentSetID("TEMP_SET")) then
+        EquipmentSet:DeleteEquipmentSet(EquipmentSet:GetEquipmentSetID("TEMP_SET"));
     end
 
     local _, _, setID, isEquipped = ExtraStats_GetEquipmentSetInfoByName(tab.frame.selectedSetName or "");
@@ -176,7 +211,7 @@ function ExtraStats_PaperDollEquipmentManagerPane_Update()
         end
     end
 
-    local numSets = C_EquipmentSet.GetNumEquipmentSets();
+    local numSets = EquipmentSet:GetNumEquipmentSets();
     local numRows = numSets;
     if (numSets < MAX_EQUIPMENT_SETS_PER_PLAYER) then
         numRows = numRows + 1;  -- "Add New Set" button
@@ -197,8 +232,8 @@ function ExtraStats_PaperDollEquipmentManagerPane_Update()
 
             if (i + scrollOffset <= numSets) then
                 -- Normal equipment set button
-                local sets = C_EquipmentSet.GetEquipmentSetIDs();
-                name, icon, setID, isEquipped, _, _, _, numLost, _ = C_EquipmentSet.GetEquipmentSetInfo(sets[i + scrollOffset]);
+                local sets = EquipmentSet:GetEquipmentSetIDs();
+                name, icon, setID, isEquipped, numLost = EquipmentSet:GetEquipmentSetInfo(sets[i + scrollOffset]);
                 button.name = name;
                 button.iconTexture = icon;
                 button.setID = setID;
@@ -265,15 +300,15 @@ end
 function ExtraStats_GetEquipmentSetInfoByName(arg)
     -- arg could be: "", "name", 1 (number),
     if (type(arg) == "string" and arg ~= "") then
-        if (C_EquipmentSet.GetEquipmentSetID(arg) ~= nil) then
-            return C_EquipmentSet.GetEquipmentSetInfo(C_EquipmentSet.GetEquipmentSetID(arg));
+        if (EquipmentSet:GetEquipmentSetID(arg) ~= nil) then
+            return EquipmentSet:GetEquipmentSetInfo(EquipmentSet:GetEquipmentSetID(arg));
         else
             return nil;
         end
     elseif (arg == "") then
         return nil;
     else
-        return C_EquipmentSet.GetEquipmentSetInfo(arg);
+        return EquipmentSet:GetEquipmentSetInfo(arg);
     end
 end
 
@@ -285,8 +320,6 @@ function ExtraStats_GearSetButton_OnEnter (self)
 end
 
 function ExtraStats_GearSetButton_OnClick (self, button, down)
-    GearManagerDialog:Show();
-
     if (self.setID) then
         ExtraStats_GearManagerDialogPopup:Hide();
 
@@ -294,8 +327,8 @@ function ExtraStats_GearSetButton_OnClick (self, button, down)
         tab.frame.selectedSetName = self.name;
         tab.frame.selectedSetID = self.setID;
         -- mark the ignored slots
-        ExtraStats_PaperDollFrame_ClearIgnoredSlots();
-        ExtraStats_PaperDollFrame_IgnoreSlotsForSet(self.setID);
+        --ExtraStats_PaperDollFrame_ClearIgnoredSlots();
+        --ExtraStats_PaperDollFrame_IgnoreSlotsForSet(self.setID);
         ExtraStats_PaperDollEquipmentManagerPane_Update();
     else
         -- This is the "New Set" button
@@ -310,10 +343,10 @@ function ExtraStats_GearSetButton_OnClick (self, button, down)
 
         -- HACK to make ignore slots working "correct"
         tab.frame.tempSetID = 0;
-        C_EquipmentSet.CreateEquipmentSet("ExtraStats_TEMP_SET");
-        tab.frame.tempSetID = C_EquipmentSet.GetEquipmentSetID("ExtraStats_TEMP_SET");
+        EquipmentSet:CreateEquipmentSet("TEMP_SET");
+        tab.frame.tempSetID = EquipmentSet:GetEquipmentSetID("TEMP_SET");
         for i = 1, (#tab.frame.buttons) do
-            if (tab.frame.buttons[i].name == "ExtraStats_TEMP_SET") then
+            if (tab.frame.buttons[i].name == "TEMP_SET") then
                 tab.frame.buttons[i]:Hide();
                 break ;
             end
@@ -365,7 +398,7 @@ function ExtraStats_GearManagerDialogPopup_OnLoad (self)
 end
 
 function ExtraStats_GearManagerDialogPopup_OnShow (self)
-    GearManagerDialog:Show();
+    ExtraStats_GearManagerDialogPopup:Show();
     PlaySound(SOUNDKIT.IG_CHARACTER_INFO_OPEN);
     self.name = nil;
     self.isEdit = false;
@@ -376,7 +409,7 @@ function ExtraStats_GearManagerDialogPopup_OnShow (self)
 end
 
 function ExtraStats_GearManagerDialogPopup_OnHide (self)
-    GearManagerDialog:Hide();
+    ExtraStats_GearManagerDialogPopup:Hide();
     ExtraStats_GearManagerDialogPopup.name = nil;
     ExtraStats_GearManagerDialogPopup:SetSelection(true, nil);
     ExtraStats_GearManagerDialogPopupEditBox:SetText("");
@@ -540,9 +573,9 @@ function ExtraStats_GearManagerDialogPopupOkay_OnClick(self, button, pushed)
     local popup = ExtraStats_GearManagerDialogPopup;
 
     local icon = ExtraStats_GetEquipmentSetIconInfo(popup.selectedIcon);
-    --[[ local setID = C_EquipmentSet.GetEquipmentSetID(popup.name); ]]
+    --[[ local setID = EquipmentSet:GetEquipmentSetID(popup.name); ]]
 
-    if (popup.name == "ExtraStats_TEMP_SET") then
+    if (popup.name == "TEMP_SET") then
         -- Can't use addon's temp set name to make a set
         UIErrorsFrame:AddMessage(L["ExtraStats_EQUIPMENT_SETS_NAME_RESERVED"], 1.0, 0.1, 0.1, 1.0);
         return ;
@@ -555,7 +588,7 @@ function ExtraStats_GearManagerDialogPopupOkay_OnClick(self, button, pushed)
             --[[ if ( setID ) then ]]
             local dialog = StaticPopup_Show("ExtraStats_CONFIRM_OVERWRITE_EQUIPMENT_SET", popup.name);
             if (dialog) then
-                local setID = C_EquipmentSet.GetEquipmentSetID(popup.name);
+                local setID = EquipmentSet:GetEquipmentSetID(popup.name);
                 dialog.data = setID;
                 dialog.selectedIcon = icon;
             else
@@ -564,10 +597,10 @@ function ExtraStats_GearManagerDialogPopupOkay_OnClick(self, button, pushed)
             tab.frame.tempSetID = nil;
             return ;
         end
-    elseif ((not C_EquipmentSet.GetEquipmentSetID("ExtraStats_TEMP_SET")) and (C_EquipmentSet.GetNumEquipmentSets() >= MAX_EQUIPMENT_SETS_PER_PLAYER)) then
+    elseif ((not EquipmentSet:GetEquipmentSetID("TEMP_SET")) and (EquipmentSet:GetNumEquipmentSets() >= MAX_EQUIPMENT_SETS_PER_PLAYER)) then
         UIErrorsFrame:AddMessage(EQUIPMENT_SETS_TOO_MANY, 1.0, 0.1, 0.1, 1.0);
         return ;
-    elseif ((C_EquipmentSet.GetEquipmentSetID("ExtraStats_TEMP_SET")) and (C_EquipmentSet.GetNumEquipmentSets() >= MAX_EQUIPMENT_SETS_PER_PLAYER + 1)) then
+    elseif ((EquipmentSet:GetEquipmentSetID("TEMP_SET")) and (EquipmentSet:GetNumEquipmentSets() >= MAX_EQUIPMENT_SETS_PER_PLAYER + 1)) then
         UIErrorsFrame:AddMessage(EQUIPMENT_SETS_TOO_MANY, 1.0, 0.1, 0.1, 1.0);
         return ;
     end
@@ -575,16 +608,16 @@ function ExtraStats_GearManagerDialogPopupOkay_OnClick(self, button, pushed)
     if (popup.isEdit) then
         --Modifying a set
         tab.frame.selectedSetName = popup.name;
-        local setID = C_EquipmentSet.GetEquipmentSetID(ExtraStats_GearManagerDialogPopup.origName);
-        --[[ C_EquipmentSet.SaveEquipmentSet(setID, icon); ]]
-        C_EquipmentSet.ModifyEquipmentSet(setID, popup.name, icon);
-        C_EquipmentSet.AssignSpecToEquipmentSet(setID, GetActiveTalentGroup())
+        local setID = EquipmentSet:GetEquipmentSetID(ExtraStats_GearManagerDialogPopup.origName);
+        --EquipmentSet:SaveEquipmentSet(setID, icon);
+        EquipmentSet:ModifyEquipmentSet(setID, popup.name, icon);
+        --EquipmentSet:AssignSpecToEquipmentSet(setID, GetActiveTalentGroup())
     else
         -- HACK to make ignore slots working "correct"
-        C_EquipmentSet.SaveEquipmentSet(tab.frame.tempSetID, icon);
-        C_EquipmentSet.ModifyEquipmentSet(tab.frame.tempSetID, popup.name);
+        EquipmentSet:SaveEquipmentSet(tab.frame.tempSetID, icon);
+        EquipmentSet:ModifyEquipmentSet(tab.frame.tempSetID, popup.name);
 
-        C_EquipmentSet.AssignSpecToEquipmentSet(tab.frame.tempSetID, GetActiveTalentGroup())
+        --EquipmentSet:AssignSpecToEquipmentSet(tab.frame.tempSetID, GetActiveTalentGroup())
         tab.frame.tempSetID = nil;
         ExtraStats_PaperDollEquipmentManagerPane_Update();
     end
@@ -612,10 +645,10 @@ function ExtraStats_GearSetButton_OnDoubleClick(self)
     --if (InCombatLockdown()) then
     --    UIErrorsFrame:AddMessage(ERR_CLIENT_LOCKED_OUT, 1.0, 0.1, 0.1, 1.0);
     --elseif (id) then
-    --    if C_EquipmentSet.GetEquipmentSetAssignedSpec(id) then
-    --        SetActiveTalentGroup(C_EquipmentSet.GetEquipmentSetAssignedSpec(id))
+    --    if EquipmentSet:GetEquipmentSetAssignedSpec(id) then
+    --        SetActiveTalentGroup(EquipmentSet:GetEquipmentSetAssignedSpec(id))
     --    else
-    --        C_EquipmentSet.UseEquipmentSet(id);
+    --        EquipmentSet:UseEquipmentSet(id);
     --    end
     --end
     --
@@ -623,7 +656,7 @@ function ExtraStats_GearSetButton_OnDoubleClick(self)
 end
 
 function ExtraStats_PaperDollFrame_ClearIgnoredSlots()
-    C_EquipmentSet.ClearIgnoredSlotsForSave();
+    EquipmentSet:ClearIgnoredSlotsForSave();
     for k, button in next, itemSlotButtons do
         if (button.ignored) then
             button.ignored = nil;
@@ -633,10 +666,10 @@ function ExtraStats_PaperDollFrame_ClearIgnoredSlots()
 end
 
 function ExtraStats_PaperDollFrame_IgnoreSlotsForSet (setID)
-    local set = C_EquipmentSet.GetIgnoredSlots(setID);
+    local set = EquipmentSet:GetIgnoredSlots(setID);
     for slot, ignored in ipairs(set) do
         if (ignored == true) then
-            C_EquipmentSet.IgnoreSlotForSave(slot);
+            EquipmentSet:IgnoreSlotForSave(slot);
             itemSlotButtons[slot].ignored = true;
             PaperDollItemSlotButton_Update(itemSlotButtons[slot]);
         end
@@ -644,7 +677,7 @@ function ExtraStats_PaperDollFrame_IgnoreSlotsForSet (setID)
 end
 
 function ExtraStats_PaperDollFrame_IgnoreSlot(slot)
-    C_EquipmentSet.IgnoreSlotForSave(slot);
+    EquipmentSet:IgnoreSlotForSave(slot);
     itemSlotButtons[slot].ignored = true;
     PaperDollItemSlotButton_Update(itemSlotButtons[slot]);
 end
@@ -652,7 +685,7 @@ end
 function ExtraStats_GearSetDeleteButton_OnClick(self)
     local dialog = StaticPopup_Show("CONFIRM_DELETE_EQUIPMENT_SET", self:GetParent().name);
     if (dialog) then
-        dialog.data = self:GetParent().setID;
+        dialog.data = self:GetParent().setID
     else
         UIErrorsFrame:AddMessage(ERR_CLIENT_LOCKED_OUT, 1.0, 0.1, 0.1, 1.0);
     end
@@ -685,33 +718,33 @@ function GearSetEditButtonDropDown_Initialize(dropdownFrame, level, menuList)
     end;
     UIDropDownMenu_AddButton(info, UIDROPDOWN_MENU_LEVEL);
 
-    info = UIDropDownMenu_CreateInfo();
-    info.text = EQUIPMENT_SET_ASSIGN_TO_SPEC;
-    info.isTitle = true;
-    info.notCheckable = true;
-    UIDropDownMenu_AddButton(info, UIDROPDOWN_MENU_LEVEL);
+    --info = UIDropDownMenu_CreateInfo();
+    --info.text = EQUIPMENT_SET_ASSIGN_TO_SPEC;
+    --info.isTitle = true;
+    --info.notCheckable = true;
+    --UIDropDownMenu_AddButton(info, UIDROPDOWN_MENU_LEVEL);
 
-    local equipmentSetID = gearSetButton.setID;
-    for i = 1, 2 do
-        info = UIDropDownMenu_CreateInfo();
-        info.checked = function()
-            return GetEquipmentSetAssignedSpec(equipmentSetID) == i;
-        end;
-
-        info.func = function()
-            local currentSpecIndex = GetEquipmentSetAssignedSpec(equipmentSetID);
-            if (currentSpecIndex ~= i) then
-                AssignSpecToEquipmentSet(equipmentSetID, i);
-            else
-                UnassignEquipmentSetSpec(equipmentSetID);
-            end
-            ExtraStats_PaperDollEquipmentManagerPane_Update(true);
-        end;
-
-        local specID = GetPrimaryTalentTree(i);
-        info.text = GetTalentTabInfo(specID);
-        UIDropDownMenu_AddButton(info, UIDROPDOWN_MENU_LEVEL);
-    end
+    --local equipmentSetID = gearSetButton.setID;
+    --for i = 1, 2 do
+    --    info = UIDropDownMenu_CreateInfo();
+    --    info.checked = function()
+    --        return GetEquipmentSetAssignedSpec(equipmentSetID) == i;
+    --    end;
+    --
+    --    info.func = function()
+    --        local currentSpecIndex = GetEquipmentSetAssignedSpec(equipmentSetID);
+    --        if (currentSpecIndex ~= i) then
+    --            AssignSpecToEquipmentSet(equipmentSetID, i);
+    --        else
+    --            UnassignEquipmentSetSpec(equipmentSetID);
+    --        end
+    --        ExtraStats_PaperDollEquipmentManagerPane_Update(true);
+    --    end;
+    --
+    --    local specID = GetPrimaryTalentTree(i);
+    --    info.text = GetTalentTabInfo(specID);
+    --    UIDropDownMenu_AddButton(info, UIDROPDOWN_MENU_LEVEL);
+    --end
 end
 
 function AssignSpecToEquipmentSet(SetId, SpecId)
@@ -768,7 +801,7 @@ end
 function tab:init()
     local frame = CreateFrame("ScrollFrame", "PaperDollEquipmentManagerPane", PaperDollFrame, "PaperDollEquipmentManagerPaneTemplate");
 
-    tab.DialogPopup = CreateFrame("Frame", "ExtraStats_GearManagerDialogPopup", frame, "MCF-GearManagerDialogPopupTemplate");
+    tab.DialogPopup = CreateFrame("Frame", "ExtraStats_GearManagerDialogPopup", frame, "ExtraGearManagerDialogPopupTemplate");
 
     frame:RegisterEvent("ACTIVE_TALENT_GROUP_CHANGED")
     frame:RegisterEvent("PLAYER_ENTERING_WORLD");
@@ -797,15 +830,12 @@ function tab:init()
     frame:RegisterEvent("UNIT_MAXHEALTH");
 
     frame:SetScript("OnEvent", function(self, event)
-
-        local setForSpec = GetEquipmentSetForSpec(GetActiveTalentGroup());
-
-        if event == "ACTIVE_TALENT_GROUP_CHANGED" and setForSpec then
-            C_EquipmentSet.UseEquipmentSet(setForSpec);
-        end
-
         ExtraStats_PaperDollEquipmentManagerPane_Update()
     end)
+
+    --for index, slot in pairs(itemSlotButtons) do
+    --    slot.PopoutButton = CreateFrame("Button", nil, slot, "ExtraStatsPopoutButtonTemplate");
+    --end
 
     tab.frame = frame;
 end

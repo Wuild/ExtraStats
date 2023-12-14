@@ -116,7 +116,8 @@ stats.configsDefaults = {
                     resiliance = true
                 }
             }
-        }
+        },
+        equipments = {}
     },
     profile = {
 

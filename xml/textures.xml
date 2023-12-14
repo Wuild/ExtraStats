@@ -214,19 +214,10 @@
             </Layer>
         </Layers>
         <Frames>
-<!--            <Button name="PaperDollSidebarTab3" parentKey="tab3" inherits="ExtraPaperDollSidebarTabTemplate" id="3">-->
-<!--                <Anchors>-->
-<!--                    <Anchor point="BOTTOMRIGHT" x="-30" y="0"/>-->
-<!--                </Anchors>-->
-<!--            </Button>-->
-            <Button name="PaperDollSidebarTab2" parentKey="tab2" inherits="ExtraPaperDollSidebarTabTemplate" id="2">
+            <Button name="PaperDollSidebarTab1" parentKey="tab1" inherits="ExtraPaperDollSidebarTabTemplate"
+                    id="1">
                 <Anchors>
-                    <Anchor point="BOTTOMRIGHT" x="-50" y="0"/>
-                </Anchors>
-            </Button>
-            <Button name="PaperDollSidebarTab1" parentKey="tab1" inherits="ExtraPaperDollSidebarTabTemplate" id="1">
-                <Anchors>
-                    <Anchor point="RIGHT" relativeTo="PaperDollSidebarTab2" relativePoint="LEFT" x="-4"/>
+                    <Anchor point="Left" x="33"/>
                 </Anchors>
                 <Scripts>
                     <OnLoad>
@@ -249,6 +240,18 @@
                         end
                     </OnEvent>
                 </Scripts>
+            </Button>
+            <Button name="PaperDollSidebarTab2" parentKey="tab2" inherits="ExtraPaperDollSidebarTabTemplate"
+                    id="2">
+                <Anchors>
+                    <Anchor point="Right" relativeTo="PaperDollSidebarTab1" x="35"/>
+                </Anchors>
+            </Button>
+            <Button name="PaperDollSidebarTab3" parentKey="tab3" inherits="ExtraPaperDollSidebarTabTemplate"
+                    id="3">
+                <Anchors>
+                    <Anchor point="Right" relativeTo="PaperDollSidebarTab2" x="35"/>
+                </Anchors>
             </Button>
         </Frames>
     </Frame>

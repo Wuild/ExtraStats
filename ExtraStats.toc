@@ -21,7 +21,7 @@ libraries\AceLocale-3.0\AceLocale-3.0.xml
 libraries\Semver\Semver.xml
 xml\frames.xml
 xml\textures.xml
-# xml\gearmanager.xml
+xml\gearmanager.xml
 
 locales\enUS.lua
 locales\deDE.lua
@@ -33,19 +33,20 @@ locales\zhCN.lua
 core\constants.lua
 core\configs.lua
 core\methods.lua
+core\EquipmentSet.lua
 core\window.lua
 core\settings.lua
 modules\stats\base.lua
-modules\stats\attributes.lua
-modules\stats\melee.lua
-modules\stats\ranged.lua
-modules\stats\spell.lua
-modules\stats\defense.lua
+# modules\stats\attributes.lua
+# modules\stats\melee.lua
+# modules\stats\ranged.lua
+# modules\stats\spell.lua
+# modules\stats\defense.lua
 modules\stats\settings.lua
-# modules\Vanilla.lua
+modules\Vanilla.lua
 core\character\stats.lua
 core\character\titles.lua
-# core\character\gear.lua
+core\character\gear.lua
 
 # modules\engraving.lua
 
