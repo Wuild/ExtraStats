@@ -6,7 +6,7 @@ stats.version = GetAddOnMetadata(name, "version");
 ExtraStats = LibStub("AceAddon-3.0"):NewAddon("ExtraStats", "AceConsole-3.0", "AceEvent-3.0", "AceTimer-3.0", "AceComm-3.0", "AceSerializer-3.0")
 
 ExtraStats:SetDefaultModuleLibraries("AceEvent-3.0")
-ExtraStats:SetDefaultModuleState(false)
+--ExtraStats:SetDefaultModuleState(false)
 
 ExtraStats.plugins = {}
 

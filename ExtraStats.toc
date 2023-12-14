@@ -48,7 +48,7 @@ core\character\stats.lua
 core\character\titles.lua
 core\character\gear.lua
 
-# modules\engraving.lua
+modules\gear.lua
 
 plugins\elvui.lua
 plugins\tacotip.lua

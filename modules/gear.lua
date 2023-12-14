@@ -57,14 +57,21 @@ local function SetupGearFrames()
     UpdateGearFrames()
 end
 
-function Module:Update()
+local Module = ExtraStats:NewModule("Gear")
+
+function Module:EventHandler(event)
     UpdateGearFrames()
 end
 
-function Module:Setup()
+function Module:OnEnable()
     SetupGearFrames()
+    self:RegisterEvent("PLAYER_LOGIN", "EventHandler")
+    self:RegisterEvent("PLAYER_EQUIPMENT_CHANGED", "EventHandler")
+    self:RegisterEvent("MODIFIER_STATE_CHANGED", "EventHandler")
 end
 
-do
-    table.insert(ExtraStats.modules, Module)
+function Module:OnDisable()
+    self:UnregisterEvent("PLAYER_LOGIN")
+    self:UnregisterEvent("PLAYER_EQUIPMENT_CHANGED")
+    self:UnregisterEvent("MODIFIER_STATE_CHANGED")
 end
