@@ -17,10 +17,17 @@ function Plugin:Setup()
 
     local E, L, V, P, G = unpack(ElvUI)
 
+    if not (E.private.skins.blizzard.enable and E.private.skins.blizzard.character) then
+        return
+    end
+
     ExtraStats.categoryYOffset = -5;
     ExtraStats.statYOffset = -5;
 
     ExtraStats:debug("ELVUI Detected")
+
+    S = E:GetModule('Skins')
+    S:CharacterFrame()
 
     --ExtraStats:On("category:build", function(frame)
     --    frame:StripTextures()
@@ -33,14 +40,13 @@ function Plugin:Setup()
     --end);
 
 
+    ExtraStats:On("character.window.hide", function()
+        CharacterFrame.backdrop:Show()
+    end);
 
-    ExtraStats:On("character.window", function()
-
-        S = E:GetModule('Skins')
-        S:CharacterFrame()
-
-        CharacterFrame.backdrop:Kill()
-
+    ExtraStats:On("character.window.show", function()
+        CharacterFrame.backdrop:Hide()
+        
         CharacterModelFrame:StripTextures()
         CharacterModelFrameBackgroundTopLeft:Kill()
         CharacterModelFrameBackgroundTopRight:Kill()

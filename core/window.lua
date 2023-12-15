@@ -77,7 +77,8 @@ ES_PAPERDOLL_SIDEBARS = {
         disabledTooltip = NO_TITLES_TOOLTIP;
         IsActive = function()
             -- You always have the "No Title" title so you need to have more than one to have an option.
-            return #GetKnownTitles() > 1;
+            --return #GetKnownTitles() > 1;
+            return true
         end
     },
     {
@@ -92,38 +93,41 @@ ES_PAPERDOLL_SIDEBARS = {
     },
 };
 
+local defaultWith = 384;
 local expandedWidth = 242;
+
+local fullSize = defaultWith + expandedWidth;
 
 local BlizzFrames = {
     CharacterAttributesFrame,
     GearManagerToggleButton,
     PlayerTitleDropDown,
 
-    GearSetButton1,
-    GearSetButton2,
-    GearSetButton3,
-    GearSetButton4,
-    GearSetButton5,
-    GearSetButton6,
-    GearSetButton7,
-    GearSetButton8,
-    GearSetButton9,
-    GearSetButton10,
-    GearManagerDialogDeleteSet,
-    GearManagerDialogEquipSet,
-    GearManagerDialogSaveSet,
-    GearManagerDialogClose,
-    GearManagerDialog.Title,
-    GearManagerDialogTitleBG,
-    GearManagerDialogDialogBG,
-    GearManagerDialogTop,
-    GearManagerDialogTopRight,
-    GearManagerDialogRight,
-    GearManagerDialogBottomRight,
-    GearManagerDialogBottom,
-    GearManagerDialogBottomLeft,
-    GearManagerDialogLeft,
-    GearManagerDialogTopLeft,
+    --GearSetButton1,
+    --GearSetButton2,
+    --GearSetButton3,
+    --GearSetButton4,
+    --GearSetButton5,
+    --GearSetButton6,
+    --GearSetButton7,
+    --GearSetButton8,
+    --GearSetButton9,
+    --GearSetButton10,
+    --GearManagerDialogDeleteSet,
+    --GearManagerDialogEquipSet,
+    --GearManagerDialogSaveSet,
+    ----GearManagerDialogClose,
+    ----GearManagerDialog.Title,
+    --GearManagerDialogTitleBG,
+    --GearManagerDialogDialogBG,
+    --GearManagerDialogTop,
+    --GearManagerDialogTopRight,
+    --GearManagerDialogRight,
+    --GearManagerDialogBottomRight,
+    --GearManagerDialogBottom,
+    --GearManagerDialogBottomLeft,
+    --GearManagerDialogLeft,
+    --GearManagerDialogTopLeft,
 };
 
 Module.CharacterFrame = CharacterFrame;
@@ -234,7 +238,7 @@ function Module:CreateCharacterFrames()
 
     frame.InsetRight = CreateFrame("Frame", "$parentInsetRight", frame, "InsetFrameTemplate");
     frame.InsetRight:SetPoint("TOPLEFT", "CharacterFrameInset", "TOPRIGHT", 0, 0);
-    frame.InsetRight:SetPoint("BOTTOMRIGHT", CharacterFrame, "BOTTOMRIGHT", -36 + expandedWidth, 78);
+    frame.InsetRight:SetPoint("BOTTOMRIGHT", CharacterFrame, "BOTTOMRIGHT", -36, 78);
 
     frame.Sidebar = CreateFrame("Frame", "PaperDollSidebarTabs", frame, "ExtraPaperDollSidebarTabsTemplate");
     frame.Sidebar.tab1:SetScript("OnClick", function(self)
@@ -247,9 +251,9 @@ function Module:CreateCharacterFrames()
         Module:HandleTabClick(3)
     end)
 
-    local button = CreateFrame("Button", nil, frame.Sidebar)
+    local button = CreateFrame("Button", nil, CharacterModelFrame)
     --button:SetPoint("TOPRIGHT", CharacterFrameCloseButton, "TOPLEFT", -5, -7)
-    button:SetPoint("BOTTOMRIGHT", 10, 8)
+    button:SetPoint("BOTTOMLEFT", 10, 8)
     button:SetWidth(18)
     button:SetHeight(18)
     button:SetNormalFontObject("GameFontNormal")
@@ -343,13 +347,13 @@ end
 
 function Module:Expand()
     ExtraStats:debug("expand character frame")
-    Module.PaperDollFrame.bg:SetPoint("BOTTOMRIGHT", Module.CharacterFrame, "BOTTOMRIGHT", -36 + expandedWidth, 78);
-    Module.PaperDollFrame.TitleBg:SetPoint("TOPRIGHT", Module.CharacterFrame, "TOPRIGHT", -35 + expandedWidth, -17);
-    Module.PaperDollFrame.TopRightCorner:SetPoint("TOPRIGHT", Module.CharacterFrame, "TOPRIGHT", -32 + expandedWidth, -13);
-    Module.PaperDollFrame.TopTileStreaks:SetPoint("TOPRIGHT", Module.CharacterFrame, "TOPRIGHT", -34 + expandedWidth, -35);
-    Module.PaperDollFrame.BotRightCorner:SetPoint("BOTTOMRIGHT", Module.CharacterFrame, "BOTTOMRIGHT", -32 + expandedWidth, 70);
+    Module.PaperDollFrame.bg:SetPoint("BOTTOMRIGHT", Module.CharacterFrame, "BOTTOMRIGHT", -36, 78);
+    Module.PaperDollFrame.TitleBg:SetPoint("TOPRIGHT", Module.CharacterFrame, "TOPRIGHT", -35, -17);
+    Module.PaperDollFrame.TopRightCorner:SetPoint("TOPRIGHT", Module.CharacterFrame, "TOPRIGHT", -32, -13);
+    Module.PaperDollFrame.TopTileStreaks:SetPoint("TOPRIGHT", Module.CharacterFrame, "TOPRIGHT", -34, -35);
+    Module.PaperDollFrame.BotRightCorner:SetPoint("BOTTOMRIGHT", Module.CharacterFrame, "BOTTOMRIGHT", -32, 70);
     -- Moving CharacterFrameCloseButton
-    CharacterFrameCloseButton:SetPoint("TOPRIGHT", Module.CharacterFrame, "TOPRIGHT", -28 + expandedWidth, -9);
+    CharacterFrameCloseButton:SetPoint("TOPRIGHT", Module.CharacterFrame, "TOPRIGHT", -28, -9);
     -- Fixing CharacterNameFrame coordinates
     CharacterNameFrame:ClearAllPoints();
     CharacterNameFrame:SetPoint("TOP", CharacterModelFrame, "TOP", 2 + (expandedWidth / 2), 59);
@@ -361,8 +365,12 @@ function Module:Expand()
     Module.CharacterFrame.Sidebar:Show()
     Module.CharacterFrame.InsetRight:Show()
 
-    Module:HandleTabClick(1)
+    CharacterFrame:SetWidth(fullSize);
 
+    SetUIPanelAttribute(CharacterFrame, "width", fullSize);
+    UpdateUIPanelPositions(CharacterFrame);
+
+    Module:HandleTabClick(1)
 end
 
 function Module:Collapse()
@@ -385,6 +393,11 @@ function Module:Collapse()
 
     Module.CharacterFrame.Sidebar:Hide()
     Module.CharacterFrame.InsetRight:Hide()
+
+    CharacterFrame:SetWidth(defaultWith);
+
+    SetUIPanelAttribute(CharacterFrame, "width", defaultWith);
+    UpdateUIPanelPositions(CharacterFrame);
 
     CharacterFrame.Expanded = false;
 end
@@ -466,6 +479,8 @@ function Module:EventHandler(event, ...)
             Module:PaperDollBgDesaturate(false);
             Module:CleanDefaultFrame();
             Module.CharacterFrame.Sidebar:Show();
+
+            ExtraStats:Trigger("character.window.show")
         end)
 
         Module.PaperDollFrame:SetScript("OnHide", function()
@@ -473,6 +488,7 @@ function Module:EventHandler(event, ...)
             Module:Collapse()
 
             Module.CharacterFrame.Sidebar:Hide();
+            ExtraStats:Trigger("character.window.hide")
         end)
 
         Module:Expand()

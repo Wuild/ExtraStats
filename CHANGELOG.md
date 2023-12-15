@@ -1,3 +1,12 @@
+# 1.5.0
+
+* Made it possible to use the same addon version on all flavors!
+* Revamped equipment manager, not using blizzard built in
+* Revamped the stats tab on both vanilla and wrath
+* Added Expertise on wrath
+* Moved Resilience to defense
+* Fixed the tacotip plugin
+
 # 1.3.0
 
 * Revamped character window

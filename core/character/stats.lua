@@ -18,7 +18,7 @@ function tab:init()
     frame:SetScrollChild(frame.ScrollChild)
 
     categoryFramePool = CreateFramePool("FRAME", frame.ScrollChild, "ExtraStatsFrameCategoryTemplate")
-    statsFramePool = CreateFramePool("FRAME", frame.ScrollChild, "CharacterStatFrameTemplate")
+    statsFramePool = CreateFramePool("FRAME", frame.ScrollChild, "ExtraStatsCharacterStatFrameTemplate")
 
     tab.frame = frame
 
@@ -255,7 +255,7 @@ function tab:update()
 
                 if (showStat) then
                     statFrame:Hide()
-                    statFrame.onEnter = nil;
+                    --statFrame.onEnter = nil;
                     statFrame.onUpdate = nil;
                     statFrame.UpdateTooltip = nil;
                     statFrame.tooltip = nil;
@@ -267,7 +267,13 @@ function tab:update()
                     end
 
                     if stat.value then
-                        local data = stat.value()
+                        local data
+
+                        if type(stat.value) == "table" then
+                            data = stat.value;
+                        else
+                            data = stat.value("player")
+                        end
 
                         if data then
 

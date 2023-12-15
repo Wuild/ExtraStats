@@ -32,8 +32,8 @@
         </Scripts>
     </Frame>
 
-    <Frame name="CharacterStatFrameTemplate" virtual="true">
-        <Size x="187" y="18"/>
+    <Frame name="ExtraStatsCharacterStatFrameTemplate" virtual="true" enableMouse="true">
+        <Size x="187" y="22"/>
         <Layers>
             <Layer level="BACKGROUND">
                 <Texture parentKey="Background" atlas="UI-Character-Info-Line-Bounce" useAtlasSize="true" alpha="0.3">
@@ -137,4 +137,6 @@
         <DisabledTexture file="Interface\Buttons\UI-SpellbookIcon-PrevPage-Disabled"/>
         <HighlightTexture file="Interface\Buttons\UI-Common-MouseHilight" alphaMode="ADD"/>
     </Button>
+
+
 </Ui>

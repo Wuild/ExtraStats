@@ -30,13 +30,9 @@ function ExtraStats:ShowSettings()
 end
 
 function ExtraStats:SlashCommand(input)
-    input = string.trim(input, " ");
-    if input == "" or not input then
-        ExtraStats:ShowSettings();
-        return
-    end
+    local cmd, arg1, arg2, arg3 = ExtraStats:GetArgs(input, 4);
 
-    if input == "debug" then
+    if cmd == "debug" then
         if ExtraStats.db.global.debug.enabled then
             ExtraStats.db.global.debug.enabled = false;
             ExtraStats:print("debugging", ExtraStats:Colorize("disabled", "red"));
@@ -44,6 +40,10 @@ function ExtraStats:SlashCommand(input)
             ExtraStats.db.global.debug.enabled = true;
             ExtraStats:print("debugging", ExtraStats:Colorize("enabled", "green"));
         end
+    elseif cmd == "equip" then
+        EquipmentSet = ExtraStats:GetModule("EquipmentSet")
+        local _, _, id = EquipmentSet:GetEquipmentSetInfoByName(arg1);
+        EquipmentSet:UseEquipmentSet(id)
     end
 
 end
@@ -100,6 +100,7 @@ function ExtraStats:OnInitialize()
     --ExtraStats:ScheduleRepeatingTimer("SendVersionCheck", 10)
     --ExtraStats:ScheduleRepeatingTimer("UpdateRole", 0.5)
     ExtraStats:RegisterChatCommand("stats", "SlashCommand")
+    ExtraStats:RegisterChatCommand("es", "SlashCommand")
 end
 
 function ExtraStats:OnEnable()

@@ -1,0 +1,48 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/
+..\FrameXML\UI.xsd">
+    <!--@non-debug@-->
+    <Script file="libraries\LibStub\LibStub.lua"/>
+    <Include file="libraries\CallbackHandler-1.0\CallbackHandler-1.0.xml"/>
+    <Include file="libraries\AceAddon-3.0\AceAddon-3.0.xml"/>
+    <Include file="libraries\AceEvent-3.0\AceEvent-3.0.xml"/>
+    <Include file="libraries\AceHook-3.0\AceHook-3.0.xml"/>
+    <Include file="libraries\AceGUI-3.0\AceGUI-3.0.xml"/>
+    <Include file="libraries\AceTimer-3.0\AceTimer-3.0.xml"/>
+    <Include file="libraries\AceConsole-3.0\AceConsole-3.0.xml"/>
+    <Include file="libraries\AceComm-3.0\AceComm-3.0.xml"/>
+    <Include file="libraries\AceSerializer-3.0\AceSerializer-3.0.xml"/>
+    <Include file="libraries\AceDB-3.0\AceDB-3.0.xml"/>
+    <Include file="libraries\AceConfig-3.0\AceConfig-3.0.xml"/>
+    <Include file="libraries\AceLocale-3.0\AceLocale-3.0.xml"/>
+    <Include file="libraries\Semver\Semver.xml"/>
+
+    <Include file="xml\frames.xml"/>
+    <Include file="xml\textures.xml"/>
+    <Include file="xml\gearmanager.xml"/>
+
+    <Script file="locales\enUS.lua"/>
+    <Script file="locales\deDE.lua"/>
+    <Script file="locales\esES.lua"/>
+    <Script file="locales\frFR.lua"/>
+    <Script file="locales\itIT.lua"/>
+    <Script file="locales\ruRU.lua"/>
+    <Script file="locales\zhCN.lua"/>
+
+    <Script file="core\constants.lua"/>
+    <Script file="core\configs.lua"/>
+    <Script file="core\methods.lua"/>
+    <Script file="core\EquipmentSet.lua"/>
+    <Script file="core\window.lua"/>
+    <Script file="core\settings.lua"/>
+    <Script file="core\character\stats.lua"/>
+    <Script file="core\character\titles.lua"/>
+    <Script file="core\character\gear.lua"/>
+
+    <Script file="modules\settings.lua"/>
+    <Script file="modules\gear.lua"/>
+
+    <Script file="plugins\elvui.lua"/>
+    <Script file="plugins\tacotip.lua"/>
+
+    <!--@end-non-debug@-->
+</Ui>

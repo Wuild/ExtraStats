@@ -6,16 +6,16 @@ stats.version = GetAddOnMetadata(name, "version");
 ExtraStats = LibStub("AceAddon-3.0"):NewAddon("ExtraStats", "AceConsole-3.0", "AceEvent-3.0", "AceTimer-3.0", "AceComm-3.0", "AceSerializer-3.0")
 
 ExtraStats:SetDefaultModuleLibraries("AceEvent-3.0")
-ExtraStats:SetDefaultModuleState(false)
+--ExtraStats:SetDefaultModuleState(false)
 
 ExtraStats.plugins = {}
 
 ExtraStats.modules = ExtraStats:NewModule("Modules")
-ExtraStats.modules:SetDefaultModuleState(false)
+--ExtraStats.modules:SetDefaultModuleState(false)
 
 
 ExtraStats.categoryYOffset = -5;
-ExtraStats.statYOffset = 0;
+ExtraStats.statYOffset = 2;
 
 stats.DEBUG_DEFAULT = 1;
 stats.DEBUG_NODE = 2;
@@ -116,7 +116,8 @@ stats.configsDefaults = {
                     resiliance = true
                 }
             }
-        }
+        },
+        equipments = {}
     },
     profile = {
 

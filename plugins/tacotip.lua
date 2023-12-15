@@ -49,9 +49,15 @@ function Plugin:Setup()
         end
     })
 
-    PersonalGearScore:Hide()
-    PersonalGearScoreText:Hide()
-    PersonalAvgItemLvl:Hide()
-    PersonalAvgItemLvlText:Hide()
+    local frame = CreateFrame("Frame", nil)
+    frame:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
+    frame:RegisterEvent("MODIFIER_STATE_CHANGED")
+    frame:RegisterEvent("ADDON_LOADED")
 
+    frame:SetScript("OnEvent", function()
+        PersonalGearScore:Hide()
+        PersonalGearScoreText:Hide()
+        PersonalAvgItemLvl:Hide()
+        PersonalAvgItemLvlText:Hide()
+    end)
 end
