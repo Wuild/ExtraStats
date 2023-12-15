@@ -41,6 +41,12 @@ local CombatManaRegenSpellIdToModifier = {
     [22783] = 0.3
 };
 
+LEGENDARY_FONT_COLOR_CODE = "|cffff8000"
+EPIC_FONT_COLOR_CODE = "|cffa335ee"
+RARE_FONT_COLOR_CODE = "|cff0070dd"
+RARE_FONT_COLOR_CODE = "|cff0070dd"
+COMMON_FONT_COLOR_CODE = "|cffffffff"
+
 local function FormatStat(name, base, posBuff, negBuff)
     local effective = max(0, base + posBuff + negBuff);
     local text = HIGHLIGHT_FONT_COLOR_CODE .. name .. " " .. effective;
@@ -437,6 +443,81 @@ local function CharacterSpellCritFrame_OnEnter(self)
 end
 
 Module.stats = {
+    base = {
+        Health = function(unit)
+            local health = UnitHealthMax(unit);
+            local healthText = BreakUpLargeNumbers(health);
+
+            return {
+                value = healthText,
+                tooltip = HIGHLIGHT_FONT_COLOR_CODE .. format(PAPERDOLLFRAME_TOOLTIP_FORMAT, HEALTH) .. " " .. healthText .. FONT_COLOR_CODE_CLOSE,
+                tooltip1 = STAT_HEALTH_TOOLTIP
+            }
+        end,
+        Power = function(unit)
+            local powerType, powerToken = UnitPowerType(unit);
+            local power = UnitPowerMax(unit) or 0;
+            local powerText = BreakUpLargeNumbers(power);
+
+            if powerToken then
+                return {
+                    value = powerText,
+                    tooltip = HIGHLIGHT_FONT_COLOR_CODE .. format(PAPERDOLLFRAME_TOOLTIP_FORMAT, ExtraStats:translate("stats." .. string.lower(powerToken))) .. " " .. powerText .. FONT_COLOR_CODE_CLOSE,
+                    tooltip1 = _G["STAT_" .. powerToken .. "_TOOLTIP"]
+                }
+            else
+                return {
+                    value = powerText,
+                }
+            end
+        end,
+        Speed = function(unit)
+            local _, runSpeed, flightSpeed, swimSpeed = GetUnitSpeed(unit)
+            local currentSpeed
+
+            if IsFlying() then
+                currentSpeed = flightSpeed
+            elseif IsSwimming() then
+                currentSpeed = swimSpeed
+            else
+                currentSpeed = runSpeed
+            end
+
+            currentSpeed = currentSpeed / 7 * 100
+
+            local buff = currentSpeed - 100;
+
+            local value;
+
+            local color = COMMON_FONT_COLOR_CODE;
+
+            if buff >= 320 then
+                color = LEGENDARY_FONT_COLOR_CODE;
+            end
+            if buff < 320 then
+                color = EPIC_FONT_COLOR_CODE
+            end
+            if buff < 190 then
+                color = RARE_FONT_COLOR_CODE
+            end
+
+            if buff == 0 then
+                color = COMMON_FONT_COLOR_CODE
+            end
+
+            if buff < 0 then
+                color = RED_FONT_COLOR_CODE
+            end
+
+            value = color .. format("%.2f%%", currentSpeed) .. FONT_COLOR_CODE_CLOSE
+
+            return {
+                value = value,
+                tooltip = ExtraStats:translate("stats.tooltip.movementspeed"),
+                tooltip2 = ExtraStats:translate("stats.tooltip.movementspeed_description")
+            }
+        end
+    },
     melee = {
         Damage = function(unit)
             local textValue;
@@ -1039,6 +1120,26 @@ Module.stats = {
     }
 }
 
+function Module:Base()
+    local Category = Stats:CreateCategory("base", UnitName("player"), {
+        order = -999
+    })
+
+    Category:Add(ExtraStats:translate("stats.health"), Module.stats.base.Health)
+    Category:Add(function()
+        local powerType, powerToken = UnitPowerType("player");
+        return ExtraStats:translate("stats." .. string.lower(powerToken))
+    end, Module.stats.base.Power)
+    Category:Add(ExtraStats:translate("stats.movespeed"), Module.stats.base.Speed, {
+        onUpdate = function(self)
+            if not self.lastUpdate or self.lastUpdate < GetTime() - 0.2 then
+                self.lastUpdate = GetTime();
+                self.Value:SetText(MoveSpeed().value)
+            end
+        end
+    })
+end
+
 function Module:Attributes()
     local Category = Stats:CreateCategory("attributes", PLAYERSTAT_BASE_STATS, {
         order = 0,
@@ -1108,14 +1209,11 @@ function Module:Attributes()
 
         end)
     end
-
-
 end
 
 function Module:Melee()
     local Category = Stats:CreateCategory("melee", PLAYERSTAT_MELEE_COMBAT, {
         order = 1,
-        roles = { CLASS_ROLE_TANK },
     })
 
     Category:Add(DAMAGE, self.stats.melee.Damage)
@@ -1170,6 +1268,7 @@ function Module:Defense()
 end
 
 function Module:OnEnable()
+    Module:Base();
     Module:Attributes();
     Module:Melee();
     Module:Ranged();

@@ -11,7 +11,7 @@ ExtraStats:SetDefaultModuleLibraries("AceEvent-3.0")
 ExtraStats.plugins = {}
 
 ExtraStats.modules = ExtraStats:NewModule("Modules")
-ExtraStats.modules:SetDefaultModuleState(false)
+--ExtraStats.modules:SetDefaultModuleState(false)
 
 
 ExtraStats.categoryYOffset = -5;

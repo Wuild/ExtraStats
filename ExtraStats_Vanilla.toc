@@ -6,5 +6,6 @@
 ## OptionalDeps: ElvUI TacoTip
 
 embeds.xml
-modules\Wrath.lua
+modules\Vanilla.lua
+plugins\engraving.lua
 ExtraStats.lua
