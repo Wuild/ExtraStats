@@ -178,12 +178,12 @@
             <Anchor point="BOTTOMRIGHT" x="1" y="-8"/>
         </Anchors>
     </Texture>
-    <Texture name="ExtraBottomItemSlotLeftBorderTemplate" inherits="Char-Slot-Bottom-Left" virtual="true">
+    <Texture name="ExtraBottomItemSlotLeftBorderTemplate" inherits="Char-Slot-Bottom-Left" parentKey="BorderLeft" virtual="true">
         <Anchors>
             <Anchor point="TOPRIGHT" relativeTo="$parentFrame" relativePoint="TOPLEFT"/>
         </Anchors>
     </Texture>
-    <Texture name="ExtraBottomItemSlotRightBorderTemplate" inherits="Char-Slot-Bottom-Right" virtual="true">
+    <Texture name="ExtraBottomItemSlotRightBorderTemplate" inherits="Char-Slot-Bottom-Right" parentKey="BorderRight" virtual="true">
         <Anchors>
             <Anchor point="TOPLEFT" relativeTo="$parentFrame" relativePoint="TOPRIGHT"/>
         </Anchors>

@@ -193,8 +193,12 @@ function Module:CreateFrameTextures()
     CharacterSecondaryHandSlot:CreateTexture("$parentFrame", "BACKGROUND", "ExtraBottomItemSlotTemplate", -1);
     CharacterRangedSlot:CreateTexture("$parentFrame", "BACKGROUND", "ExtraBottomItemSlotTemplate", -1);
     -- Creating ItemSlot textures under item icons - Borders for bottom items (left and right vertical lines)
-    CharacterMainHandSlot:CreateTexture(nil, "BACKGROUND", "ExtraBottomItemSlotLeftBorderTemplate");
-    CharacterRangedSlot:CreateTexture(nil, "BACKGROUND", "ExtraBottomItemSlotRightBorderTemplate");
+    CharacterMainHandSlot:CreateTexture("$parentFrame", "BACKGROUND", "ExtraBottomItemSlotLeftBorderTemplate");
+    CharacterRangedSlot:CreateTexture("$parentFrame", "BACKGROUND", "ExtraBottomItemSlotRightBorderTemplate");
+    CharacterAmmoSlot:Hide()
+    if (CURRENT_CLASS == INDEX_CLASS_WARRIOR or CURRENT_CLASS == INDEX_CLASS_ROGUE or CURRENT_CLASS == INDEX_CLASS_HUNTER) then
+        CharacterAmmoSlot:Show()
+    end
 end
 
 function Module:PaperDollFrame_UpdateSidebarTabs()

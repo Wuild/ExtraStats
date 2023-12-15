@@ -29,14 +29,15 @@ function Plugin:Setup()
     S = E:GetModule('Skins')
     S:CharacterFrame()
 
-    --ExtraStats:On("category:build", function(frame)
-    --    frame:StripTextures()
-    --    frame:CreateBackdrop()
-    --    frame:SetHeight(30)
-    --end);
+    ExtraStats:On("category:build", function(frame)
+        frame:StripTextures()
+        frame:CreateBackdrop("transparent")
+        frame:SetHeight(30)
+    end);
     --
     --ExtraStats:On("stat:build", function(frame)
-    --
+    --    frame:StripTextures()
+    --    frame:CreateBackdrop()
     --end);
 
 
@@ -45,8 +46,10 @@ function Plugin:Setup()
     end);
 
     ExtraStats:On("character.window.show", function()
-        CharacterFrame.backdrop:Hide()
-        
+
+        CharacterFrameInset:StripTextures()
+        CharacterFrameInsetRight:StripTextures()
+
         CharacterModelFrame:StripTextures()
         CharacterModelFrameBackgroundTopLeft:Kill()
         CharacterModelFrameBackgroundTopRight:Kill()
@@ -56,15 +59,54 @@ function Plugin:Setup()
         PaperDollFrame.TitleBg:StripTextures()
         PaperDollFrame.TopBorder:StripTextures()
 
-        CharacterStatsPaneScrollBar:StripTextures()
-        S:HandleScrollBar(CharacterStatsPaneScrollBar)
-
         CharacterFrameInsetRight:StripTextures()
-        --CharacterFrameInsetRight:CreateBackdrop()
+        CharacterFramePortrait:StripTextures()
 
-        PaperDollFrame.TitleBg:CreateBackdrop('Transparent')
-        PaperDollFrame.bg:CreateBackdrop('Transparent')
+        PaperDollFrame.bg:StripTextures()
+        PaperDollFrame.TitleBg:StripTextures()
+        PaperDollFrame.PortraitFrame:StripTextures()
+        PaperDollFrame.TopRightCorner:StripTextures()
+        PaperDollFrame.TopLeftCorner:StripTextures()
+        PaperDollFrame.TopBorder:StripTextures()
+        PaperDollFrame.TopTileStreaks:StripTextures()
+        PaperDollFrame.BotLeftCorner:StripTextures()
+        PaperDollFrame.BotRightCorner:StripTextures()
+        PaperDollFrame.BottomBorder:StripTextures()
+        PaperDollFrame.LeftBorder:StripTextures()
+        PaperDollFrame.RightBorder:StripTextures()
 
+        CharacterHeadSlotFrame:StripTextures()
+        CharacterNeckSlotFrame:StripTextures()
+        CharacterShoulderSlotFrame:StripTextures()
+        CharacterBackSlotFrame:StripTextures()
+        CharacterChestSlotFrame:StripTextures()
+        CharacterShirtSlotFrame:StripTextures()
+        CharacterTabardSlotFrame:StripTextures()
+        CharacterWristSlotFrame:StripTextures()
+        -- Creating ItemSlot textures under item icons - Right side
+        CharacterHandsSlotFrame:StripTextures()
+        CharacterWaistSlotFrame:StripTextures()
+        CharacterLegsSlotFrame:StripTextures()
+        CharacterFeetSlotFrame:StripTextures()
+        CharacterFinger0SlotFrame:StripTextures()
+        CharacterFinger1SlotFrame:StripTextures()
+        CharacterTrinket0SlotFrame:StripTextures()
+        CharacterTrinket1SlotFrame:StripTextures()
+        -- Creating ItemSlot textures under item icons - Bottom side
+        CharacterMainHandSlotFrame:StripTextures()
+        CharacterSecondaryHandSlotFrame:StripTextures()
+        CharacterRangedSlotFrame:StripTextures()
+        -- Creating ItemSlot textures under item icons - Borders for bottom items (left and right vertical lines)
+        CharacterMainHandSlotFrame:StripTextures()
+        CharacterMainHandSlot.BorderLeft:StripTextures()
+        CharacterRangedSlotFrame:StripTextures()
+        CharacterRangedSlot.BorderRight:StripTextures()
+
+        --PaperDollFrame.TitleBg:CreateBackdrop()
+        --
+        ----PaperDollFrame.bg:StripTextures()
+        ----PaperDollFrame.bg:CreateBackdrop()
+        --
         CharacterStatsPane.scrollBar:StripTextures()
         S:HandleScrollBar(CharacterStatsPane.scrollBar)
 
