@@ -46,6 +46,48 @@ function ExtraStats:On(event, callback)
     events[event][ExtraStats:tablelength(events[event]) + 1] = callback;
 end
 
+function ExtraStats:RegisterPlugin(plugin)
+    if not plugin or type(plugin) ~= "table" then
+        return nil
+    end
+    if not plugin.name or plugin.name == "" then
+        return nil
+    end
+
+    ExtraStats.plugins = ExtraStats.plugins or {}
+    ExtraStats.pluginsByName = ExtraStats.pluginsByName or {}
+    if ExtraStats.pluginsByName[plugin.name] then
+        return ExtraStats.pluginsByName[plugin.name]
+    end
+
+    table.insert(ExtraStats.plugins, plugin)
+    ExtraStats.pluginsByName[plugin.name] = plugin
+    return plugin
+end
+
+function ExtraStats:MarkStatsDirty(categories)
+    ExtraStats.statsDirty = true
+    if not categories or categories == true or categories == "all" then
+        ExtraStats.statsDirtyCategories = nil
+        return
+    end
+
+    if type(categories) == "string" then
+        categories = { categories }
+    end
+
+    ExtraStats.statsDirtyCategories = ExtraStats.statsDirtyCategories or {}
+    for k, v in pairs(categories) do
+        local category = v
+        if type(k) == "string" and v == true then
+            category = k
+        end
+        if type(category) == "string" then
+            ExtraStats.statsDirtyCategories[category] = true
+        end
+    end
+end
+
 function ExtraStats:Trigger(event, ...)
     if events[event] then
         for key = 1, ExtraStats:tablelength(events[event]) do
@@ -130,11 +172,13 @@ end
 local updateTimer
 
 function ExtraStats:UpdateStatsDelayed()
+    ExtraStats:MarkStatsDirty()
     ExtraStats:CancelTimer(updateTimer)
     updateTimer = ExtraStats:ScheduleTimer("UpdateStats", 0.5)
 end
 
 function ExtraStats:UpdateStats()
+    ExtraStats:MarkStatsDirty()
     ExtraStats:Trigger("character.stats")
 end
 
@@ -166,7 +210,7 @@ end
 
 function ExtraStats:GetTalentGroup(index)
     local name, texture, pointsSpent, fileName = GetTalentTabInfo(index)
-    return pointsSpent
+    return tonumber(pointsSpent) or 0
 end
 
 function ExtraStats:CheckTalents()

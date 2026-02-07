@@ -10,6 +10,56 @@ tab.frame = nil
 local categories = {}
 local lastUpdate;
 
+local function EnsureCategoryOrder()
+    local order = ExtraStats.db.char.categoryOrder
+    if not order then
+        order = {}
+        ExtraStats.db.char.categoryOrder = order
+    end
+
+    if ExtraStats:tablelength(order) == 0 then
+        local sorted = {}
+        for _, category in pairs(categories) do
+            table.insert(sorted, category)
+        end
+        table.sort(sorted, function(a, b)
+            return a.order < b.order
+        end)
+        for index, category in ipairs(sorted) do
+            order[category.id] = index
+        end
+        return order
+    end
+
+    local maxOrder = 0
+    for _, value in pairs(order) do
+        if type(value) == "number" and value > maxOrder then
+            maxOrder = value
+        end
+    end
+
+    for _, category in pairs(categories) do
+        if type(order[category.id]) ~= "number" then
+            maxOrder = maxOrder + 1
+            order[category.id] = maxOrder
+        end
+    end
+
+    return order
+end
+
+local function GetOrderedCategories()
+    local order = EnsureCategoryOrder()
+    local ordered = {}
+    for _, category in pairs(categories) do
+        table.insert(ordered, category)
+    end
+    table.sort(ordered, function(a, b)
+        return order[a.id] < order[b.id]
+    end)
+    return ordered, order
+end
+
 function tab:init()
     local frame = CreateFrame("ScrollFrame", "CharacterStatsPane", PaperDollFrame, "CharacterStatsPaneScrollViewTemplate")
     frame.ScrollChild = CreateFrame("Frame", nil, frame)
@@ -23,6 +73,7 @@ function tab:init()
     tab.frame = frame
 
     frame:SetScript("OnShow", tab.show)
+    frame:SetScript("OnHide", tab.hide)
 
     ExtraStats:On("character.stats", tab.update)
 end
@@ -33,38 +84,39 @@ end
 
 function tab:show()
     ExtraStats:debug("stats tab is open")
-    tab:update()
+    ExtraStats:Trigger("stats.tab.show", tab.frame)
+    tab:update(true)
 end
 
-local function compare(t, a, b)
-    return t[a].order < t[b].order
+function tab:hide()
+    ExtraStats:Trigger("stats.tab.hide", tab.frame)
 end
 
-local function spairs(t, order)
-    -- collect the keys
-    local keys = {}
-    for k in pairs(t) do
-        keys[#keys + 1] = k
-    end
-
-    -- if order function given, sort by it by passing the table and keys a, b,
-    -- otherwise just sort the keys
-    if order then
-        table.sort(keys, function(a, b)
-            return order(t, a, b)
-        end)
-    else
-        table.sort(keys)
-    end
-
-    -- return the iterator function
-    local i = 0
-    return function()
-        i = i + 1
-        if keys[i] then
-            return keys[i], t[keys[i]]
+function tab:MoveCategory(categoryId, direction)
+    local ordered, order = GetOrderedCategories()
+    local index = nil
+    for i, category in ipairs(ordered) do
+        if category.id == categoryId then
+            index = i
+            break
         end
     end
+    if not index then
+        return
+    end
+
+    local swapIndex = index + direction
+    if swapIndex < 1 or swapIndex > #ordered then
+        return
+    end
+
+    local current = ordered[index]
+    local other = ordered[swapIndex]
+    local currentOrder = order[current.id]
+    order[current.id] = order[other.id]
+    order[other.id] = currentOrder
+
+    tab:update(true)
 end
 
 local function CopyTable(orig)
@@ -117,6 +169,7 @@ function CategoryClass:Add(name, value, options)
     end
 
     table.insert(self.stats, data)
+    ExtraStats:Trigger("stats.category.stat.added", self, data)
 end
 
 ---@param id string
@@ -136,6 +189,7 @@ function tab:CreateCategory(id, text, options)
     end
 
     table.insert(categories, cat)
+    ExtraStats:Trigger("stats.category.created", cat)
 
     return cat
 end
@@ -152,14 +206,28 @@ function tab:GetCategory(id)
     return false
 end
 
+function tab:GetCategories()
+    return categories
+end
+
 local lastUpdate;
 
-function tab:update()
+function tab:update(force)
     if not tab:IsVisible() then
         return
     end
 
+    if not force and not ExtraStats.statsDirty then
+        return
+    end
+    ExtraStats.statsDirty = false
+    local dirtyCategories = ExtraStats.statsDirtyCategories
+    local allDirty = dirtyCategories == nil
+    ExtraStats.statsDirtyCategories = nil
+    ExtraStats.statsCache = ExtraStats.statsCache or {}
+
     ExtraStats:debug("Updating stats")
+    ExtraStats:Trigger("stats.update.start")
 
     for name, module in ExtraStats.modules:IterateModules() do
         if module.Update then
@@ -174,11 +242,52 @@ function tab:update()
     local statFrame = statsFramePool:Acquire();
     local lastAnchor;
 
-    for catId, category in spairs(categories, compare) do
+    local orderedCategories = GetOrderedCategories()
+    local positions = {}
+    for index, category in ipairs(orderedCategories) do
+        positions[category.id] = index
+    end
+
+    for _, category in ipairs(orderedCategories) do
+        local categoryDirty = allDirty or (dirtyCategories and dirtyCategories[category.id])
+        local catCache = ExtraStats.statsCache[category.id]
+        if categoryDirty or not catCache then
+            catCache = { stats = {} }
+            ExtraStats.statsCache[category.id] = catCache
+        end
         local showCat = true
 
         catFrame.Title:SetText(category.text)
         catFrame:Hide()
+        catFrame.categoryId = category.id
+        local collapsed = ExtraStats.db.char.categoryCollapsed and ExtraStats.db.char.categoryCollapsed[category.id]
+        catFrame.expanded = not collapsed
+        catFrame.CollapseButton:SetNormalTexture(collapsed and "Interface\\Buttons\\UI-PlusButton-Up" or "Interface\\Buttons\\UI-MinusButton-Up")
+        catFrame.CollapseButton:SetPushedTexture(collapsed and "Interface\\Buttons\\UI-PlusButton-Down" or "Interface\\Buttons\\UI-MinusButton-Down")
+        catFrame.CollapseButton:SetScript("OnClick", function(self)
+            local parent = self:GetParent()
+            ExtraStats.db.char.categoryCollapsed = ExtraStats.db.char.categoryCollapsed or {}
+            ExtraStats.db.char.categoryCollapsed[parent.categoryId] = parent.expanded
+            tab:update(true)
+        end)
+        catFrame:SetScript("OnMouseDown", function(self, button)
+            if button ~= "LeftButton" then
+                return
+            end
+            ExtraStats.db.char.categoryCollapsed = ExtraStats.db.char.categoryCollapsed or {}
+            ExtraStats.db.char.categoryCollapsed[self.categoryId] = self.expanded
+            tab:update(true)
+        end)
+
+        catFrame.UpButton:SetScript("OnClick", function()
+            tab:MoveCategory(category.id, -1)
+        end)
+        catFrame.DownButton:SetScript("OnClick", function()
+            tab:MoveCategory(category.id, 1)
+        end)
+        local position = positions[category.id] or 1
+        catFrame.UpButton:SetEnabled(position > 1)
+        catFrame.DownButton:SetEnabled(position < #orderedCategories)
 
         ExtraStats:Trigger("category:build", catFrame)
 
@@ -221,6 +330,16 @@ function tab:update()
 
         local numStatInCat = 0;
         if showCat then
+            if not catFrame.expanded then
+                catFrame:Show()
+                if not lastAnchor then
+                    catFrame:SetPoint("TOPLEFT", 8, 0);
+                else
+                    catFrame:SetPoint("TOP", lastAnchor, "BOTTOM", 0, ExtraStats.categoryYOffset);
+                end
+                lastAnchor = catFrame
+                catFrame = categoryFramePool:Acquire();
+            else
             for index, stat in pairs(category.stats) do
                 local showStat = stat.show();
 
@@ -268,29 +387,38 @@ function tab:update()
 
                     if stat.value then
                         local data
+                        local statKey = stat.name
+                        if type(statKey) ~= "string" then
+                            statKey = tostring(index)
+                        end
 
-                        if type(stat.value) == "table" then
-                            data = stat.value;
-                        else
-                            data = stat.value("player")
+                        if not categoryDirty then
+                            data = catCache.stats[statKey]
+                        end
+
+                        if not data then
+                            if type(stat.value) == "table" then
+                                data = stat.value;
+                            else
+                                data = stat.value("player")
+                            end
+                            if data then
+                                catCache.stats[statKey] = data
+                            end
                         end
 
                         if data then
-
                             statFrame.tooltip = data.tooltip
                             statFrame.tooltip2 = data.tooltip2
 
-                            if data then
-                                for k, v in pairs(data) do
-                                    statFrame[k] = v
-                                end
+                            for k, v in pairs(data) do
+                                statFrame[k] = v
                             end
 
                             ExtraStats:SetLabelAndText(statFrame, stat.name, data.value, data.isPercentage)
 
                             statFrame.onEnter = data.onEnter;
                             statFrame.onUpdate = data.onUpdate;
-
                         end
                     else
                         ExtraStats:SetLabelAndText(statFrame, stat.name, "")
@@ -301,7 +429,7 @@ function tab:update()
                             catFrame:SetPoint("TOP", lastAnchor, "BOTTOM", 0, ExtraStats.categoryYOffset);
                         end
                         lastAnchor = catFrame;
-                        statFrame:SetPoint("TOP", catFrame, "BOTTOM", 0, -2);
+                        statFrame:SetPoint("TOP", catFrame, "BOTTOM", 0, 0);
                     else
                         statFrame:SetPoint("TOP", lastAnchor, "BOTTOM", 0, ExtraStats.statYOffset);
                     end
@@ -317,10 +445,12 @@ function tab:update()
                     statFrame = statsFramePool:Acquire();
                 end
             end
+            end
         end
 
         if (numStatInCat > 0) then
             catFrame = categoryFramePool:Acquire();
         end
     end
+    ExtraStats:Trigger("stats.update.end")
 end

@@ -133,10 +133,68 @@ local BlizzFrames = {
 Module.CharacterFrame = CharacterFrame;
 Module.PaperDollFrame = PaperDollFrame;
 
+local SPEC_TABLE = {
+    WARRIOR = { "Arms", "Fury", "Protection" },
+    PALADIN = { "Holy", "Protection", "Retribution" },
+    HUNTER = { "Beast Mastery", "Marksmanship", "Survival" },
+    ROGUE = { "Assassination", "Combat", "Subtlety" },
+    PRIEST = { "Discipline", "Holy", "Shadow" },
+    DEATHKNIGHT = { "Blood", "Frost", "Unholy" },
+    SHAMAN = { "Elemental", "Enhancement", "Restoration" },
+    MAGE = { "Arcane", "Fire", "Frost" },
+    WARLOCK = { "Affliction", "Demonology", "Destruction" },
+    DRUID = { "Balance", "Feral Combat", "Restoration" },
+}
+
+local function GetTalentTabName(tabIndex)
+    local a, b = GetTalentTabInfo(tabIndex);
+    if type(b) == "string" and b ~= "" then
+        return b;
+    end
+    if type(a) == "string" and a ~= "" then
+        return a;
+    end
+    return nil;
+end
+
+local function GetTalentTabPoints(tabIndex)
+    local points = select(5, GetTalentTabInfo(tabIndex));
+    return tonumber(points) or 0;
+end
+
+local function HideDefaultTitleDropDown()
+    local frame = _G.PlayerTitleDropDown or _G.PlayerTitleDropdown;
+    if frame and frame.Hide then
+        frame:Hide();
+        frame.Show = frame.Hide;
+        if not frame.ExtraStatsHooked then
+            frame:HookScript("OnShow", function(self)
+                self:Hide();
+            end);
+            frame.ExtraStatsHooked = true;
+        end
+    end
+end
+
+local function EnsureTalentUILoaded()
+    local isLoaded = nil;
+    if C_AddOns and C_AddOns.IsAddOnLoaded then
+        isLoaded = C_AddOns.IsAddOnLoaded("Blizzard_TalentUI");
+    elseif IsAddOnLoaded then
+        isLoaded = IsAddOnLoaded("Blizzard_TalentUI");
+    end
+    if TalentFrame_LoadUI and not isLoaded then
+        pcall(TalentFrame_LoadUI);
+    end
+end
+
 function Module:CleanDefaultFrame()
     for _, frame in pairs(BlizzFrames) do
-        frame:Hide();
+        if frame and frame.Hide then
+            frame:Hide();
+        end
     end
+    HideDefaultTitleDropDown();
 end
 
 function Module:DeleteFrameTextures(frame)
@@ -233,8 +291,12 @@ function Module:CreateCharacterFrames()
     frame.Inset:SetPoint("TOPLEFT", 20, -72);
     frame.Inset:SetSize(328, 360);
 
-    frame.Inset.InsetBorderBottomLeft:SetPoint("BOTTOMLEFT", CharacterFrame.Inset.Bg, 0, -3);
-    frame.Inset.InsetBorderBottomRight:SetPoint("BOTTOMRIGHT", CharacterFrame.Inset.Bg, 0, -3);
+    if frame.Inset.InsetBorderBottomLeft and CharacterFrame.Inset and CharacterFrame.Inset.Bg then
+        frame.Inset.InsetBorderBottomLeft:SetPoint("BOTTOMLEFT", CharacterFrame.Inset.Bg, 0, -3);
+    end
+    if frame.Inset.InsetBorderBottomRight and CharacterFrame.Inset and CharacterFrame.Inset.Bg then
+        frame.Inset.InsetBorderBottomRight:SetPoint("BOTTOMRIGHT", CharacterFrame.Inset.Bg, 0, -3);
+    end
 
     frame.InsetRight = CreateFrame("Frame", "$parentInsetRight", frame, "InsetFrameTemplate");
     frame.InsetRight:SetPoint("TOPLEFT", "CharacterFrameInset", "TOPRIGHT", 0, 0);
@@ -404,12 +466,56 @@ end
 
 function Module:GetPrimaryTalentTree(tab)
     local cache = {};
+    EnsureTalentUILoaded();
+    local numTabs = GetNumTalentTabs and GetNumTalentTabs() or 0;
+    if numTabs > 0 then
+        local bestTab = nil;
+        local bestPoints = -1;
+        for i = 1, numTabs do
+            local points = GetTalentTabPoints(i);
+            if points > bestPoints then
+                bestPoints = points;
+                bestTab = i;
+            end
+        end
+        return bestTab;
+    end
+    if not TalentFrame_UpdateSpecInfoCache then
+        return cache.primaryTabIndex
+    end
     if (tab) then
         TalentFrame_UpdateSpecInfoCache(cache, false, false, tab);
-    else
-        TalentFrame_UpdateSpecInfoCache(cache, false, false, GetActiveTalentGroup());
+    elseif GetActiveTalentGroup then
+        local ok, group = pcall(GetActiveTalentGroup)
+        if ok and group then
+            TalentFrame_UpdateSpecInfoCache(cache, false, false, group);
+        end
     end
     return cache.primaryTabIndex;
+end
+
+function Module:GetPrimaryTalentTreeName()
+    local bestName = nil;
+    local bestPoints = -1;
+    EnsureTalentUILoaded();
+    local numTabs = GetNumTalentTabs and GetNumTalentTabs() or 0;
+    for i = 1, numTabs do
+        local points = GetTalentTabPoints(i);
+        if points > bestPoints then
+            bestPoints = points;
+            bestName = GetTalentTabName(i);
+            if not bestName then
+                local class = select(2, UnitClass("player"));
+                if class and SPEC_TABLE[class] then
+                    bestName = SPEC_TABLE[class][i];
+                end
+            end
+        end
+    end
+    if bestName and bestPoints > 0 then
+        return bestName;
+    end
+    return nil;
 end
 
 function Module:SetLevel()
@@ -422,6 +528,9 @@ function Module:SetLevel()
 
     if (primaryTalentTree) then
         specName = GetTalentTabInfo(primaryTalentTree);
+    end
+    if (type(specName) ~= "string" or specName == "") then
+        specName = Module:GetPrimaryTalentTreeName();
     end
 
     if (specName and specName ~= "") then
@@ -478,6 +587,7 @@ function Module:EventHandler(event, ...)
             Module:SetPaperDollBackground(CharacterModelFrame, "player");
             Module:PaperDollBgDesaturate(false);
             Module:CleanDefaultFrame();
+            HideDefaultTitleDropDown();
             Module.CharacterFrame.Sidebar:Show();
 
             ExtraStats:Trigger("character.window.show")

@@ -3,7 +3,7 @@ local Plugin = {
     name = name
 }
 
-table.insert(ExtraStats.plugins, Plugin)
+ExtraStats:RegisterPlugin(Plugin)
 
 local GEAR_SLOT_FRAMES = {
     CharacterHeadSlot,

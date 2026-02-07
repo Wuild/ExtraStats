@@ -3,7 +3,7 @@ local Plugin = {
     name = name
 }
 
-table.insert(ExtraStats.plugins, Plugin)
+ExtraStats:RegisterPlugin(Plugin)
 
 local function GetRGBAAsBytes(r, g, b, a)
     return Round(r * 255), Round(g * 255), Round(b * 255), Round((a or 1) * 255);

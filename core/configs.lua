@@ -1,7 +1,13 @@
 local name, stats = ...;
 
 stats.name = name;
-stats.version = GetAddOnMetadata(name, "version");
+local getAddonMetadata = GetAddOnMetadata
+if not getAddonMetadata and C_AddOns and C_AddOns.GetAddOnMetadata then
+    getAddonMetadata = C_AddOns.GetAddOnMetadata
+end
+if getAddonMetadata then
+    stats.version = getAddonMetadata(name, "version");
+end
 
 ExtraStats = LibStub("AceAddon-3.0"):NewAddon("ExtraStats", "AceConsole-3.0", "AceEvent-3.0", "AceTimer-3.0", "AceComm-3.0", "AceSerializer-3.0")
 
@@ -14,8 +20,8 @@ ExtraStats.modules = ExtraStats:NewModule("Modules")
 --ExtraStats.modules:SetDefaultModuleState(false)
 
 
-ExtraStats.categoryYOffset = -5;
-ExtraStats.statYOffset = 2;
+ExtraStats.categoryYOffset = 3;
+ExtraStats.statYOffset = 0;
 
 stats.DEBUG_DEFAULT = 1;
 stats.DEBUG_NODE = 2;
@@ -32,7 +38,19 @@ stats.window = {
     height = 400
 }
 
-stats.role = GetTalentGroupRole(GetActiveTalentGroup());
+do
+    local role
+    if GetTalentGroupRole and GetActiveTalentGroup then
+        local okGroup, group = pcall(GetActiveTalentGroup)
+        if okGroup then
+            local okRole, result = pcall(GetTalentGroupRole, group)
+            if okRole then
+                role = result
+            end
+        end
+    end
+    stats.role = role or "UNKNOWN"
+end
 
 stats.iconPath = "Interface\\AddOns\\" .. name .. "\\"
 
@@ -46,7 +64,7 @@ stats.configsDefaults = {
     },
     char = {
         enabled = true,
-        dynamic = true,
+        dynamic = false,
         disabledPlugins = {},
         sets = {},
         categories = {
@@ -117,6 +135,8 @@ stats.configsDefaults = {
                 }
             }
         },
+        categoryOrder = {},
+        categoryCollapsed = {},
         equipments = {}
     },
     profile = {

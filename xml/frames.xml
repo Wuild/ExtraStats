@@ -2,7 +2,7 @@
 ..\FrameXML\UI.xsd">
 
     <Frame name="ExtraStatsFrameCategoryTemplate" virtual="true">
-        <Size x="197" y="40"/>
+        <Size x="197" y="44"/>
         <Layers>
             <Layer level="BACKGROUND">
                 <Texture parentKey="Background" atlas="UI-Character-Info-Title" useAtlasSize="true">
@@ -14,26 +14,59 @@
             <Layer level="ARTWORK">
                 <FontString parentKey="Title" inherits="GameFontHighlight">
                     <Anchors>
-                        <Anchor point="CENTER" x="0" y="1"/>
+                        <Anchor point="CENTER" x="0" y="2"/>
                     </Anchors>
                 </FontString>
             </Layer>
         </Layers>
+        <Frames>
+            <Button parentKey="CollapseButton">
+                <Size x="20" y="20"/>
+                <Anchors>
+                    <Anchor point="LEFT" x="4" y="1"/>
+                </Anchors>
+                <NormalTexture file="Interface\Buttons\UI-MinusButton-Up"/>
+                <PushedTexture file="Interface\Buttons\UI-MinusButton-Down"/>
+                <HighlightTexture file="Interface\Buttons\UI-Common-MouseHilight" alphaMode="ADD"/>
+            </Button>
+            <Button parentKey="UpButton">
+                <Size x="22" y="22"/>
+                <Anchors>
+                    <Anchor point="TOPRIGHT" x="-12" y="-2"/>
+                </Anchors>
+                <NormalTexture file="Interface\Buttons\UI-ScrollBar-ScrollUpButton-Up"/>
+                <PushedTexture file="Interface\Buttons\UI-ScrollBar-ScrollUpButton-Down"/>
+                <DisabledTexture file="Interface\Buttons\UI-ScrollBar-ScrollUpButton-Disabled"/>
+                <HighlightTexture file="Interface\Buttons\UI-Common-MouseHilight" alphaMode="ADD"/>
+            </Button>
+            <Button parentKey="DownButton">
+                <Size x="22" y="22"/>
+                <Anchors>
+                    <Anchor point="BOTTOMRIGHT" x="-12" y="7"/>
+                </Anchors>
+                <NormalTexture file="Interface\Buttons\UI-ScrollBar-ScrollUpButton-Up">
+                    <TexCoords left="0" right="1" top="1" bottom="0"/>
+                </NormalTexture>
+                <PushedTexture file="Interface\Buttons\UI-ScrollBar-ScrollUpButton-Down">
+                    <TexCoords left="0" right="1" top="1" bottom="0"/>
+                </PushedTexture>
+                <DisabledTexture file="Interface\Buttons\UI-ScrollBar-ScrollUpButton-Disabled">
+                    <TexCoords left="0" right="1" top="1" bottom="0"/>
+                </DisabledTexture>
+                <HighlightTexture file="Interface\Buttons\UI-Common-MouseHilight" alphaMode="ADD"/>
+            </Button>
+        </Frames>
         <Scripts>
             <OnLoad>
                 self.Title:SetText(self.titleText);
                 <!--                self:RegisterForDrag("LeftButton");-->
                 self.expanded = true
             </OnLoad>
-            <OnMouseDown>
-                self.expanded = not self.expanded
-                ExtraStats:UpdateStatsDelayed()
-            </OnMouseDown>
         </Scripts>
     </Frame>
 
     <Frame name="ExtraStatsCharacterStatFrameTemplate" virtual="true" enableMouse="true">
-        <Size x="187" y="22"/>
+        <Size x="187" y="18"/>
         <Layers>
             <Layer level="BACKGROUND">
                 <Texture parentKey="Background" atlas="UI-Character-Info-Line-Bounce" useAtlasSize="true" alpha="0.3">

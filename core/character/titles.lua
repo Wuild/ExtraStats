@@ -70,7 +70,11 @@ function tab:init()
 
     frame:SetScript("OnShow", function()
         HybridScrollFrame_CreateButtons(tab.frame, "PlayerTitleButtonTemplate");
+        ExtraStats:Trigger("titles.tab.show", tab.frame)
         tab:update()
+    end)
+    frame:SetScript("OnHide", function()
+        ExtraStats:Trigger("titles.tab.hide", tab.frame)
     end)
 
     mainFrame:SetScript("OnEvent", function(self, event, ...)

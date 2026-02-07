@@ -90,6 +90,7 @@ end
 function ExtraStats_PaperDollEquipmentManagerPane_OnShow(self)
     HybridScrollFrame_CreateButtons(tab.frame, "ExtraGearSetButtonTemplate");
     ExtraStats_PaperDollEquipmentManagerPane_Update();
+    ExtraStats:Trigger("gear.tab.show", self)
 
     --EquipmentSet:ClearIgnoredSlotsForSave(); -- added this line because default one has it
 end
@@ -103,6 +104,7 @@ function ExtraStats_PaperDollEquipmentManagerPane_OnHide(self)
     StaticPopup_Hide("CONFIRM_SAVE_EQUIPMENT_SET");
     StaticPopup_Hide("ExtraStats_CONFIRM_OVERWRITE_EQUIPMENT_SET");
     --GearManagerDialog:Hide();
+    ExtraStats:Trigger("gear.tab.hide", self)
 end
 
 function ExtraStats_PaperDollEquipmentManagerPane_OnEvent(self, event, ...)
@@ -130,6 +132,17 @@ function ExtraStats_PaperDollEquipmentManagerPane_OnEvent(self, event, ...)
 end
 
 function ExtraStats_PaperDollEquipmentManagerPane_OnUpdate(self)
+    if (self.queuedUpdate) then
+        ExtraStats_PaperDollEquipmentManagerPane_Update();
+        self.queuedUpdate = false;
+    end
+
+    local now = GetTime();
+    if (self.lastHoverUpdate and (now - self.lastHoverUpdate) < 0.1) then
+        return;
+    end
+    self.lastHoverUpdate = now;
+
     for i = 1, #self.buttons do
         local button = self.buttons[i];
         if (button:IsMouseOver()) then
@@ -146,10 +159,6 @@ function ExtraStats_PaperDollEquipmentManagerPane_OnUpdate(self)
             button.EditButton:Hide();
             button.HighlightBar:Hide();
         end
-    end
-    if (self.queuedUpdate) then
-        ExtraStats_PaperDollEquipmentManagerPane_Update();
-        self.queuedUpdate = false;
     end
 end
 
@@ -802,36 +811,6 @@ function tab:init()
     local frame = CreateFrame("ScrollFrame", "PaperDollEquipmentManagerPane", PaperDollFrame, "PaperDollEquipmentManagerPaneTemplate");
 
     tab.DialogPopup = CreateFrame("Frame", "ExtraStats_GearManagerDialogPopup", frame, "ExtraGearManagerDialogPopupTemplate");
-
-    frame:RegisterEvent("ACTIVE_TALENT_GROUP_CHANGED")
-    frame:RegisterEvent("PLAYER_ENTERING_WORLD");
-    frame:RegisterEvent("CHARACTER_POINTS_CHANGED");
-    frame:RegisterEvent("UNIT_MODEL_CHANGED");
-    frame:RegisterEvent("UNIT_LEVEL");
-    frame:RegisterEvent("UNIT_RESISTANCES");
-    frame:RegisterEvent("UNIT_STATS");
-    frame:RegisterEvent("UNIT_DAMAGE");
-    frame:RegisterEvent("UNIT_RANGEDDAMAGE");
-    frame:RegisterEvent("UNIT_ATTACK_SPEED");
-    frame:RegisterEvent("UNIT_ATTACK_POWER");
-    frame:RegisterEvent("UNIT_RANGED_ATTACK_POWER");
-    frame:RegisterEvent("UNIT_ATTACK");
-    frame:RegisterEvent("UNIT_SPELL_HASTE");
-    frame:RegisterEvent("PLAYER_GUILD_UPDATE");
-    frame:RegisterEvent("SKILL_LINES_CHANGED");
-    frame:RegisterEvent("COMBAT_RATING_UPDATE");
-    frame:RegisterEvent("UNIT_NAME_UPDATE");
-    frame:RegisterEvent("VARIABLES_LOADED");
-    frame:RegisterEvent("PLAYER_TALENT_UPDATE");
-    frame:RegisterEvent("BAG_UPDATE");
-    frame:RegisterEvent("PLAYER_EQUIPMENT_CHANGED");
-    frame:RegisterEvent("PLAYER_DAMAGE_DONE_MODS");
-    frame:RegisterEvent("ACTIVE_TALENT_GROUP_CHANGED");
-    frame:RegisterEvent("UNIT_MAXHEALTH");
-
-    frame:SetScript("OnEvent", function(self, event)
-        ExtraStats_PaperDollEquipmentManagerPane_Update()
-    end)
 
     --for index, slot in pairs(itemSlotButtons) do
     --    slot.PopoutButton = CreateFrame("Button", nil, slot, "ExtraStatsPopoutButtonTemplate");

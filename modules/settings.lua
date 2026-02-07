@@ -2,84 +2,66 @@ local Module = ExtraStats.modules:NewModule("settings")
 
 local categories = {
     base = {
-        stats = {
-            health,
-            power
-        }
+        label = "Base",
+        desc = "Health and power."
     },
     attributes = {
-        stats = {
-            strength,
-            agility,
-            stamina,
-            intellect,
-            spirit
-        }
+        label = PLAYERSTAT_BASE_STATS,
+        desc = "Primary attributes."
     },
     melee = {
-        stats = {
-            damage,
-            attackspeed,
-            attackpower,
-            hitrating,
-            critchance,
-        }
+        label = PLAYERSTAT_MELEE_COMBAT,
+        desc = "Melee damage and ratings."
     },
     ranged = {
-        stats = {
-            ranged_damage,
-            ranged_attackspeed,
-            ranged_attackpower,
-            ranged_hitrating,
-            ranged_critchance,
-        }
+        label = PLAYERSTAT_RANGED_COMBAT,
+        desc = "Ranged damage and ratings."
     },
     spell = {
-        stats = {
-            spell_damage,
-            spell_hitrating,
-            spell_critchance,
-            spell_regen,
-        }
+        label = PLAYERSTAT_SPELL_COMBAT,
+        desc = "Spell damage and ratings."
     },
     defenses = {
-        stats = {
-            armor,
-            defense,
-            dodge,
-            parry,
-            block,
-        }
+        label = PLAYERSTAT_DEFENSES,
+        desc = "Mitigation and avoidance."
     },
     enhancements = {
-        stats = {
-            expertise,
-            resiliance
-        }
+        label = "Enhancements",
+        desc = "Secondary bonuses."
     }
 }
 
-local categoriesSettings = {}
-
 function Module:Settings(tab)
+    local categoriesSettings = {}
+    local index = 1
+    local order = { "base", "attributes", "melee", "ranged", "spell", "defenses", "enhancements" }
 
-    local index = 0
-    for name, object in pairs(categories) do
-        categoriesSettings["category." .. name] = {
-            name = name,
-            type = "toggle",
-            order = index,
-            set = function(info, val)
-                ExtraStats.db.char.categories[name].enabled = val;
-                ExtraStats:UpdateStatsDelayed()
-            end,
-            get = function(info)
-                return ExtraStats.db.char.categories[name].enabled
-            end
-        }
-
-        index = index + 1
+    for _, name in ipairs(order) do
+        local object = categories[name]
+        if object then
+            categoriesSettings["category." .. name] = {
+                name = object.label or name,
+                desc = object.desc,
+                type = "toggle",
+                order = index,
+                width = "full",
+                set = function(info, val)
+                    ExtraStats.db.char.categories[name].enabled = val;
+                    ExtraStats:UpdateStatsDelayed()
+                end,
+                get = function(info)
+                    return ExtraStats.db.char.categories[name].enabled
+                end
+            }
+            index = index + 1
+        end
     end
 
-    tab.categories.args = categoriesSettings;
+    tab.categories.args.list = {
+        name = "Visible Categories",
+        type = "group",
+        inline = true,
+        order = 1,
+        args = categoriesSettings
+    }
 end

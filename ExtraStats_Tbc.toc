@@ -1,0 +1,11 @@
+## Interface: 20505
+## Title: ExtraStats
+## Author: Wuild
+## Version: @project-version@
+## SavedVariables: ExtraStatsSettings
+## OptionalDeps: ElvUI TacoTip
+
+embeds.xml
+modules\Vanilla.lua
+plugins\engraving.lua
+ExtraStats.lua

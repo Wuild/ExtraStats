@@ -2,6 +2,64 @@ local name, stats = ...;
 
 CHARACTERFRAME_EXPANDED_WIDTH = 540;
 
+local EVENT_DIRTY_CATEGORIES = {
+    PLAYER_EQUIPMENT_CHANGED = { "base", "attributes", "melee", "ranged", "spell", "defenses", "enhancements" },
+    SOCKET_INFO_SUCCESS = { "base", "attributes", "melee", "ranged", "spell", "defenses", "enhancements" },
+    UNIT_STATS = { "base", "attributes" },
+    UNIT_DAMAGE = { "melee", "ranged" },
+    UNIT_RANGEDDAMAGE = { "ranged" },
+    UNIT_ATTACK_SPEED = { "melee" },
+    UNIT_ATTACK_POWER = { "melee" },
+    UNIT_RANGED_ATTACK_POWER = { "ranged" },
+    UNIT_ATTACK = { "melee", "ranged" },
+    UNIT_SPELL_HASTE = { "spell" },
+    COMBAT_RATING_UPDATE = { "melee", "ranged", "spell", "defenses", "enhancements" },
+    UNIT_RESISTANCES = { "defenses" },
+    UNIT_MAXHEALTH = { "base" },
+    PLAYER_DAMAGE_DONE_MODS = { "melee", "ranged", "spell" },
+    CHARACTER_POINTS_CHANGED = { "base", "attributes", "melee", "ranged", "spell", "defenses", "enhancements" },
+    PLAYER_TALENT_UPDATE = { "base", "attributes", "melee", "ranged", "spell", "defenses", "enhancements" },
+    ACTIVE_TALENT_GROUP_CHANGED = { "base", "attributes", "melee", "ranged", "spell", "defenses", "enhancements" },
+    UNIT_AURA = { "base", "attributes", "melee", "ranged", "spell", "defenses", "enhancements" },
+}
+
+local function GetDirtyCategories(event, target)
+    if event == "UNIT_AURA" and target ~= "player" then
+        return nil
+    end
+    return EVENT_DIRTY_CATEGORIES[event]
+end
+
+local function SetAllCategoriesCollapsed(collapsed)
+    local stats = ExtraStats:LoadModule("character.stats")
+    if not stats or not stats.GetCategories then
+        return
+    end
+    ExtraStats.db.char.categoryCollapsed = ExtraStats.db.char.categoryCollapsed or {}
+    for _, category in pairs(stats:GetCategories()) do
+        ExtraStats.db.char.categoryCollapsed[category.id] = collapsed
+    end
+    ExtraStats:UpdateStatsDelayed()
+end
+
+local function ResetCategoryOrder()
+    ExtraStats.db.char.categoryOrder = {}
+    ExtraStats:UpdateStatsDelayed()
+end
+
+local function ResetCategoryVisibility()
+    local defaults = stats.configsDefaults and stats.configsDefaults.char and stats.configsDefaults.char.categories
+    if not defaults then
+        return
+    end
+    for categoryId, data in pairs(defaults) do
+        if ExtraStats.db.char.categories[categoryId] then
+            ExtraStats.db.char.categories[categoryId].enabled = data.enabled
+        end
+    end
+    ExtraStats:UpdateStatsDelayed()
+end
+
 function ExtraStats:EventHandler(event, target, ...)
     ExtraStats:UpdateRole()
     CURRENT_CLASS = ExtraStats:GetCurrentClass()
@@ -13,13 +71,16 @@ function ExtraStats:EventHandler(event, target, ...)
             ExtraStats:print("Keep this addon alive by donating a coffee at " .. ExtraStats:Colorize("https://www.buymeacoffee.com/yuImx6KOY", "cyan"));
         end);
     elseif event == "PLAYER_EQUIPMENT_CHANGED" then
+        ExtraStats:MarkStatsDirty(GetDirtyCategories(event, target))
         ExtraStats:UpdateStatsDelayed()
     else
-        if not event == "UNIT_AURA" then
+        if event ~= "UNIT_AURA" then
+            ExtraStats:MarkStatsDirty(GetDirtyCategories(event, target))
             ExtraStats:UpdateStatsDelayed()
         end
 
         if event == "UNIT_AURA" and target == "player" then
+            ExtraStats:MarkStatsDirty(GetDirtyCategories(event, target))
             ExtraStats:UpdateStatsDelayed()
         end
     end
@@ -56,18 +117,91 @@ function ExtraStats:DefaultSettings()
             end,
             type = "group",
             order = 1,
+            desc = "Core settings for the character stats panel.",
             args = {
-                dynamic = {
-                    name = "Dynamic",
-                    type = "toggle",
-                    order = index,
-                    set = function(info, val)
-                        ExtraStats.db.char.dynamic = val;
-                        ExtraStats:UpdateStatsDelayed()
-                    end,
-                    get = function(info)
-                        return ExtraStats.db.char.dynamic
-                    end
+                about = {
+                    name = "About",
+                    type = "group",
+                    inline = true,
+                    order = 1,
+                    args = {
+                        title = {
+                            name = "ExtraStats",
+                            type = "description",
+                            order = 1,
+                            fontSize = "medium",
+                            width = "full",
+                        },
+                        version = {
+                            name = function()
+                                return "Version: " .. (stats.version or "unknown");
+                            end,
+                            type = "description",
+                            order = 2,
+                            width = "full",
+                        },
+                    }
+                },
+                behavior = {
+                    name = "Behavior",
+                    type = "group",
+                    inline = true,
+                    order = 2,
+                    args = {
+                        debug = {
+                            name = "Enable debug output",
+                            type = "toggle",
+                            order = 1,
+                            width = "full",
+                            set = function(info, val)
+                                ExtraStats.db.global.debug.enabled = val
+                            end,
+                            get = function(info)
+                                return ExtraStats.db.global.debug.enabled
+                            end
+                        },
+                    }
+                },
+                actions = {
+                    name = "Quick Actions",
+                    type = "group",
+                    inline = true,
+                    order = 3,
+                    args = {
+                        resetLayout = {
+                            name = "Reset layout (order + collapsed state)",
+                            type = "execute",
+                            order = 1,
+                            func = function()
+                                ResetCategoryOrder()
+                                SetAllCategoriesCollapsed(false)
+                            end
+                        },
+                        resetVisibility = {
+                            name = "Reset category visibility",
+                            type = "execute",
+                            order = 2,
+                            func = function()
+                                ResetCategoryVisibility()
+                            end
+                        },
+                        expandAll = {
+                            name = "Expand all categories",
+                            type = "execute",
+                            order = 3,
+                            func = function()
+                                SetAllCategoriesCollapsed(false)
+                            end
+                        },
+                        collapseAll = {
+                            name = "Collapse all categories",
+                            type = "execute",
+                            order = 4,
+                            func = function()
+                                SetAllCategoriesCollapsed(true)
+                            end
+                        },
+                    }
                 },
             }
         },
@@ -78,7 +212,43 @@ function ExtraStats:DefaultSettings()
             end,
             type = "group",
             order = 2,
+            desc = "Show or hide entire stat categories.",
             args = {}
+        },
+
+        layout = {
+            name = function()
+                return "Layout";
+            end,
+            type = "group",
+            order = 3,
+            desc = "Manage category order and collapsed state.",
+            args = {
+                collapseAll = {
+                    name = "Collapse all categories",
+                    type = "execute",
+                    order = 1,
+                    func = function()
+                        SetAllCategoriesCollapsed(true)
+                    end
+                },
+                expandAll = {
+                    name = "Expand all categories",
+                    type = "execute",
+                    order = 2,
+                    func = function()
+                        SetAllCategoriesCollapsed(false)
+                    end
+                },
+                resetOrder = {
+                    name = "Reset category order",
+                    type = "execute",
+                    order = 3,
+                    func = function()
+                        ResetCategoryOrder()
+                    end
+                },
+            }
         },
 
         plugins = {
@@ -86,7 +256,8 @@ function ExtraStats:DefaultSettings()
                 return "Plugins";
             end,
             type = "group",
-            order = 3,
+            order = 4,
+            desc = "Enable or disable integrations with other addons.",
             args = {}
         }
     }
@@ -106,8 +277,8 @@ end
 function ExtraStats:OnEnable()
     local configsTable = ExtraStats:DefaultSettings()
 
-    CURRENT_ROLE = GetTalentGroupRole(GetActiveTalentGroup())
     CURRENT_CLASS = ExtraStats:GetCurrentClass()
+    ExtraStats:UpdateRole()
 
     ExtraStats:CreateWindow()
 
