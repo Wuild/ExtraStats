@@ -7,5 +7,4 @@
 
 embeds.xml
 modules\Vanilla.lua
-plugins\engraving.lua
 ExtraStats.lua
