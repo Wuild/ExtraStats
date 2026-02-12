@@ -9,6 +9,11 @@ tab.frame = nil
 
 local categories = {}
 local lastUpdate;
+local roleLabels = {
+    [CLASS_ROLE_DAMAGER] = "Damage",
+    [CLASS_ROLE_HEALER] = "Healer",
+    [CLASS_ROLE_TANK] = "Tank",
+}
 
 local function EnsureCategoryOrder()
     local order = ExtraStats.db.char.categoryOrder
@@ -69,6 +74,9 @@ function tab:init()
 
     categoryFramePool = CreateFramePool("FRAME", frame.ScrollChild, "ExtraStatsFrameCategoryTemplate")
     statsFramePool = CreateFramePool("FRAME", frame.ScrollChild, "ExtraStatsCharacterStatFrameTemplate")
+
+    frame.RoleModeText = frame:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+    frame.RoleModeText:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -6, -6)
 
     tab.frame = frame
 
@@ -212,6 +220,21 @@ end
 
 local lastUpdate;
 
+local function GetRoleModeText()
+    if not ExtraStats.db or not ExtraStats.db.char or not ExtraStats.db.char.dynamic then
+        return "Role: Off"
+    end
+
+    local preset = ExtraStats.db.char.rolePreset or "AUTO"
+    local role = ExtraStats:GetActiveRole()
+    local roleName = roleLabels[role] or tostring(role or "Unknown")
+
+    if preset == "AUTO" then
+        return "Role: Auto (" .. roleName .. ")"
+    end
+    return "Role: Preset (" .. roleName .. ")"
+end
+
 function tab:update(force)
     if not tab:IsVisible() then
         return
@@ -220,6 +243,11 @@ function tab:update(force)
     if not force and not ExtraStats.statsDirty then
         return
     end
+
+    if tab.frame and tab.frame.RoleModeText then
+        tab.frame.RoleModeText:SetText(GetRoleModeText())
+    end
+
     ExtraStats.statsDirty = false
     local dirtyCategories = ExtraStats.statsDirtyCategories
     local allDirty = dirtyCategories == nil
@@ -248,6 +276,13 @@ function tab:update(force)
         positions[category.id] = index
     end
 
+    local activeRole = ExtraStats:GetActiveRole()
+    local roleCategoryVisibility = nil
+    local roleStatVisibility = nil
+    if ExtraStats.db.char.dynamic then
+        roleCategoryVisibility = ExtraStats:GetRoleCategoryVisibility(activeRole)
+        roleStatVisibility = ExtraStats.db.char.roleStatVisibility and ExtraStats.db.char.roleStatVisibility[activeRole]
+    end
     for _, category in ipairs(orderedCategories) do
         local categoryDirty = allDirty or (dirtyCategories and dirtyCategories[category.id])
         local catCache = ExtraStats.statsCache[category.id]
@@ -309,7 +344,7 @@ function tab:update(force)
 
             if #category.roles > 0 then
                 for _, role in pairs(category.roles) do
-                    if role == CURRENT_ROLE then
+                    if role == activeRole then
                         foundRole = true
                     end
                 end
@@ -322,6 +357,10 @@ function tab:update(force)
             if #category.roles > 0 and not foundRole then
                 showCat = false
             end
+
+            if showCat and roleCategoryVisibility and roleCategoryVisibility[category.id] ~= nil then
+                showCat = roleCategoryVisibility[category.id]
+            end
         end
 
         if showCat and category.show then
@@ -329,6 +368,7 @@ function tab:update(force)
         end
 
         local numStatInCat = 0;
+        local categoryRoleStatVisibility = roleStatVisibility and roleStatVisibility[category.id]
         if showCat then
             if not catFrame.expanded then
                 catFrame:Show()
@@ -340,8 +380,16 @@ function tab:update(force)
                 lastAnchor = catFrame
                 catFrame = categoryFramePool:Acquire();
             else
-            for index, stat in pairs(category.stats) do
+            for index, stat in ipairs(category.stats) do
+                local statKey = stat.name
+                if type(statKey) ~= "string" then
+                    statKey = tostring(index)
+                end
                 local showStat = stat.show();
+
+                if showStat and categoryRoleStatVisibility and categoryRoleStatVisibility[statKey] ~= nil then
+                    showStat = categoryRoleStatVisibility[statKey]
+                end
 
                 if ExtraStats.db.char.dynamic then
                     local foundRole = false
@@ -361,11 +409,11 @@ function tab:update(force)
 
                     if #stat.roles > 0 then
                         for _, role in pairs(stat.roles) do
-                            if role == CURRENT_ROLE then
+                            if role == activeRole then
                                 foundRole = true
                                 showStat = true
                             end
-                            if not foundRole and role ~= CURRENT_ROLE then
+                            if not foundRole and role ~= activeRole then
                                 showStat = false
                             end
                         end
@@ -387,10 +435,6 @@ function tab:update(force)
 
                     if stat.value then
                         local data
-                        local statKey = stat.name
-                        if type(statKey) ~= "string" then
-                            statKey = tostring(index)
-                        end
 
                         if not categoryDirty then
                             data = catCache.stats[statKey]

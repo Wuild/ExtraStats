@@ -111,6 +111,36 @@ function ExtraStats:GetCurrentClass()
     return classIndex
 end
 
+function ExtraStats:GetActiveRole()
+    if ExtraStats.db and ExtraStats.db.char and ExtraStats.db.char.dynamic then
+        local preset = ExtraStats.db.char.rolePreset
+        if preset and preset ~= "AUTO" then
+            return preset
+        end
+    end
+    return CURRENT_ROLE
+end
+
+function ExtraStats:GetRoleCategoryVisibility(role)
+    if ExtraStats.db and ExtraStats.db.char then
+        local visibility = ExtraStats.db.char.roleCategoryVisibility
+        if visibility and role and visibility[role] then
+            return visibility[role]
+        end
+    end
+    return nil
+end
+
+function ExtraStats:GetRoleStatVisibility(role, categoryId)
+    if ExtraStats.db and ExtraStats.db.char and role and categoryId then
+        local visibility = ExtraStats.db.char.roleStatVisibility
+        if visibility and visibility[role] and visibility[role][categoryId] then
+            return visibility[role][categoryId]
+        end
+    end
+    return nil
+end
+
 function ExtraStats:translate(key, ...)
     local arg = { ... };
 

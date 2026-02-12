@@ -160,6 +160,41 @@ function ExtraStats:DefaultSettings()
                                 return ExtraStats.db.global.debug.enabled
                             end
                         },
+                        rolePresets = {
+                            name = "Enable role presets",
+                            type = "toggle",
+                            order = 2,
+                            width = "full",
+                            set = function(info, val)
+                                ExtraStats.db.char.dynamic = val
+                                ExtraStats:UpdateStatsDelayed()
+                            end,
+                            get = function(info)
+                                return ExtraStats.db.char.dynamic
+                            end
+                        },
+                        rolePresetValue = {
+                            name = "Role preset",
+                            type = "select",
+                            order = 3,
+                            width = "full",
+                            values = {
+                                AUTO = "Auto (from talents)",
+                                [CLASS_ROLE_DAMAGER] = "Damage",
+                                [CLASS_ROLE_HEALER] = "Healer",
+                                [CLASS_ROLE_TANK] = "Tank",
+                            },
+                            set = function(info, val)
+                                ExtraStats.db.char.rolePreset = val
+                                ExtraStats:UpdateStatsDelayed()
+                            end,
+                            get = function(info)
+                                return ExtraStats.db.char.rolePreset or "AUTO"
+                            end,
+                            disabled = function()
+                                return not ExtraStats.db.char.dynamic
+                            end
+                        },
                     }
                 },
                 actions = {

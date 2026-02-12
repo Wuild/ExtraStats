@@ -65,6 +65,37 @@ stats.configsDefaults = {
     char = {
         enabled = true,
         dynamic = false,
+        rolePreset = "AUTO",
+        roleStatVisibility = {},
+        roleCategoryVisibility = {
+            [CLASS_ROLE_DAMAGER] = {
+                base = true,
+                attributes = true,
+                melee = true,
+                ranged = true,
+                spell = true,
+                defenses = true,
+                enhancements = true,
+            },
+            [CLASS_ROLE_HEALER] = {
+                base = true,
+                attributes = true,
+                melee = true,
+                ranged = true,
+                spell = true,
+                defenses = true,
+                enhancements = true,
+            },
+            [CLASS_ROLE_TANK] = {
+                base = true,
+                attributes = true,
+                melee = true,
+                ranged = true,
+                spell = true,
+                defenses = true,
+                enhancements = true,
+            },
+        },
         disabledPlugins = {},
         sets = {},
         categories = {
