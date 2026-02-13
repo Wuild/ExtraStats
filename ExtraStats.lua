@@ -143,6 +143,12 @@ function ExtraStats:DefaultSettings()
                             order = 2,
                             width = "full",
                         },
+                        support = {
+                            name = "Support: https://www.patreon.com/c/Wuild",
+                            type = "description",
+                            order = 3,
+                            width = "full",
+                        },
                     }
                 },
                 behavior = {

@@ -64,7 +64,7 @@ stats.configsDefaults = {
     },
     char = {
         enabled = true,
-        dynamic = false,
+        dynamic = true,
         rolePreset = "AUTO",
         roleStatVisibility = {},
         roleCategoryVisibility = {

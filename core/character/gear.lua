@@ -664,6 +664,69 @@ function ExtraStats_GearSetButton_OnDoubleClick(self)
     --ExtraStats_PaperDollEquipmentManagerPane_Update()
 end
 
+local function BuildEquipMacroBody(setName)
+    local safeName = tostring(setName):gsub("\"", "'")
+    return "/stats equip \"" .. safeName .. "\""
+end
+
+local function FindEquipMacro(body)
+    local numGlobal, numCharacter = GetNumMacros()
+    local total = numGlobal + numCharacter
+    for i = 1, total do
+        local _, _, existingBody = GetMacroInfo(i)
+        if existingBody == body then
+            return i
+        end
+    end
+    return nil
+end
+
+local function BuildMacroName(setName)
+    local name = tostring(setName or "")
+    if #name > 16 then
+        name = string.sub(name, 1, 16)
+    end
+    return name
+end
+
+local function EnsureEquipMacro(setName, iconTexture)
+    local body = BuildEquipMacroBody(setName)
+    local macroId = FindEquipMacro(body)
+    if macroId then
+        if iconTexture then
+            EditMacro(macroId, nil, iconTexture, body)
+        end
+        return macroId
+    end
+
+    local numGlobal, numCharacter = GetNumMacros()
+    if numCharacter < MAX_CHARACTER_MACROS then
+        return CreateMacro(BuildMacroName(setName), iconTexture or "INV_Misc_QuestionMark", body, true)
+    end
+    if numGlobal < MAX_ACCOUNT_MACROS then
+        return CreateMacro(BuildMacroName(setName), iconTexture or "INV_Misc_QuestionMark", body, false)
+    end
+    return nil
+end
+
+function ExtraStats_GearSetButton_OnDragStart(self)
+    if (not self.setID or not self.name) then
+        return
+    end
+
+    if (InCombatLockdown()) then
+        UIErrorsFrame:AddMessage(ERR_CLIENT_LOCKED_OUT, 1.0, 0.1, 0.1, 1.0);
+        return
+    end
+
+    local macroId = EnsureEquipMacro(self.name, self.iconTexture)
+    if (macroId) then
+        PickupMacro(macroId)
+    else
+        UIErrorsFrame:AddMessage(ERR_MACRO_LIMIT, 1.0, 0.1, 0.1, 1.0);
+    end
+end
+
 function ExtraStats_PaperDollFrame_ClearIgnoredSlots()
     EquipmentSet:ClearIgnoredSlotsForSave();
     for k, button in next, itemSlotButtons do

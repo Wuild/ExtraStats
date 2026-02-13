@@ -227,9 +227,7 @@
                 GameTooltip:Hide();
             </OnLeave>
             <OnDragStart>
-                if ( self.setID ) then
-                C_EquipmentSet.PickupEquipmentSet(self.setID);
-                end
+                ExtraStats_GearSetButton_OnDragStart(self);
             </OnDragStart>
         </Scripts>
         <NormalTexture name="$parentIcon" parentKey="icon">
