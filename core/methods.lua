@@ -243,6 +243,42 @@ function ExtraStats:GetTalentGroup(index)
     return tonumber(pointsSpent) or 0
 end
 
+local function GetPrimaryTalentTreeIndex()
+    local numTabs = GetNumTalentTabs and GetNumTalentTabs() or 0
+    if numTabs == 0 then
+        return nil
+    end
+
+    local group = nil
+    if GetActiveTalentGroup then
+        local ok, result = pcall(GetActiveTalentGroup)
+        if ok then
+            group = result
+        end
+    end
+
+    local bestTab = nil
+    local bestPoints = -1
+    for i = 1, numTabs do
+        local points = nil
+        if group ~= nil then
+            points = select(5, GetTalentTabInfo(i, false, false, group))
+        else
+            points = select(5, GetTalentTabInfo(i))
+        end
+        points = tonumber(points) or 0
+        if points > bestPoints then
+            bestPoints = points
+            bestTab = i
+        end
+    end
+
+    if bestPoints <= 0 then
+        return nil
+    end
+    return bestTab
+end
+
 function ExtraStats:CheckTalents()
     local points = 0;
     local group = 0;
@@ -275,13 +311,17 @@ function ExtraStats:CheckTalents()
 end
 
 function ExtraStats:UpdateRole()
-
-    local group, points = ExtraStats:CheckTalents()
-    --local role = GetTalentGroupRole(GetActiveTalentGroup());
-
-    if points > 0 then
-        CURRENT_ROLE = CLASS_TALENTS_ROLE[CURRENT_CLASS][group]
+    local classIndex = CURRENT_CLASS or ExtraStats:GetCurrentClass()
+    if not classIndex or not CLASS_TALENTS_ROLE[classIndex] then
+        return
     end
+
+    local primaryTab = GetPrimaryTalentTreeIndex()
+    if not primaryTab then
+        return
+    end
+
+    CURRENT_ROLE = CLASS_TALENTS_ROLE[classIndex][primaryTab] or CURRENT_ROLE
 end
 
 local lastSent

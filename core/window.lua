@@ -33,6 +33,7 @@ end
 
 local name, addon = ...
 local Module = {}
+ExtraStats.window = Module
 
 local function GetKnownTitles()
     local playerTitles = { };
@@ -145,6 +146,18 @@ local SPEC_TABLE = {
     WARLOCK = { "Affliction", "Demonology", "Destruction" },
     DRUID = { "Balance", "Feral Combat", "Restoration" },
 }
+
+local ROLE_LABELS = {
+    [CLASS_ROLE_DAMAGER] = "Damage",
+    [CLASS_ROLE_HEALER] = "Healer",
+    [CLASS_ROLE_TANK] = "Tank",
+}
+local ROLE_ICON_TEXTURES = {
+    [CLASS_ROLE_TANK] = "Interface\\Icons\\Ability_Warrior_DefensiveStance",
+    [CLASS_ROLE_HEALER] = "Interface\\Icons\\Spell_Holy_Heal",
+    [CLASS_ROLE_DAMAGER] = "Interface\\Icons\\Ability_Rogue_Eviscerate",
+}
+local ROLE_ORDER = { CLASS_ROLE_TANK, CLASS_ROLE_HEALER, CLASS_ROLE_DAMAGER }
 
 local function GetTalentTabName(tabIndex)
     local a, b = GetTalentTabInfo(tabIndex);
@@ -349,7 +362,61 @@ function Module:CreateCharacterFrames()
         end
     end
 
+    Module:CreateRoleIcons()
     Module:PaperDollFrame_UpdateSidebarTabs()
+end
+
+function Module:CreateRoleIcons()
+    if Module.RoleIcons then
+        return
+    end
+
+    Module.RoleIcons = {}
+    local iconSize = 20
+    local spacing = 6
+    local totalWidth = (#ROLE_ORDER * iconSize) + ((#ROLE_ORDER - 1) * spacing)
+    local offsetX = 15
+    local offsetY = 32
+
+    for index, role in ipairs(ROLE_ORDER) do
+        local iconFrame = CreateFrame("Frame", nil, CharacterModelFrame, "ExtraStatsRoleIconFrameTemplate")
+        iconFrame:SetSize(iconSize, iconSize)
+        iconFrame:SetPoint("TOPLEFT", CharacterModelFrame, "TOPLEFT", offsetX + ((index - 1) * (iconSize + spacing)), offsetY)
+        iconFrame.Icon:SetTexture(ROLE_ICON_TEXTURES[role])
+        iconFrame.Icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        iconFrame.role = role
+        iconFrame:SetScript("OnEnter", function(self)
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:SetText(ROLE_LABELS[self.role] or tostring(self.role))
+            GameTooltip:Show()
+        end)
+        iconFrame:SetScript("OnLeave", function()
+            GameTooltip:Hide()
+        end)
+        Module.RoleIcons[role] = iconFrame
+    end
+
+    Module:UpdateRoleIcons()
+end
+
+function Module:UpdateRoleIcons()
+    if not Module.RoleIcons then
+        return
+    end
+
+    local enabled = ExtraStats.db and ExtraStats.db.char and ExtraStats.db.char.dynamic
+    local activeRole = ExtraStats:GetActiveRole()
+
+    for role, iconFrame in pairs(Module.RoleIcons) do
+        if enabled then
+            iconFrame:Show()
+            local isActive = role == activeRole
+            iconFrame.Icon:SetDesaturated(not isActive)
+            iconFrame.Icon:SetAlpha(isActive and 1 or 0.45)
+        else
+            iconFrame:Hide()
+        end
+    end
 end
 
 function Module:HandleTabClick(index)

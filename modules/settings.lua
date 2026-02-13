@@ -105,7 +105,7 @@ function Module:Settings(tab)
                 width = "full",
                 set = function(info, val)
                     ExtraStats.db.char.categories[categoryId].enabled = val;
-                    ExtraStats:UpdateStatsDelayed()
+                    ExtraStats:UpdateStats()
                 end,
                 get = function(info)
                     return ExtraStats.db.char.categories[categoryId].enabled
@@ -120,7 +120,7 @@ function Module:Settings(tab)
                 set = function(info, val)
                     local visibility = EnsureRoleVisibility(selectedRole)
                     visibility[categoryId] = val
-                    ExtraStats:UpdateStatsDelayed()
+                    ExtraStats:UpdateStats()
                 end,
                 get = function(info)
                     local visibility = EnsureRoleVisibility(selectedRole)
@@ -187,7 +187,7 @@ function Module:Settings(tab)
                         set = function(info, val)
                             local visibility = EnsureRoleStatVisibility(selectedRole, categoryId)
                             visibility[statKeyRef] = val
-                            ExtraStats:UpdateStatsDelayed()
+                            ExtraStats:UpdateStats()
                         end,
                         get = function(info)
                             local visibility = EnsureRoleStatVisibility(selectedRole, categoryId)

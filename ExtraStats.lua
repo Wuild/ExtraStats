@@ -61,8 +61,11 @@ local function ResetCategoryVisibility()
 end
 
 function ExtraStats:EventHandler(event, target, ...)
-    ExtraStats:UpdateRole()
     CURRENT_CLASS = ExtraStats:GetCurrentClass()
+    ExtraStats:UpdateRole()
+    if ExtraStats.window and ExtraStats.window.UpdateRoleIcons then
+        ExtraStats.window:UpdateRoleIcons()
+    end
 
     if event == "PLAYER_LOGIN" then
         C_Timer.After(5, function()
@@ -167,7 +170,10 @@ function ExtraStats:DefaultSettings()
                             width = "full",
                             set = function(info, val)
                                 ExtraStats.db.char.dynamic = val
-                                ExtraStats:UpdateStatsDelayed()
+                                ExtraStats:UpdateStats()
+                                if ExtraStats.window and ExtraStats.window.UpdateRoleIcons then
+                                    ExtraStats.window:UpdateRoleIcons()
+                                end
                             end,
                             get = function(info)
                                 return ExtraStats.db.char.dynamic
@@ -186,7 +192,10 @@ function ExtraStats:DefaultSettings()
                             },
                             set = function(info, val)
                                 ExtraStats.db.char.rolePreset = val
-                                ExtraStats:UpdateStatsDelayed()
+                                ExtraStats:UpdateStats()
+                                if ExtraStats.window and ExtraStats.window.UpdateRoleIcons then
+                                    ExtraStats.window:UpdateRoleIcons()
+                                end
                             end,
                             get = function(info)
                                 return ExtraStats.db.char.rolePreset or "AUTO"

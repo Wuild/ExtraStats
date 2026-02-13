@@ -110,6 +110,20 @@
         </Scripts>
     </Frame>
 
+    <Frame name="ExtraStatsRoleIconFrameTemplate" virtual="true" enableMouse="true">
+        <Size x="26" y="26"/>
+        <Layers>
+            <Layer level="ARTWORK">
+                <Texture parentKey="Icon">
+                    <Anchors>
+                        <Anchor point="TOPLEFT"/>
+                        <Anchor point="BOTTOMRIGHT"/>
+                    </Anchors>
+                </Texture>
+            </Layer>
+        </Layers>
+    </Frame>
+
     <ScrollFrame name="ExtraStatsScrollFrame" inherits="UIPanelScrollFrameTemplate" virtual="true">
         <Layers>
             <Layer level="ARTWORK">

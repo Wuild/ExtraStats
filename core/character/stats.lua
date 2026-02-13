@@ -9,11 +9,6 @@ tab.frame = nil
 
 local categories = {}
 local lastUpdate;
-local roleLabels = {
-    [CLASS_ROLE_DAMAGER] = "Damage",
-    [CLASS_ROLE_HEALER] = "Healer",
-    [CLASS_ROLE_TANK] = "Tank",
-}
 
 local function EnsureCategoryOrder()
     local order = ExtraStats.db.char.categoryOrder
@@ -75,8 +70,6 @@ function tab:init()
     categoryFramePool = CreateFramePool("FRAME", frame.ScrollChild, "ExtraStatsFrameCategoryTemplate")
     statsFramePool = CreateFramePool("FRAME", frame.ScrollChild, "ExtraStatsCharacterStatFrameTemplate")
 
-    frame.RoleModeText = frame:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
-    frame.RoleModeText:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -6, -6)
 
     tab.frame = frame
 
@@ -235,6 +228,11 @@ local function GetRoleModeText()
     return "Role: Preset (" .. roleName .. ")"
 end
 
+
+local function GetFirstCategoryOffsetY()
+    return -16
+end
+
 function tab:update(force)
     if not tab:IsVisible() then
         return
@@ -244,9 +242,7 @@ function tab:update(force)
         return
     end
 
-    if tab.frame and tab.frame.RoleModeText then
-        tab.frame.RoleModeText:SetText(GetRoleModeText())
-    end
+    -- role icons are rendered near the nameplate in core/window.lua
 
     ExtraStats.statsDirty = false
     local dirtyCategories = ExtraStats.statsDirtyCategories
@@ -373,7 +369,7 @@ function tab:update(force)
             if not catFrame.expanded then
                 catFrame:Show()
                 if not lastAnchor then
-                    catFrame:SetPoint("TOPLEFT", 8, 0);
+                    catFrame:SetPoint("TOPLEFT", 8, GetFirstCategoryOffsetY());
                 else
                     catFrame:SetPoint("TOP", lastAnchor, "BOTTOM", 0, ExtraStats.categoryYOffset);
                 end
@@ -430,7 +426,7 @@ function tab:update(force)
 
                     catFrame:Show()
                     if not lastAnchor then
-                        catFrame:SetPoint("TOPLEFT", 8, 0);
+                        catFrame:SetPoint("TOPLEFT", 8, GetFirstCategoryOffsetY());
                     end
 
                     if stat.value then
