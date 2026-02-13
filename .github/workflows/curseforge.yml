@@ -24,8 +24,10 @@ jobs:
           zip -r "$zip_path" "$addon_name" -x "$addon_name/.git/*" "$addon_name/.github/*"
 
       - name: Publish
-        uses: curseforge/wow-addon-action@v1
+        uses: itsmeow/curseforge-upload@v3
         with:
-          api-token: ${{ secrets.CURSEFORGE_TOKEN }}
-          project-id: "803163"
-          file: ${{ github.ref_name }}.zip
+          token: ${{ secrets.CURSEFORGE_TOKEN }}
+          project_id: "803163"
+          game_endpoint: "wow"
+          file_path: ${{ github.workspace }}/${{ github.ref_name }}.zip
+          release_type: release
