@@ -18,6 +18,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          for toc in ExtraStats*.toc; do
+            if [[ -f "$toc" ]]; then
+              sed -i "s/@project-version@/${GITHUB_REF_NAME}/g" "$toc"
+            fi
+          done
           addon_name="$(basename "$GITHUB_WORKSPACE")"
           zip_path="$GITHUB_WORKSPACE/${GITHUB_REF_NAME}.zip"
           cd "$GITHUB_WORKSPACE/.."
