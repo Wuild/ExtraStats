@@ -3,7 +3,7 @@
 ## Author: Wuild
 ## Version: @project-version@
 ## SavedVariables: ExtraStatsSettings
-## OptionalDeps: ElvUI TacoTip
+## OptionalDeps: ElvUI TacoTip ArkInventory
 
 embeds.xml
 modules\Vanilla.lua

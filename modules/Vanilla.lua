@@ -290,7 +290,14 @@ end
 
 local function CharacterManaRegenFrame_OnEnter(self)
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
-    GameTooltip:SetText(MANA_REGEN_TOOLTIP, HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g, HIGHLIGHT_FONT_COLOR.b);
+    local title = MANA_REGEN;
+    if type(MANA_REGEN_TOOLTIP) == "string" then
+        local ok, formatted = pcall(format, MANA_REGEN_TOOLTIP, self.mp5NotCastingValue or 0, self.mp5CastingValue or 0)
+        if ok and formatted then
+            title = formatted
+        end
+    end
+    GameTooltip:SetText(title, HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g, HIGHLIGHT_FONT_COLOR.b);
     GameTooltip:AddDoubleLine(MANA_REGEN .. " (From Gear):", self.mp5FromGear);
     GameTooltip:AddDoubleLine(MANA_REGEN .. " (While Casting):", self.mp5Casting);
     GameTooltip:AddDoubleLine(MANA_REGEN .. " (While Not Casting):", self.mp5NotCasting);
@@ -911,6 +918,8 @@ Module.stats = {
                 mp5FromGear = BreakUpLargeNumbers(mp5FromGear),
                 mp5Casting = castingText,
                 mp5NotCasting = regenWhenNotCastingText,
+                mp5CastingValue = floor(casting),
+                mp5NotCastingValue = floor(regenWhenNotCasting),
                 tooltip2 = format(MANA_REGEN_TOOLTIP, base, casting),
                 onEnter = CharacterManaRegenFrame_OnEnter
             }

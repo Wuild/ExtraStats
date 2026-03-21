@@ -528,10 +528,18 @@
         </Anchors>
         <Scripts>
             <OnLoad>
-                PaperDollFrameItemPopoutButton_OnLoad(self);
+                if EquipmentFlyoutPopoutButton_OnLoad then
+                    EquipmentFlyoutPopoutButton_OnLoad(self);
+                elseif PaperDollFrameItemPopoutButton_OnLoad then
+                    PaperDollFrameItemPopoutButton_OnLoad(self);
+                end
             </OnLoad>
             <OnClick>
-                PaperDollFrameItemPopoutButton_OnClick(self);
+                if EquipmentFlyoutPopoutButton_OnClick then
+                    EquipmentFlyoutPopoutButton_OnClick(self);
+                elseif PaperDollFrameItemPopoutButton_OnClick then
+                    PaperDollFrameItemPopoutButton_OnClick(self);
+                end
             </OnClick>
         </Scripts>
         <NormalTexture file="Interface\PaperDollInfoFrame\UI-GearManager-FlyoutButton"/>

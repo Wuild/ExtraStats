@@ -43,6 +43,7 @@
 
     <Script file="plugins\elvui.lua"/>
     <Script file="plugins\tacotip.lua"/>
+    <Script file="plugins\arkinventory.lua"/>
 
     <!--@end-non-debug@-->
 </Ui>
