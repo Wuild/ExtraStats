@@ -52,6 +52,94 @@ local RESILIENCE_CONSTANT_DAMAGE_REDUCTION_MULTIPLIER = RESILIENCE_CRIT_CHANCE_T
 local CR_CRIT_TAKEN_MELEE_RATING = CR_CRIT_TAKEN_MELEE or 15
 local CR_CRIT_TAKEN_RANGED_RATING = CR_CRIT_TAKEN_RANGED or 16
 local CR_CRIT_TAKEN_SPELL_RATING = CR_CRIT_TAKEN_SPELL or 17
+local CR_HIT_MELEE_RATING = CR_HIT_MELEE or 6
+local CR_HIT_RANGED_RATING = CR_HIT_RANGED or 7
+local CR_HIT_SPELL_RATING = CR_HIT_SPELL or 8
+local CR_CRIT_MELEE_RATING = CR_CRIT_MELEE or 9
+local CR_CRIT_RANGED_RATING = CR_CRIT_RANGED or 10
+local CR_CRIT_SPELL_RATING = CR_CRIT_SPELL or 11
+local CR_DODGE_RATING = CR_DODGE or 3
+local CR_PARRY_RATING = CR_PARRY or 4
+local CR_BLOCK_RATING = CR_BLOCK or 5
+local CR_EXPERTISE_RATING = CR_EXPERTISE or 24
+local CR_HASTE_MELEE_RATING = CR_HASTE_MELEE or 18
+local CR_HASTE_SPELL_RATING = CR_HASTE_SPELL or 20
+local EXPERTISE_LABEL = STAT_EXPERTISE or _G["COMBAT_RATING_NAME" .. CR_EXPERTISE_RATING] or "Expertise"
+local MELEE_HASTE_LABEL = _G["COMBAT_RATING_NAME" .. CR_HASTE_MELEE_RATING] or STAT_HASTE or "Melee Haste"
+local SPELL_HASTE_LABEL = _G["COMBAT_RATING_NAME" .. CR_HASTE_SPELL_RATING] or STAT_HASTE or "Spell Haste"
+local RATING_LABEL = RATING_COLON or STAT_RATING or "Rating:"
+-- TBC level 70:
+-- 3.9423 expertise rating = 1 expertise point ("skill")
+-- 1 expertise point = 0.25% dodge/parry reduction
+local EXPERTISE_RATING_PER_POINT = 3.9423
+
+local function BuildHitTooltipDetails(totalHit, fromRating, fromModifier, ratingValue)
+    return table.concat({
+        format("%s %d", RATING_LABEL, ratingValue or 0),
+        format("From Rating: %.2F%%", fromRating or 0),
+        format("Other Bonuses: %.2F%%", fromModifier or 0),
+        format("Total Hit: %.2F%%", totalHit or 0),
+    }, "\n")
+end
+
+local function BuildCritTooltipDetails(totalCrit, ratingId)
+    local ratingValue = (GetCombatRating and ratingId and GetCombatRating(ratingId)) or 0
+    local fromRating = (GetCombatRatingBonus and ratingId and GetCombatRatingBonus(ratingId)) or 0
+    return table.concat({
+        format("%s %d", RATING_LABEL, ratingValue),
+        format("From Rating: %.2F%%", fromRating),
+        format("Total Crit: %.2F%%", totalCrit or 0),
+    }, "\n")
+end
+
+local function BuildAvoidanceTooltipDetails(label, chance, ratingId)
+    local ratingValue = (GetCombatRating and ratingId and GetCombatRating(ratingId)) or 0
+    local fromRating = (GetCombatRatingBonus and ratingId and GetCombatRatingBonus(ratingId)) or 0
+    return table.concat({
+        format("%s: %.2F%%", label or "Chance", chance or 0),
+        format("%s %d", RATING_LABEL, ratingValue),
+        format("From Rating: %.2F%%", fromRating),
+    }, "\n")
+end
+
+local function BuildHasteTooltipDetails(hastePercent, hasteRating, kindLabel)
+    local speedMultiplier = 1 + ((hastePercent or 0) / 100)
+    local timeFactor = 100 / (100 + (hastePercent or 0))
+    return table.concat({
+        format("%s %d", RATING_LABEL, hasteRating or 0),
+        format("Speed Increase: %.2F%%", hastePercent or 0),
+        format("%s Speed Multiplier: x%.4F", kindLabel or "Cast/Attack", speedMultiplier),
+        format("Time Multiplier: %.2F%% of base", timeFactor),
+    }, "\n")
+end
+
+local function ComputeAvoidanceTotals(unit)
+    local dodgeChance = GetDodgeChance() or 0
+    local parryChance = GetParryChance() or 0
+    local blockChance = GetBlockChance() or 0
+    local skillRank, skillModifier = UnitDefense(unit)
+    local defenseValue = max(0, (skillRank or 0) + (skillModifier or 0))
+    local playerLevel = UnitLevel(unit)
+    local npcWeaponskill = playerLevel * 5
+    local bossWeaponskill = (playerLevel + 3) * 5
+
+    local missChanceVsNpc = max(0, 5 + ((defenseValue - npcWeaponskill) * 0.04))
+    local missChanceVsBoss = max(0, 5 + ((defenseValue - bossWeaponskill) * 0.04))
+
+    local totalAvoidanceVsNpc = dodgeChance + parryChance + blockChance + missChanceVsNpc
+    local totalAvoidanceVsBoss = dodgeChance + parryChance + blockChance + missChanceVsBoss
+
+    return {
+        playerLevel = playerLevel,
+        dodge = dodgeChance,
+        parry = parryChance,
+        block = blockChance,
+        missVsNpc = missChanceVsNpc,
+        missVsBoss = missChanceVsBoss,
+        totalVsNpc = totalAvoidanceVsNpc,
+        totalVsBoss = totalAvoidanceVsBoss,
+    }
+end
 
 local function FormatStat(name, base, posBuff, negBuff)
     local effective = max(0, base + posBuff + negBuff);
@@ -281,6 +369,10 @@ end
 local function SpellHitChanceFrame_OnEnter(self)
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
     GameTooltip:SetText(format(STAT_HIT_CHANCE .. ": %.2F%%", self.hitChance), HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g, HIGHLIGHT_FONT_COLOR.b);
+    GameTooltip:AddLine(" ");
+    GameTooltip:AddDoubleLine("From Rating:", format("%.2F%%", self.hitFromRating or 0), NORMAL_FONT_COLOR.r, NORMAL_FONT_COLOR.g, NORMAL_FONT_COLOR.b, HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g, HIGHLIGHT_FONT_COLOR.b);
+    GameTooltip:AddDoubleLine("Other Bonuses:", format("%.2F%%", self.hitFromModifier or 0), NORMAL_FONT_COLOR.r, NORMAL_FONT_COLOR.g, NORMAL_FONT_COLOR.b, HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g, HIGHLIGHT_FONT_COLOR.b);
+    GameTooltip:AddDoubleLine(RATING_LABEL, tostring(self.hitRating or 0), NORMAL_FONT_COLOR.r, NORMAL_FONT_COLOR.g, NORMAL_FONT_COLOR.b, HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g, HIGHLIGHT_FONT_COLOR.b);
     GameTooltip:Show();
 end
 
@@ -307,27 +399,32 @@ Module.stats = {
         Health = function(unit)
             local health = UnitHealthMax(unit);
             local healthText = BreakUpLargeNumbers(health);
+            local currentHealth = UnitHealth(unit) or 0
 
             return {
                 value = healthText,
                 tooltip = HIGHLIGHT_FONT_COLOR_CODE .. format(PAPERDOLLFRAME_TOOLTIP_FORMAT, HEALTH) .. " " .. healthText .. FONT_COLOR_CODE_CLOSE,
-                tooltip1 = STAT_HEALTH_TOOLTIP
+                tooltip2 = format("%s\nCurrent: %d / %d", STAT_HEALTH_TOOLTIP or "", currentHealth, health)
             }
         end,
         Power = function(unit)
             local _, powerToken = UnitPowerType(unit);
-            local power = UnitPowerMax(unit) or 0;
+            local powerType = UnitPowerType(unit) or 0
+            local power = UnitPowerMax(unit, powerType) or 0;
+            local currentPower = UnitPower(unit, powerType) or 0
             local powerText = BreakUpLargeNumbers(power);
 
             if powerToken then
                 return {
                     value = powerText,
                     tooltip = HIGHLIGHT_FONT_COLOR_CODE .. format(PAPERDOLLFRAME_TOOLTIP_FORMAT, ExtraStats:translate("stats." .. string.lower(powerToken))) .. " " .. powerText .. FONT_COLOR_CODE_CLOSE,
-                    tooltip1 = _G["STAT_" .. powerToken .. "_TOOLTIP"]
+                    tooltip2 = format("%s\nCurrent: %d / %d", _G["STAT_" .. powerToken .. "_TOOLTIP"] or "", currentPower, power)
                 }
             else
                 return {
                     value = powerText,
+                    tooltip = HIGHLIGHT_FONT_COLOR_CODE .. format(PAPERDOLLFRAME_TOOLTIP_FORMAT, MANA) .. " " .. powerText .. FONT_COLOR_CODE_CLOSE,
+                    tooltip2 = format("Current: %d / %d", currentPower, power)
                 }
             end
         end,
@@ -484,18 +581,27 @@ Module.stats = {
         AttackPower = function(unit)
             local base, posBuff, negBuff = UnitAttackPower(unit);
             local valueText, tooltipText = FormatStat(MELEE_ATTACK_POWER, base, posBuff, negBuff);
+            local apBonus = max((base + posBuff + negBuff), 0) / (ATTACK_POWER_MAGIC_NUMBER or 14)
+            local apTooltip = MELEE_ATTACK_POWER_TOOLTIP or "Increases melee damage."
             return {
                 value = valueText,
                 tooltip = tooltipText,
-                tooltip2 = format(MELEE_ATTACK_POWER_TOOLTIP, max((base + posBuff + negBuff), 0) / ATTACK_POWER_MAGIC_NUMBER)
+                tooltip2 = format(apTooltip, apBonus)
             }
 
         end,
         AttackSpeed = function(unit)
             local speed, offhandSpeed = UnitAttackSpeed(unit);
             local displaySpeed = format("%.2F", speed);
+            local tooltip2 = {
+                format("Main Hand Speed: %.2F", speed or 0),
+                format("Main Hand Swings/Min: %.2F", (speed and speed > 0) and (60 / speed) or 0),
+            }
             if (offhandSpeed) then
                 offhandSpeed = format("%.2F", offhandSpeed);
+                local offNum = tonumber(offhandSpeed) or 0
+                table.insert(tooltip2, format("Off Hand Speed: %.2F", offNum))
+                table.insert(tooltip2, format("Off Hand Swings/Min: %.2F", (offNum > 0) and (60 / offNum) or 0))
             end
             if (offhandSpeed) then
                 displaySpeed = displaySpeed .. " / " .. offhandSpeed;
@@ -505,24 +611,101 @@ Module.stats = {
 
             return {
                 value = displaySpeed,
-                tooltip = format(PAPERDOLLFRAME_TOOLTIP_FORMAT, ATTACK_SPEED) .. " " .. displaySpeed
+                tooltip = format(PAPERDOLLFRAME_TOOLTIP_FORMAT, ATTACK_SPEED) .. " " .. displaySpeed,
+                tooltip2 = table.concat(tooltip2, "\n")
             }
         end,
         CritChance = function()
-            local critChance = format("%.2f%%", GetCritChance());
+            local crit = GetCritChance() or 0
+            local critChance = format("%.2f%%", crit);
 
             return {
                 value = critChance,
                 tooltip = HIGHLIGHT_FONT_COLOR_CODE .. format(PAPERDOLLFRAME_TOOLTIP_FORMAT, MELEE_CRIT_CHANCE) .. " " .. critChance .. FONT_COLOR_CODE_CLOSE,
-                tooltip2 = format(CR_CRIT_MELEE_TOOLTIP, GetCombatRating(CR_CRIT_MELEE), GetCombatRatingBonus(CR_CRIT_MELEE))
+                tooltip2 = format(CR_CRIT_MELEE_TOOLTIP or "Crit from rating: %d (%.2f%%)", GetCombatRating(CR_CRIT_MELEE_RATING) or 0, GetCombatRatingBonus(CR_CRIT_MELEE_RATING) or 0)
+                    .. "\n" .. BuildCritTooltipDetails(crit, CR_CRIT_MELEE_RATING)
             }
         end,
         HitChance = function()
-            local hitChance = (GetCombatRatingBonus(CR_HIT_MELEE) or 0) + (GetHitModifier() or 0);
+            local hitFromRating = GetCombatRatingBonus(CR_HIT_MELEE_RATING) or 0
+            local hitFromModifier = GetHitModifier() or 0
+            local hitRating = GetCombatRating(CR_HIT_MELEE_RATING) or 0
+            local hitChance = hitFromRating + hitFromModifier
 
             return {
                 value = format("%.2F%%", hitChance),
-                tooltip = STAT_HIT_CHANCE .. ": " .. format("%.2F%%", hitChance)
+                tooltip = STAT_HIT_CHANCE .. ": " .. format("%.2F%%", hitChance),
+                tooltip2 = BuildHitTooltipDetails(hitChance, hitFromRating, hitFromModifier, hitRating)
+            }
+        end,
+        Expertise = function()
+            local expertiseRating = (GetCombatRating and GetCombatRating(CR_EXPERTISE_RATING)) or 0
+            local tooltip2 = format("%s %d", RATING_LABEL, expertiseRating)
+            local ratingExpertiseRaw = (expertiseRating or 0) / EXPERTISE_RATING_PER_POINT -- expertise points
+            local ratingExpertise = math.floor(ratingExpertiseRaw) -- floor only, never round up
+            local mhExpertiseRaw = 0
+            local ohExpertiseRaw = 0
+
+            -- Prefer percent-derived totals because some clients quantize GetExpertise() to whole points.
+            if GetExpertisePercent then
+                local mhPercent, ohPercent = GetExpertisePercent()
+                mhExpertiseRaw = (mhPercent or 0) / 0.25
+                ohExpertiseRaw = (ohPercent or mhPercent or 0) / 0.25
+            elseif GetExpertise then
+                local mh, oh = GetExpertise()
+                mhExpertiseRaw = mh or mhExpertiseRaw
+                ohExpertiseRaw = oh or mh or mhExpertiseRaw
+            end
+
+            local mhBonusExpertise = max(0, mhExpertiseRaw - ratingExpertise)
+            local ohBonusExpertise = max(0, ohExpertiseRaw - ratingExpertise)
+            mhExpertiseRaw = ratingExpertise + mhBonusExpertise
+            ohExpertiseRaw = ratingExpertise + ohBonusExpertise
+
+            tooltip2 = tooltip2
+                .. "\n" .. format("From Rating: %.2F Expertise", ratingExpertise)
+                .. "\n" .. format("From Bonuses/Buffs: %.2F Expertise", mhBonusExpertise)
+
+            if math.abs(ohBonusExpertise - mhBonusExpertise) > 0.005 then
+                tooltip2 = tooltip2 .. "\n" .. format("From Bonuses/Buffs (OH): %.2F Expertise", ohBonusExpertise)
+            end
+
+            do
+                local mainhandPercent = mhExpertiseRaw * 0.25
+                local offhandPercent = ohExpertiseRaw * 0.25
+                if math.abs(mainhandPercent - offhandPercent) > 0.005 then
+                    tooltip2 = tooltip2
+                        .. "\n" .. format("Reduces Dodge by %.2F%% (Main Hand)", mainhandPercent)
+                        .. "\n" .. format("Reduces Parry by %.2F%% (Off Hand)", offhandPercent)
+                else
+                    tooltip2 = tooltip2
+                        .. "\n" .. format("Reduces Dodge by %.2F%%", mainhandPercent)
+                        .. "\n" .. format("Reduces Parry by %.2F%%", mainhandPercent)
+                end
+            end
+
+            local mhDisplay = mhExpertiseRaw or 0
+            local ohDisplay = ohExpertiseRaw or mhDisplay
+
+            local expertiseValue = format("%.2F", mhDisplay)
+            if math.abs(ohDisplay - mhDisplay) > 0.005 then
+                expertiseValue = format("%.2F / %.2F", mhDisplay, ohDisplay)
+            end
+
+            return {
+                value = expertiseValue,
+                tooltip = EXPERTISE_LABEL .. ": " .. expertiseValue,
+                tooltip2 = tooltip2
+            }
+        end,
+        Haste = function()
+            local hastePercent = GetCombatRatingBonus(CR_HASTE_MELEE_RATING) or 0
+            local hasteRating = GetCombatRating(CR_HASTE_MELEE_RATING) or 0
+
+            return {
+                value = format("%.2F%%", hastePercent),
+                tooltip = MELEE_HASTE_LABEL .. ": " .. format("%.2F%%", hastePercent),
+                tooltip2 = BuildHasteTooltipDetails(hastePercent, hasteRating, "Attack")
             }
         end
     },
@@ -654,11 +837,12 @@ Module.stats = {
 
             local valueText, tooltipText = FormatStat(RANGED_ATTACK_POWER, base, posBuff, negBuff);
             local valueNum = max(0, base + posBuff + negBuff);
+            local rangedApTooltip = RANGED_ATTACK_POWER_TOOLTIP or "Increases ranged damage."
 
             return {
                 value = valueText,
                 tooltip = tooltipText,
-                tooltip2 = format(RANGED_ATTACK_POWER_TOOLTIP, valueNum / ATTACK_POWER_MAGIC_NUMBER)
+                tooltip2 = format(rangedApTooltip, valueNum / (ATTACK_POWER_MAGIC_NUMBER or 14))
             }
         end,
         AttackSpeed = function(unit)
@@ -670,10 +854,12 @@ Module.stats = {
 
             local attackSpeed = select(1, UnitRangedDamage(unit));
             local displaySpeed = format("%.2F", attackSpeed);
+            local shotsPerMinute = (attackSpeed and attackSpeed > 0) and (60 / attackSpeed) or 0
 
             return {
                 value = displaySpeed,
-                tooltip = format(PAPERDOLLFRAME_TOOLTIP_FORMAT, ATTACK_SPEED) .. " " .. displaySpeed
+                tooltip = format(PAPERDOLLFRAME_TOOLTIP_FORMAT, ATTACK_SPEED) .. " " .. displaySpeed,
+                tooltip2 = format("Ranged Speed: %.2F\nShots/Min: %.2F", attackSpeed or 0, shotsPerMinute)
             }
         end,
         CritChance = function()
@@ -687,7 +873,8 @@ Module.stats = {
 
             return {
                 value = format("%.2F%%", critChance),
-                tooltip = format(PAPERDOLLFRAME_TOOLTIP_FORMAT, STAT_CRITICAL_STRIKE) .. " " .. format("%.2F%%", critChance)
+                tooltip = format(PAPERDOLLFRAME_TOOLTIP_FORMAT, STAT_CRITICAL_STRIKE) .. " " .. format("%.2F%%", critChance),
+                tooltip2 = BuildCritTooltipDetails(critChance or 0, CR_CRIT_RANGED_RATING)
             }
         end,
         HitChance = function()
@@ -697,11 +884,15 @@ Module.stats = {
                 }
             end
 
-            local hitChance = (GetCombatRatingBonus(CR_HIT_RANGED) or 0) + (GetHitModifier() or 0);
+            local hitFromRating = GetCombatRatingBonus(CR_HIT_RANGED_RATING) or 0
+            local hitFromModifier = GetHitModifier() or 0
+            local hitRating = GetCombatRating(CR_HIT_RANGED_RATING) or 0
+            local hitChance = hitFromRating + hitFromModifier
 
             return {
                 value = format("%.2F%%", hitChance),
                 tooltip = format(PAPERDOLLFRAME_TOOLTIP_FORMAT, STAT_HIT_CHANCE) .. " " .. format("%.2F%%", hitChance),
+                tooltip2 = BuildHitTooltipDetails(hitChance, hitFromRating, hitFromModifier, hitRating),
             }
         end
     },
@@ -719,6 +910,8 @@ Module.stats = {
 
             return {
                 value = BreakUpLargeNumbers(maxSpellDmg),
+                tooltip = STAT_SPELLPOWER .. ": " .. BreakUpLargeNumbers(maxSpellDmg),
+                tooltip2 = "Shows your highest bonus damage school.",
                 onEnter = SpellDamageFrame_OnEnter
             }
 
@@ -729,7 +922,7 @@ Module.stats = {
             return {
                 value = BreakUpLargeNumbers(healing),
                 tooltip = STAT_SPELLHEALING .. " " .. healing,
-                tooltip2 = STAT_SPELLHEALING_TOOLTIP
+                tooltip2 = STAT_SPELLHEALING_TOOLTIP .. "\n" .. format("Bonus Healing: %d", healing or 0)
             }
 
         end,
@@ -768,7 +961,7 @@ Module.stats = {
                 mp5NotCasting = regenWhenNotCastingText,
                 mp5CastingValue = floor(casting),
                 mp5NotCastingValue = floor(regenWhenNotCasting),
-                tooltip2 = format(MANA_REGEN_TOOLTIP, base, casting),
+                tooltip2 = format(MANA_REGEN_TOOLTIP or "Mana Regen", base or 0, casting or 0),
                 onEnter = CharacterManaRegenFrame_OnEnter
             }
 
@@ -803,19 +996,39 @@ Module.stats = {
                 shadowCrit = shadowCrit,
                 arcaneCrit = arcaneCrit,
                 lightningCrit = lightningCrit,
+                tooltip = STAT_CRITICAL_STRIKE .. ": " .. format("%.2F%%", maxSpellCrit),
+                tooltip2 = BuildCritTooltipDetails(maxSpellCrit, CR_CRIT_SPELL_RATING),
                 onEnter = CharacterSpellCritFrame_OnEnter
             }
 
         end,
         HitChance = function(unit)
-            local hitChance = (GetCombatRatingBonus(CR_HIT_SPELL) or 0) + (GetSpellHitModifier() or 0);
+            local hitFromRating = GetCombatRatingBonus(CR_HIT_SPELL_RATING) or 0
+            local hitFromModifier = GetSpellHitModifier() or 0
+            local hitRating = GetCombatRating(CR_HIT_SPELL_RATING) or 0
+            local hitChance = hitFromRating + hitFromModifier
             local unitClassId = select(3, UnitClass(unit));
 
             return {
                 value = format("%.2F%%", hitChance),
                 hitChance = hitChance,
+                hitFromRating = hitFromRating,
+                hitFromModifier = hitFromModifier,
+                hitRating = hitRating,
                 unitClassId = unitClassId,
+                tooltip = STAT_HIT_CHANCE .. ": " .. format("%.2F%%", hitChance),
+                tooltip2 = BuildHitTooltipDetails(hitChance, hitFromRating, hitFromModifier, hitRating),
                 onEnter = SpellHitChanceFrame_OnEnter
+            }
+        end,
+        Haste = function()
+            local hastePercent = GetCombatRatingBonus(CR_HASTE_SPELL_RATING) or 0
+            local hasteRating = GetCombatRating(CR_HASTE_SPELL_RATING) or 0
+
+            return {
+                value = format("%.2F%%", hastePercent),
+                tooltip = SPELL_HASTE_LABEL .. ": " .. format("%.2F%%", hastePercent),
+                tooltip2 = BuildHasteTooltipDetails(hastePercent, hasteRating, "Cast")
             }
         end
     },
@@ -900,12 +1113,33 @@ Module.stats = {
                 tooltip2 = tooltip
             }
         end,
+        Avoidance = function(unit)
+            local data = ComputeAvoidanceTotals(unit)
+            local level = data.playerLevel or UnitLevel(unit)
+            local tooltip = table.concat({
+                format("Total Avoidance vs Level %d: %.2F%%", level, data.totalVsNpc),
+                format("Total Avoidance vs Level %d: %.2F%%", level + 3, data.totalVsBoss),
+                " ",
+                format("Dodge: %.2F%%", data.dodge),
+                format("Parry: %.2F%%", data.parry),
+                format("Block: %.2F%%", data.block),
+                format("Mob Miss (Level %d): %.2F%%", level, data.missVsNpc),
+                format("Mob Miss (Level %d): %.2F%%", level + 3, data.missVsBoss),
+            }, "\n")
+
+            return {
+                value = format("%.2F%%", data.totalVsBoss),
+                tooltip = format(PAPERDOLLFRAME_TOOLTIP_FORMAT, "Avoidance") .. " " .. format("%.2F%%", data.totalVsBoss),
+                tooltip2 = tooltip
+            }
+        end,
         Dodge = function()
             local chance = GetDodgeChance();
 
             return {
                 value = string.format("%.2F", chance) .. "%",
-                tooltip = format(PAPERDOLLFRAME_TOOLTIP_FORMAT, DODGE_CHANCE) .. " " .. string.format("%.2F", chance) .. "%"
+                tooltip = format(PAPERDOLLFRAME_TOOLTIP_FORMAT, DODGE_CHANCE) .. " " .. string.format("%.2F", chance) .. "%",
+                tooltip2 = BuildAvoidanceTooltipDetails(DODGE_CHANCE, chance, CR_DODGE_RATING)
             }
         end,
         Parry = function()
@@ -913,7 +1147,8 @@ Module.stats = {
 
             return {
                 value = string.format("%.2F", chance) .. "%",
-                tooltip = format(PAPERDOLLFRAME_TOOLTIP_FORMAT, PARRY_CHANCE) .. " " .. string.format("%.2F", chance) .. "%"
+                tooltip = format(PAPERDOLLFRAME_TOOLTIP_FORMAT, PARRY_CHANCE) .. " " .. string.format("%.2F", chance) .. "%",
+                tooltip2 = BuildAvoidanceTooltipDetails(PARRY_CHANCE, chance, CR_PARRY_RATING)
             }
         end,
         Block = function()
@@ -921,6 +1156,9 @@ Module.stats = {
             local blockValue = GetShieldBlock();
             local tooltip = BLOCK_CHANCE .. ": " .. string.format("%.2F", blockChance) .. "%\n";
             tooltip = tooltip .. ITEM_MOD_BLOCK_VALUE_SHORT .. ": " .. blockValue
+            tooltip = tooltip
+                .. "\n" .. format("%s %d", RATING_LABEL, (GetCombatRating and GetCombatRating(CR_BLOCK_RATING)) or 0)
+                .. "\n" .. format("From Rating: %.2F%%", (GetCombatRatingBonus and GetCombatRatingBonus(CR_BLOCK_RATING)) or 0)
 
             return {
                 value = string.format("%.2F", blockChance) .. "%",
@@ -952,7 +1190,7 @@ Module.stats = {
             return {
                 value = resilienceRating,
                 tooltip = HIGHLIGHT_FONT_COLOR_CODE .. format(PAPERDOLLFRAME_TOOLTIP_FORMAT, STAT_RESILIENCE) .. " " .. resilienceRating .. FONT_COLOR_CODE_CLOSE,
-                tooltip2 = format(RESILIENCE_TOOLTIP, resilienceBonus, min(resilienceBonus * RESILIENCE_DAMAGE_REDUCTION_MULTIPLIER, maxRatingBonus), resilienceBonus * RESILIENCE_CONSTANT_DAMAGE_REDUCTION_MULTIPLIER)
+                tooltip2 = format(RESILIENCE_TOOLTIP or "Resilience: %.2f%%", resilienceBonus or 0, min((resilienceBonus or 0) * RESILIENCE_DAMAGE_REDUCTION_MULTIPLIER, maxRatingBonus or 0), (resilienceBonus or 0) * RESILIENCE_CONSTANT_DAMAGE_REDUCTION_MULTIPLIER)
             }
         end
     }
@@ -1059,6 +1297,8 @@ function Module:Melee()
     Category:Add(WEAPON_SPEED, self.stats.melee.AttackSpeed)
     Category:Add(STAT_CRITICAL_STRIKE, self.stats.melee.CritChance)
     Category:Add(STAT_HIT_CHANCE, self.stats.melee.HitChance)
+    Category:Add(MELEE_HASTE_LABEL, self.stats.melee.Haste)
+    Category:Add(EXPERTISE_LABEL, self.stats.melee.Expertise)
 end
 
 function Module:Ranged()
@@ -1091,6 +1331,7 @@ function Module:Spell()
     Category:Add(MANA_REGEN, self.stats.spell.Regen)
     Category:Add(STAT_CRITICAL_STRIKE, self.stats.spell.CritChance)
     Category:Add(STAT_HIT_CHANCE, self.stats.spell.HitChance)
+    Category:Add(SPELL_HASTE_LABEL, self.stats.spell.Haste)
 end
 
 function Module:Defense()
@@ -1100,6 +1341,7 @@ function Module:Defense()
     })
     Category:Add(STAT_ARMOR, self.stats.defense.Armor)
     Category:Add(DEFENSE, self.stats.defense.Defense)
+    Category:Add("Avoidance", self.stats.defense.Avoidance)
     Category:Add(STAT_DODGE, self.stats.defense.Dodge)
     Category:Add(STAT_PARRY, self.stats.defense.Parry)
     Category:Add(STAT_BLOCK, self.stats.defense.Block)
