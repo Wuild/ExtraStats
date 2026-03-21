@@ -1,55 +1,205 @@
 local tab = ExtraStats:CreateModule("character.gear")
-
-EquipmentSet = ExtraStats:GetModule("EquipmentSet")
+local EquipmentSet = ExtraStats:GetModule("EquipmentSet")
 
 tab.frame = nil
 
-ExtraStats_EQUIPMENTSET_BUTTON_HEIGHT = 44;
-MAX_EQUIPMENT_SETS_PER_PLAYER = 10;
-NUM_GEARSET_ICONS_SHOWN = 80;
-NUM_GEARSET_ICONS_PER_ROW = 10;
-NUM_GEARSET_ICON_ROWS = 8;
+tab.pendingNewSet = false
 
---NUM_GEARSET_ICONS_SHOWN = 15;
---NUM_GEARSET_ICONS_PER_ROW = 5;
---NUM_GEARSET_ICON_ROWS = 3;
-GEARSET_ICON_ROW_HEIGHT = 36;
+ExtraStats_EQUIPMENTSET_BUTTON_HEIGHT = 44
+MAX_EQUIPMENT_SETS_PER_PLAYER = 10
+NUM_GEARSET_ICONS_SHOWN = 80
+NUM_GEARSET_ICONS_PER_ROW = 10
+NUM_GEARSET_ICON_ROWS = 8
+GEARSET_ICON_ROW_HEIGHT = 36
 
-local STRIPE_COLOR = { r = 0.9, g = 0.9, b = 1 };
+local STRIPE_COLOR = { r = 0.9, g = 0.9, b = 1 }
+local DEFAULT_ICON = 134400
+
 local itemSlotButtons = {
-    CharacterHeadSlot, -- 1
-    CharacterNeckSlot, -- 2
-    CharacterShoulderSlot, -- 3
-    CharacterShirtSlot, -- 4
-    CharacterChestSlot, -- 5
-    CharacterWaistSlot, -- 6
-    CharacterLegsSlot, -- 7
-    CharacterFeetSlot, -- 8
-    CharacterWristSlot, -- 9
-    CharacterHandsSlot, -- 10
-    CharacterFinger0Slot, -- 11
-    CharacterFinger1Slot, -- 12
-    CharacterTrinket0Slot, -- 13
-    CharacterTrinket1Slot, -- 14
-    CharacterBackSlot, -- 15
-    CharacterMainHandSlot, -- 16
-    CharacterSecondaryHandSlot, -- 17
-    CharacterRangedSlot, -- 18
-    CharacterTabardSlot         -- 19
-};
+    CharacterHeadSlot,
+    CharacterNeckSlot,
+    CharacterShoulderSlot,
+    CharacterShirtSlot,
+    CharacterChestSlot,
+    CharacterWaistSlot,
+    CharacterLegsSlot,
+    CharacterFeetSlot,
+    CharacterWristSlot,
+    CharacterHandsSlot,
+    CharacterFinger0Slot,
+    CharacterFinger1Slot,
+    CharacterTrinket0Slot,
+    CharacterTrinket1Slot,
+    CharacterBackSlot,
+    CharacterMainHandSlot,
+    CharacterSecondaryHandSlot,
+    CharacterRangedSlot,
+    CharacterTabardSlot,
+}
+
+local EM_ICON_FILENAMES = {}
+
+local function BuildEquipMacroBody(setName)
+    local safeName = tostring(setName):gsub('"', "'")
+    return "/stats equip \"" .. safeName .. "\""
+end
+
+local function BuildMacroName(setName)
+    local name = "ES " .. tostring(setName or "")
+    if #name > 16 then
+        name = string.sub(name, 1, 16)
+    end
+    return name
+end
+
+local function IterateMacros()
+    local numGlobal, numCharacter = GetNumMacros()
+    local total = numGlobal + numCharacter
+    local data = {}
+
+    for i = 1, total do
+        local name, icon, body = GetMacroInfo(i)
+        if name then
+            data[#data + 1] = { id = i, name = name, icon = icon, body = body }
+        end
+    end
+
+    return data
+end
+
+local function FindEquipMacrosBySetName(setName)
+    local body = BuildEquipMacroBody(setName)
+    local matches = {}
+
+    for _, macro in ipairs(IterateMacros()) do
+        if macro.body == body then
+            matches[#matches + 1] = macro
+        end
+    end
+
+    return matches
+end
+
+local function EnsureEquipMacro(setName, iconTexture)
+    local matches = FindEquipMacrosBySetName(setName)
+    local body = BuildEquipMacroBody(setName)
+    local icon = iconTexture or DEFAULT_ICON
+    if #matches > 0 then
+        local macro = matches[1]
+        EditMacro(macro.id, BuildMacroName(setName), icon, body)
+        return macro.id
+    end
+
+    local numGlobal, numCharacter = GetNumMacros()
+    if numCharacter < MAX_CHARACTER_MACROS then
+        return CreateMacro(BuildMacroName(setName), icon, body, true)
+    end
+    if numGlobal < MAX_ACCOUNT_MACROS then
+        return CreateMacro(BuildMacroName(setName), icon, body, false)
+    end
+    return nil
+end
+
+local function RenameEquipMacros(oldName, newName, iconTexture)
+    if not oldName or not newName or oldName == newName then
+        return
+    end
+
+    local macros = FindEquipMacrosBySetName(oldName)
+    local body = BuildEquipMacroBody(newName)
+    local icon = iconTexture or DEFAULT_ICON
+
+    for _, macro in ipairs(macros) do
+        EditMacro(macro.id, BuildMacroName(newName), icon, body)
+    end
+end
+
+local function UpdateEquipMacros(setName, iconTexture)
+    if not setName then
+        return
+    end
+
+    local macros = FindEquipMacrosBySetName(setName)
+    local body = BuildEquipMacroBody(setName)
+    local icon = iconTexture or DEFAULT_ICON
+
+    for _, macro in ipairs(macros) do
+        EditMacro(macro.id, BuildMacroName(setName), icon, body)
+    end
+end
+
+local function DeleteEquipMacros(setName)
+    local macros = FindEquipMacrosBySetName(setName)
+    table.sort(macros, function(a, b)
+        return a.id > b.id
+    end)
+
+    for _, macro in ipairs(macros) do
+        DeleteMacro(macro.id)
+    end
+end
+
+local function GetSetIDsSorted()
+    local ids = EquipmentSet:GetEquipmentSetIDs()
+    table.sort(ids, function(a, b)
+        local aName = select(1, EquipmentSet:GetEquipmentSetInfo(a)) or ""
+        local bName = select(1, EquipmentSet:GetEquipmentSetInfo(b)) or ""
+        return aName < bName
+    end)
+    return ids
+end
+
+local function ApplyIgnoredSlotsForSet(setID)
+    ExtraStats_PaperDollFrame_ClearIgnoredSlots()
+
+    if not setID then
+        return
+    end
+
+    local ignored = EquipmentSet:GetIgnoredSlots(setID)
+    for slotID, isIgnored in pairs(ignored) do
+        if isIgnored then
+            ExtraStats_PaperDollFrame_IgnoreSlot(slotID)
+        end
+    end
+end
+
+local function SelectSetByID(setID)
+    if not setID then
+        tab.frame.selectedSetID = nil
+        tab.frame.selectedSetName = nil
+        ApplyIgnoredSlotsForSet(nil)
+        return
+    end
+
+    local name = select(1, EquipmentSet:GetEquipmentSetInfo(setID))
+    if not name then
+        tab.frame.selectedSetID = nil
+        tab.frame.selectedSetName = nil
+        ApplyIgnoredSlotsForSet(nil)
+        return
+    end
+
+    tab.frame.selectedSetID = setID
+    tab.frame.selectedSetName = name
+    ApplyIgnoredSlotsForSet(setID)
+end
 
 StaticPopupDialogs["CONFIRM_SAVE_EQUIPMENT_SET"] = {
     text = CONFIRM_SAVE_EQUIPMENT_SET,
     button1 = YES,
     button2 = NO,
     OnAccept = function(self)
-        EquipmentSet:SaveEquipmentSet(self.data);
-        ExtraStats_PaperDollEquipmentManagerPane_Update()
-    end,
-    OnCancel = function(self)
+        local setID = self.data
+        if setID then
+            EquipmentSet:SaveEquipmentSet(setID)
+            local setName, setIcon = EquipmentSet:GetEquipmentSetInfo(setID)
+            UpdateEquipMacros(setName, setIcon)
+            ExtraStats_PaperDollEquipmentManagerPane_Update()
+        end
     end,
     OnHide = function(self)
-        self.data = nil;
+        self.data = nil
     end,
     hideOnEscape = 1,
     timeout = 0,
@@ -62,10 +212,51 @@ StaticPopupDialogs["CONFIRM_DELETE_EQUIPMENT_SET"] = {
     button1 = YES,
     button2 = NO,
     OnAccept = function(self)
-        EquipmentSet:DeleteEquipmentSet(self.data);
-        ExtraStats_PaperDollEquipmentManagerPane_Update()
+        local setID = self.data
+        if setID then
+            local setName = select(1, EquipmentSet:GetEquipmentSetInfo(setID))
+            local selectedName = tab.frame and tab.frame.selectedSetName
+            EquipmentSet:DeleteEquipmentSet(setID)
+            DeleteEquipMacros(setName)
+            if selectedName == setName then
+                SelectSetByID(nil)
+            elseif selectedName then
+                local selectedID = EquipmentSet:GetEquipmentSetID(selectedName)
+                SelectSetByID(selectedID)
+            end
+            ExtraStats_PaperDollEquipmentManagerPane_Update()
+        end
     end,
-    OnCancel = function(self)
+    OnHide = function(self)
+        self.data = nil
+    end,
+    hideOnEscape = 1,
+    timeout = 0,
+    exclusive = 1,
+    whileDead = 1,
+}
+
+StaticPopupDialogs["ExtraStats_CONFIRM_OVERWRITE_EQUIPMENT_SET"] = {
+    text = CONFIRM_OVERWRITE_EQUIPMENT_SET or "Overwrite equipment set %s?",
+    button1 = YES,
+    button2 = NO,
+    OnAccept = function(self)
+        local setID = self.data
+        if setID then
+            local popup = ExtraStats_GearManagerDialogPopup
+            local oldName = select(1, EquipmentSet:GetEquipmentSetInfo(setID))
+            EquipmentSet:ModifyEquipmentSet(setID, popup.name, self.selectedIcon)
+            EquipmentSet:SaveEquipmentSet(setID)
+            RenameEquipMacros(oldName, popup.name, self.selectedIcon)
+            UpdateEquipMacros(popup.name, self.selectedIcon)
+            SelectSetByID(setID)
+            popup:Hide()
+            ExtraStats_PaperDollEquipmentManagerPane_Update()
+        end
+    end,
+    OnHide = function(self)
+        self.data = nil
+        self.selectedIcon = nil
     end,
     hideOnEscape = 1,
     timeout = 0,
@@ -74,822 +265,592 @@ StaticPopupDialogs["CONFIRM_DELETE_EQUIPMENT_SET"] = {
 }
 
 function ExtraStats_PaperDollEquipmentManagerPane_OnLoad(self)
-    HybridScrollFrame_OnLoad(self);
-    self.update = ExtraStats_PaperDollEquipmentManagerPane_Update;
-    HybridScrollFrame_CreateButtons(self, "ExtraGearSetButtonTemplate", 2, -(self.EquipSet:GetHeight() + 4));
+    HybridScrollFrame_OnLoad(self)
+    self.update = ExtraStats_PaperDollEquipmentManagerPane_Update
+    HybridScrollFrame_CreateButtons(self, "ExtraGearSetButtonTemplate", 2, -(self.EquipSet:GetHeight() + 4))
 
-    self:RegisterEvent("EQUIPMENT_SWAP_FINISHED");
-    self:RegisterEvent("EQUIPMENT_SETS_CHANGED");
-    self:RegisterEvent("PLAYER_EQUIPMENT_CHANGED");
-    self:RegisterEvent("BAG_UPDATE");
+    self:RegisterEvent("EQUIPMENT_SWAP_FINISHED")
+    self:RegisterEvent("EQUIPMENT_SETS_CHANGED")
+    self:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
+    self:RegisterEvent("BAG_UPDATE")
 
-    --PaperDollFrameItemFlyoutButton_OnClick(self, button, down);
-    --hooksecurefunc("PaperDollFrameItemFlyoutButton_OnClick", ExtraStats_EquipmentManager_CheckSetChange);
+    ExtraStats:On("gear.update", function()
+        if self and self:IsShown() then
+            ExtraStats_PaperDollEquipmentManagerPane_Update()
+        end
+    end)
+    ExtraStats:On("gear.swap.finished", function(success, setID)
+        if success and setID and tab.frame then
+            SelectSetByID(setID)
+            if self:IsShown() then
+                ExtraStats_PaperDollEquipmentManagerPane_Update()
+            end
+        end
+    end)
 end
 
 function ExtraStats_PaperDollEquipmentManagerPane_OnShow(self)
-    HybridScrollFrame_CreateButtons(tab.frame, "ExtraGearSetButtonTemplate");
-    ExtraStats_PaperDollEquipmentManagerPane_Update();
+    ExtraStats_PaperDollEquipmentManagerPane_Update()
     ExtraStats:Trigger("gear.tab.show", self)
-
-    --EquipmentSet:ClearIgnoredSlotsForSave(); -- added this line because default one has it
 end
 
 function ExtraStats_PaperDollEquipmentManagerPane_OnHide(self)
-    --PaperDollFrameItemPopoutButton_HideAll();
-
-    ExtraStats_PaperDollFrame_ClearIgnoredSlots();
-
-    ExtraStats_GearManagerDialogPopup:Hide();
-    StaticPopup_Hide("CONFIRM_SAVE_EQUIPMENT_SET");
-    StaticPopup_Hide("ExtraStats_CONFIRM_OVERWRITE_EQUIPMENT_SET");
-    --GearManagerDialog:Hide();
+    ExtraStats_PaperDollFrame_ClearIgnoredSlots()
+    ExtraStats_GearManagerDialogPopup:Hide()
+    StaticPopup_Hide("CONFIRM_SAVE_EQUIPMENT_SET")
+    StaticPopup_Hide("CONFIRM_DELETE_EQUIPMENT_SET")
+    StaticPopup_Hide("ExtraStats_CONFIRM_OVERWRITE_EQUIPMENT_SET")
     ExtraStats:Trigger("gear.tab.hide", self)
 end
 
 function ExtraStats_PaperDollEquipmentManagerPane_OnEvent(self, event, ...)
-
-    if (event == "EQUIPMENT_SWAP_FINISHED") then
-        local completed, setID = ...;
-        if (completed) then
-            PlaySound(SOUNDKIT.PUT_DOWN_SMALL_CHAIN); -- plays the equip sound for plate mail
-            if (self:IsShown()) then
-                self.selectedSetID = setID;
-                ExtraStats_PaperDollEquipmentManagerPane_Update();
-            end
+    if event == "EQUIPMENT_SWAP_FINISHED" then
+        local completed, setID = ...
+        if completed and setID then
+            PlaySound(SOUNDKIT.PUT_DOWN_SMALL_CHAIN)
+            SelectSetByID(setID)
         end
     end
 
-    if (self:IsShown()) then
-        if (event == "EQUIPMENT_SETS_CHANGED") then
-            ExtraStats_PaperDollEquipmentManagerPane_Update();
-        elseif (event == "PLAYER_EQUIPMENT_CHANGED" or event == "BAG_UPDATE") then
-            ExtraStats_PaperDollEquipmentManagerPane_Update();
-            -- This queues the update to only happen once at the end of the frame
-            self.queuedUpdate = true;
-        end
+    if self:IsShown() then
+        self.queuedUpdate = true
     end
 end
 
 function ExtraStats_PaperDollEquipmentManagerPane_OnUpdate(self)
-    if (self.queuedUpdate) then
-        ExtraStats_PaperDollEquipmentManagerPane_Update();
-        self.queuedUpdate = false;
+    if self.queuedUpdate then
+        ExtraStats_PaperDollEquipmentManagerPane_Update()
+        self.queuedUpdate = false
     end
 
-    local now = GetTime();
-    if (self.lastHoverUpdate and (now - self.lastHoverUpdate) < 0.1) then
-        return;
+    local now = GetTime()
+    if self.lastHoverUpdate and (now - self.lastHoverUpdate) < 0.1 then
+        return
     end
-    self.lastHoverUpdate = now;
+    self.lastHoverUpdate = now
 
     for i = 1, #self.buttons do
-        local button = self.buttons[i];
-        if (button:IsMouseOver()) then
-            if (button.name) then
-                button.DeleteButton:Show();
-                button.EditButton:Show();
-            else
-                button.DeleteButton:Hide();
-                button.EditButton:Hide();
-            end
-            button.HighlightBar:Show();
+        local button = self.buttons[i]
+        if button:IsShown() and button:IsMouseOver() and button.name then
+            button.DeleteButton:Show()
+            button.EditButton:Show()
+            button.HighlightBar:Show()
         else
-            button.DeleteButton:Hide();
-            button.EditButton:Hide();
-            button.HighlightBar:Hide();
+            button.DeleteButton:Hide()
+            button.EditButton:Hide()
+            button.HighlightBar:Hide()
         end
     end
 end
 
-function ExtraStats_PaperDollEquipmentManagerPaneEquipSet_OnClick (index)
-    local selectedSetID = index;
-
-    if type(selectedSetID) ~= "number" then
-        selectedSetID = tab.frame.selectedSetID;
+function ExtraStats_PaperDollEquipmentManagerPaneEquipSet_OnClick(index)
+    local setID = index
+    if type(setID) ~= "number" then
+        setID = tab.frame.selectedSetID
     end
 
-    --[[ if ( selectedSetName and selectedSetName ~= "") then ]]
-
-    PlaySound(SOUNDKIT.IG_CHARACTER_INFO_TAB);
-    if (InCombatLockdown()) then
-        UIErrorsFrame:AddMessage(ERR_CLIENT_LOCKED_OUT, 1.0, 0.1, 0.1, 1.0);
-    elseif (selectedSetID) then
-        EquipmentSet:UseEquipmentSet(selectedSetID);
+    if not setID then
+        return
     end
+
+    PlaySound(SOUNDKIT.IG_CHARACTER_INFO_TAB)
+    EquipmentSet:UseEquipmentSet(setID)
 end
 
-function ExtraStats_PaperDollEquipmentManagerPaneSaveSet_OnClick (self)
-    local selectedSetName = tab.frame.selectedSetName;
-    local selectedSetID = tab.frame.selectedSetID;
-    if (selectedSetID) then
-        local dialog = StaticPopup_Show("CONFIRM_SAVE_EQUIPMENT_SET", selectedSetName);
-        if (dialog) then
-            dialog.data = selectedSetID;
-        else
-            UIErrorsFrame:AddMessage(ERR_CLIENT_LOCKED_OUT, 1.0, 0.1, 0.1, 1.0);
-        end
+function ExtraStats_PaperDollEquipmentManagerPaneSaveSet_OnClick()
+    local setID = tab.frame.selectedSetID
+    if not setID then
+        return
+    end
+
+    local setName = tab.frame.selectedSetName or ""
+    local dialog = StaticPopup_Show("CONFIRM_SAVE_EQUIPMENT_SET", setName)
+    if dialog then
+        dialog.data = setID
     end
 end
 
 function ExtraStats_PaperDollEquipmentManagerPane_Update()
-    -- HACK to make ignore slots working "correct"
-    if (tab.frame.tempSetID) then
-        return ;
-    elseif (EquipmentSet:GetEquipmentSetID("TEMP_SET")) then
-        EquipmentSet:DeleteEquipmentSet(EquipmentSet:GetEquipmentSetID("TEMP_SET"));
+    if not tab.frame then
+        return
     end
 
-    local _, _, setID, isEquipped = ExtraStats_GetEquipmentSetInfoByName(tab.frame.selectedSetName or "");
-    if (setID) then
-        PaperDollEquipmentManagerPaneSaveSet:Enable();
-        if (isEquipped) then
-            --PaperDollEquipmentManagerPaneSaveSet:Disable();
-            PaperDollEquipmentManagerPaneEquipSet:Disable();
+    local selectedSetID = tab.frame.selectedSetID
+    if selectedSetID and not EquipmentSet:GetEquipmentSetInfo(selectedSetID) then
+        SelectSetByID(nil)
+        selectedSetID = nil
+    end
+
+    local selectedSetName, _, _, isEquipped = EquipmentSet:GetEquipmentSetInfo(selectedSetID or 0)
+    if selectedSetID and selectedSetName then
+        PaperDollEquipmentManagerPaneSaveSet:Enable()
+        if isEquipped then
+            PaperDollEquipmentManagerPaneEquipSet:Disable()
         else
-            PaperDollEquipmentManagerPaneEquipSet:Enable();
+            PaperDollEquipmentManagerPaneEquipSet:Enable()
         end
     else
-        PaperDollEquipmentManagerPaneSaveSet:Disable();
-        PaperDollEquipmentManagerPaneEquipSet:Disable();
-
-        -- Clear selected equipment set if it doesn't exist
-        if (tab.frame.selectedSetID) then
-            tab.frame.selectedSetID = nil;
-            ExtraStats_PaperDollFrame_ClearIgnoredSlots();
-        end
+        PaperDollEquipmentManagerPaneSaveSet:Disable()
+        PaperDollEquipmentManagerPaneEquipSet:Disable()
     end
 
-    local numSets = EquipmentSet:GetNumEquipmentSets();
-    local numRows = numSets;
-    if (numSets < MAX_EQUIPMENT_SETS_PER_PLAYER) then
-        numRows = numRows + 1;  -- "Add New Set" button
+    local ids = GetSetIDsSorted()
+    local numSets = #ids
+    local numRows = numSets
+    if numSets < MAX_EQUIPMENT_SETS_PER_PLAYER then
+        numRows = numRows + 1
     end
 
-    HybridScrollFrame_Update(tab.frame, numRows * ExtraStats_EQUIPMENTSET_BUTTON_HEIGHT + PaperDollEquipmentManagerPaneEquipSet:GetHeight() + 20, tab.frame:GetHeight());
+    HybridScrollFrame_Update(tab.frame, numRows * ExtraStats_EQUIPMENTSET_BUTTON_HEIGHT + PaperDollEquipmentManagerPaneEquipSet:GetHeight() + 20, tab.frame:GetHeight())
 
-    local scrollOffset = HybridScrollFrame_GetOffset(tab.frame);
-    local buttons = tab.frame.buttons;
-    local selectedSetID = tab.frame.selectedSetID;
-    local name, icon, button, numLost;
+    local scrollOffset = HybridScrollFrame_GetOffset(tab.frame)
+    local buttons = tab.frame.buttons
+
     for i = 1, #buttons do
-        if (i + scrollOffset <= numRows) then
-            button = buttons[i];
-            buttons[i]:Show();
-            button:Enable();
-            button.setID = nil;
+        local row = i + scrollOffset
+        local button = buttons[i]
+        if row <= numRows then
+            button:Show()
+            button:Enable()
+            button.setID = nil
 
-            if (i + scrollOffset <= numSets) then
-                -- Normal equipment set button
-                local sets = EquipmentSet:GetEquipmentSetIDs();
-                name, icon, setID, isEquipped, numLost = EquipmentSet:GetEquipmentSetInfo(sets[i + scrollOffset]);
-                button.name = name;
-                button.iconTexture = icon;
-                button.setID = setID;
-                button.text:SetText(name);
-                if (numLost > 0) then
-                    button.text:SetTextColor(RED_FONT_COLOR.r, RED_FONT_COLOR.g, RED_FONT_COLOR.b);
+            if row <= numSets then
+                local setID = ids[row]
+                local name, icon, _, setEquipped, numLost = EquipmentSet:GetEquipmentSetInfo(setID)
+
+                button.name = name
+                button.iconTexture = icon
+                button.setID = setID
+                button.text:SetText(name)
+                if (numLost or 0) > 0 then
+                    button.text:SetTextColor(RED_FONT_COLOR.r, RED_FONT_COLOR.g, RED_FONT_COLOR.b)
                 else
-                    button.text:SetTextColor(NORMAL_FONT_COLOR.r, NORMAL_FONT_COLOR.g, NORMAL_FONT_COLOR.b);
-                end
-                if (icon) then
-                    button.icon:SetTexture(icon);
-                else
-                    button.icon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark");
+                    button.text:SetTextColor(NORMAL_FONT_COLOR.r, NORMAL_FONT_COLOR.g, NORMAL_FONT_COLOR.b)
                 end
 
-                if (button.setID == selectedSetID) then
-                    button.SelectedBar:Show();
-                else
-                    button.SelectedBar:Hide();
-                end
+                button.icon:SetTexture(icon or "Interface\\Icons\\INV_Misc_QuestionMark")
+                button.icon:SetSize(36, 36)
+                button.icon:SetPoint("LEFT", 4, 0)
 
-                if (isEquipped) then
-                    button.Check:Show();
-                else
-                    button.Check:Hide();
-                end
-                button.icon:SetSize(36, 36);
-                button.icon:SetPoint("LEFT", 4, 0);
+                button.Check:SetShown(setEquipped == true)
+                button.SelectedBar:SetShown(button.setID == tab.frame.selectedSetID)
             else
-                -- This is the Add New button
-                button.name = nil;
-                button.iconTexture = nil;
-                button.text:SetText(PAPERDOLL_NEWEQUIPMENTSET);
-                button.text:SetTextColor(GREEN_FONT_COLOR.r, GREEN_FONT_COLOR.g, GREEN_FONT_COLOR.b);
-                button.icon:SetTexture("Interface\\PaperDollInfoFrame\\Character-Plus");
-                button.icon:SetSize(30, 30);
-                button.icon:SetPoint("LEFT", 7, 0);
-                button.Check:Hide();
-                button.SelectedBar:Hide();
+                button.name = nil
+                button.iconTexture = nil
+                button.text:SetText(PAPERDOLL_NEWEQUIPMENTSET)
+                button.text:SetTextColor(GREEN_FONT_COLOR.r, GREEN_FONT_COLOR.g, GREEN_FONT_COLOR.b)
+                button.icon:SetTexture("Interface\\PaperDollInfoFrame\\Character-Plus")
+                button.icon:SetSize(30, 30)
+                button.icon:SetPoint("LEFT", 7, 0)
+                button.Check:Hide()
+                button.SelectedBar:Hide()
             end
 
-            buttons[i].BgTop:Hide();
-            buttons[i].BgBottom:Hide();
-            buttons[i].BgMiddle:Hide();
+            button.BgTop:Hide()
+            button.BgBottom:Hide()
+            button.BgMiddle:Hide()
+            button.BgMiddle:SetPoint("TOP")
+            button.BgMiddle:SetPoint("BOTTOM")
 
-            buttons[i].BgMiddle:SetPoint("TOP");
-            buttons[i].BgMiddle:SetPoint("BOTTOM");
-            if ((i + scrollOffset) % 2 == 0) then
-                buttons[i].Stripe:SetColorTexture(STRIPE_COLOR.r, STRIPE_COLOR.g, STRIPE_COLOR.b);
-                buttons[i].Stripe:SetAlpha(0.1);
-                buttons[i].Stripe:Show();
+            if row % 2 == 0 then
+                button.Stripe:SetColorTexture(STRIPE_COLOR.r, STRIPE_COLOR.g, STRIPE_COLOR.b)
+                button.Stripe:SetAlpha(0.1)
+                button.Stripe:Show()
             else
-                buttons[i].Stripe:Hide();
+                button.Stripe:Hide()
             end
+
+            GearSetButton_UpdateSpecInfo(button)
         else
-            buttons[i]:Hide();
+            button:Hide()
         end
-
-        GearSetButton_UpdateSpecInfo(buttons[i]);
     end
-
 end
 
 function ExtraStats_GetEquipmentSetInfoByName(arg)
-    -- arg could be: "", "name", 1 (number),
-    if (type(arg) == "string" and arg ~= "") then
-        if (EquipmentSet:GetEquipmentSetID(arg) ~= nil) then
-            return EquipmentSet:GetEquipmentSetInfo(EquipmentSet:GetEquipmentSetID(arg));
-        else
-            return nil;
-        end
-    elseif (arg == "") then
-        return nil;
-    else
-        return EquipmentSet:GetEquipmentSetInfo(arg);
+    return EquipmentSet:GetEquipmentSetInfoByName(arg)
+end
+
+function ExtraStats_GearSetButton_OnEnter(self)
+    if self.name and self.name ~= "" then
+        GameTooltip_SetDefaultAnchor(GameTooltip, self)
+        GameTooltip:SetEquipmentSet(self.name)
     end
 end
 
-function ExtraStats_GearSetButton_OnEnter (self)
-    if (self.name and self.name ~= "") then
-        GameTooltip_SetDefaultAnchor(GameTooltip, self);
-        GameTooltip:SetEquipmentSet(self.name);
-    end
-end
-
-function ExtraStats_GearSetButton_OnClick (self, button, down)
-    if (self.setID) then
-        ExtraStats_GearManagerDialogPopup:Hide();
-
-        PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON);        -- inappropriately named, but a good sound.
-        tab.frame.selectedSetName = self.name;
-        tab.frame.selectedSetID = self.setID;
-        -- mark the ignored slots
-        --ExtraStats_PaperDollFrame_ClearIgnoredSlots();
-        --ExtraStats_PaperDollFrame_IgnoreSlotsForSet(self.setID);
-        ExtraStats_PaperDollEquipmentManagerPane_Update();
-    else
-        -- This is the "New Set" button
-        ExtraStats_GearManagerDialogPopup:Show();
-        --[[ GearManagerDialog:Hide(); ]]
-
-        tab.frame.setID = nil;
-        tab.frame.selectedSetName = nil;
-        tab.frame.selectedSetID = nil;
-        ExtraStats_PaperDollFrame_ClearIgnoredSlots();
-        ExtraStats_PaperDollEquipmentManagerPane_Update();
-
-        -- HACK to make ignore slots working "correct"
-        tab.frame.tempSetID = 0;
-        EquipmentSet:CreateEquipmentSet("TEMP_SET");
-        tab.frame.tempSetID = EquipmentSet:GetEquipmentSetID("TEMP_SET");
-        for i = 1, (#tab.frame.buttons) do
-            if (tab.frame.buttons[i].name == "TEMP_SET") then
-                tab.frame.buttons[i]:Hide();
-                break ;
-            end
-        end
-
-        -- Ignore shirt and tabard by default
-        ExtraStats_PaperDollFrame_IgnoreSlot(4);
-        ExtraStats_PaperDollFrame_IgnoreSlot(19);
-    end
-    StaticPopup_Hide("CONFIRM_SAVE_EQUIPMENT_SET");
-    StaticPopup_Hide("ExtraStats_CONFIRM_OVERWRITE_EQUIPMENT_SET");
-end
-
-local EM_ICON_FILENAMES = {};
-
-function ExtraStats_GearManagerDialogPopup_OnLoad (self)
-    self.buttons = {};
-
-    local rows = 0;
-
-    local button = CreateFrame("CheckButton", "ExtraStats_GearManagerDialogPopupButton1", ExtraStats_GearManagerDialogPopup, "ExtraGearSetPopupButtonTemplate");
-    button:SetPoint("TOPLEFT", 24, -85);
-    button:SetID(1);
-    tinsert(self.buttons, button);
-
-    local lastPos;
-    for i = 2, NUM_GEARSET_ICONS_SHOWN do
-        button = CreateFrame("CheckButton", "ExtraStats_GearManagerDialogPopupButton" .. i, ExtraStats_GearManagerDialogPopup, "ExtraGearSetPopupButtonTemplate");
-        button:SetID(i);
-
-        lastPos = (i - 1) / NUM_GEARSET_ICONS_PER_ROW;
-        if (lastPos == math.floor(lastPos)) then
-            button:SetPoint("TOPLEFT", self.buttons[i - NUM_GEARSET_ICONS_PER_ROW], "BOTTOMLEFT", 0, -8);
-        else
-            button:SetPoint("TOPLEFT", self.buttons[i - 1], "TOPRIGHT", 10, 0);
-        end
-        tinsert(self.buttons, button);
+function ExtraStats_GearSetButton_OnClick(self)
+    if self.setID then
+        ExtraStats_GearManagerDialogPopup:Hide()
+        PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
+        SelectSetByID(self.setID)
+        ExtraStats_PaperDollEquipmentManagerPane_Update()
+        return
     end
 
-    self.SetSelection = function(self, fTexture, Value)
-        if (fTexture) then
-            self.selectedTexture = Value;
-            self.selectedIcon = nil;
-        else
-            self.selectedTexture = nil;
-            self.selectedIcon = Value;
-        end
-    end
-end
-
-function ExtraStats_GearManagerDialogPopup_OnShow (self)
-    ExtraStats_GearManagerDialogPopup:Show();
-    PlaySound(SOUNDKIT.IG_CHARACTER_INFO_OPEN);
-    self.name = nil;
-    self.isEdit = false;
-    ExtraStats_RecalculateGearManagerDialogPopup();
-
-    PaperDollEquipmentManagerPaneSaveSet:Disable();
-    PaperDollEquipmentManagerPaneEquipSet:Disable();
-end
-
-function ExtraStats_GearManagerDialogPopup_OnHide (self)
-    ExtraStats_GearManagerDialogPopup:Hide();
-    ExtraStats_GearManagerDialogPopup.name = nil;
-    ExtraStats_GearManagerDialogPopup:SetSelection(true, nil);
-    ExtraStats_GearManagerDialogPopupEditBox:SetText("");
-
-    if (not tab.frame.selectedSetName) then
-        ExtraStats_PaperDollFrame_ClearIgnoredSlots();
-    end
-
-    tab.frame.tempSetID = nil;
-    tab.frame.selectedSetID = nil;
-    tab.frame.selectedSetName = nil;
-
-    ExtraStats_PaperDollEquipmentManagerPane_Update();
-    EM_ICON_FILENAMES = nil;
-    collectgarbage();
-end
-
---[[
-GetEquipmentSetIconInfo(index) determines the texture and real index of a regular index
-	Input: 	index = index into a list of equipped items followed by the macro items. Only tricky part is the equipped items list keeps changing.
-	Output: the associated texture for the item, and a index relative to the join point between the lists, i.e. negative for the equipped items
-			and positive for the macro items//
-]]
-function ExtraStats_GetEquipmentSetIconInfo(index)
-    return EM_ICON_FILENAMES[index];
-end
-
-function ExtraStats_GearManagerDialogPopup_Update ()
-    ExtraStats_RefreshEquipmentSetIconInfo();
-
-    local popup = ExtraStats_GearManagerDialogPopup;
-    local buttons = popup.buttons;
-    local offset = FauxScrollFrame_GetOffset(ExtraStats_GearManagerDialogPopupScrollFrame) or 0;
-    local button;
-    -- Icon list
-    local texture, index, button, realIndex, _;
-    for i = 1, NUM_GEARSET_ICONS_SHOWN do
-        local button = buttons[i];
-        index = (offset * NUM_GEARSET_ICONS_PER_ROW) + i;
-        if (index <= #EM_ICON_FILENAMES) then
-            texture = ExtraStats_GetEquipmentSetIconInfo(index);
-            -- button.name:SetText(index); --dcw
-            --[[ button.icon:SetTexture("INTERFACE\\ICONS\\"..texture); ]] --MCFFIX replaced with modern version
-            button.icon:SetTexture(texture);
-            button:Show();
-            if (index == popup.selectedIcon) then
-                button:SetChecked(true);
-            elseif (texture == popup.selectedTexture) then
-                button:SetChecked(true);
-                popup:SetSelection(false, index);
-            else
-                button:SetChecked(false);
-            end
-        else
-            button.icon:SetTexture("");
-            button:Hide();
-        end
-
-    end
-
-    -- Scrollbar stuff
-    FauxScrollFrame_Update(ExtraStats_GearManagerDialogPopupScrollFrame, ceil(#EM_ICON_FILENAMES / NUM_GEARSET_ICONS_PER_ROW), NUM_GEARSET_ICON_ROWS, GEARSET_ICON_ROW_HEIGHT);
-end
-
-function ExtraStats_RecalculateGearManagerDialogPopup(setName, iconTexture)
-    local popup = ExtraStats_GearManagerDialogPopup;
-    if (setName and setName ~= "") then
-        ExtraStats_GearManagerDialogPopupEditBox:SetText(setName);
-        ExtraStats_GearManagerDialogPopupEditBox:HighlightText(0);
-    else
-        ExtraStats_GearManagerDialogPopupEditBox:SetText("");
-    end
-
-    if (iconTexture) then
-        popup:SetSelection(true, iconTexture);
-    else
-        popup:SetSelection(false, 1);
-    end
-
-    --[[
-    Scroll and ensure that any selected equipment shows up in the list.
-    When we first press "save", we want to make sure any selected equipment set shows up in the list, so that
-    the user can just make his changes and press Okay to overwrite.
-    To do this, we need to find the current set (by icon) and move the offset of the GearManagerDialogPopup
-    to display it. Issue ID: 171220
-    ]]
-    ExtraStats_RefreshEquipmentSetIconInfo();
-    local totalItems = #EM_ICON_FILENAMES;
-    local texture, _;
-    if (popup.selectedTexture) then
-        local foundIndex = nil;
-        for index = 1, totalItems do
-            texture = ExtraStats_GetEquipmentSetIconInfo(index);
-            if (texture == popup.selectedTexture) then
-                foundIndex = index;
-                break ;
-            end
-        end
-        if (foundIndex == nil) then
-
-            foundIndex = 1;
-
-        end
-        -- now make it so we always display at least NUM_GEARSET_ICON_ROWS of data
-        local offsetnumIcons = floor((totalItems - 1) / NUM_GEARSET_ICONS_PER_ROW);
-        local offset = floor((foundIndex - 1) / NUM_GEARSET_ICONS_PER_ROW);
-        offset = offset + min((NUM_GEARSET_ICON_ROWS - 1), offsetnumIcons - offset) - (NUM_GEARSET_ICON_ROWS - 1);
-        if (foundIndex <= NUM_GEARSET_ICONS_SHOWN) then
-            offset = 0;            --Equipment all shows at the same place.
-        end
-        FauxScrollFrame_OnVerticalScroll(ExtraStats_GearManagerDialogPopupScrollFrame, offset * GEARSET_ICON_ROW_HEIGHT, GEARSET_ICON_ROW_HEIGHT, nil);
-    else
-        FauxScrollFrame_OnVerticalScroll(ExtraStats_GearManagerDialogPopupScrollFrame, 0, GEARSET_ICON_ROW_HEIGHT, nil);
-    end
-    ExtraStats_GearManagerDialogPopup_Update();
-end
-
--- RefreshEquipmentSetIconInfo() counts how many uniquely textured inventory items the player has equipped.
-function ExtraStats_RefreshEquipmentSetIconInfo()
-    EM_ICON_FILENAMES = {};
-    --[[ MCFEM_ICON_FILENAMES[1] = "INV_MISC_QUESTIONMARK"; ]] --MCFFIX replaced with modern version
-    EM_ICON_FILENAMES[1] = 134400;
-    local index = 2;
-
-    for i = INVSLOT_FIRST_EQUIPPED, INVSLOT_LAST_EQUIPPED do
-        local itemTexture = GetInventoryItemTexture("player", i); --MCFFIX returns number instead of texture path now
-        if (itemTexture) then
-            --[[ MCFEM_ICON_FILENAMES[index] = gsub( strupper(itemTexture), "INTERFACE\\ICONS\\", "" ); ]] --MCFFIX replaced with modern version
-            EM_ICON_FILENAMES[index] = itemTexture;
-            if (EM_ICON_FILENAMES[index]) then
-                index = index + 1;
-                --[[
-                Currently checks all for duplicates, even though only rings, trinkets, and weapons may be duplicated.
-                This version is clean and maintainable.
-                ]]
-                for j = INVSLOT_FIRST_EQUIPPED, (index - 1) do
-                    if (EM_ICON_FILENAMES[index] == EM_ICON_FILENAMES[j]) then
-                        EM_ICON_FILENAMES[index] = nil;
-                        index = index - 1;
-                        break ;
-                    end
-                end
-            end
-        end
-    end
-    GetMacroItemIcons(EM_ICON_FILENAMES);
-    GetMacroIcons(EM_ICON_FILENAMES);
-end
-
-function ExtraStats_GearManagerDialogPopupOkay_Update()
-    local popup = ExtraStats_GearManagerDialogPopup;
-    local button = ExtraStats_GearManagerDialogPopupOkay;
-
-    if (popup.selectedIcon and popup.name) then
-        button:Enable();
-    else
-        button:Disable();
-    end
-end
-function ExtraStats_GearManagerDialogPopupOkay_OnClick(self, button, pushed)
-    local popup = ExtraStats_GearManagerDialogPopup;
-
-    local icon = ExtraStats_GetEquipmentSetIconInfo(popup.selectedIcon);
-    --[[ local setID = EquipmentSet:GetEquipmentSetID(popup.name); ]]
-
-    if (popup.name == "TEMP_SET") then
-        -- Can't use addon's temp set name to make a set
-        UIErrorsFrame:AddMessage(L["ExtraStats_EQUIPMENT_SETS_NAME_RESERVED"], 1.0, 0.1, 0.1, 1.0);
-        return ;
-    elseif (ExtraStats_GetEquipmentSetInfoByName(popup.name)) then
-        if (popup.isEdit and popup.name ~= popup.origName) then
-            -- Not allowed to overwrite an existing set by doing a rename
-            UIErrorsFrame:AddMessage(EQUIPMENT_SETS_CANT_RENAME, 1.0, 0.1, 0.1, 1.0);
-            return ;
-        elseif (not popup.isEdit) then
-            --[[ if ( setID ) then ]]
-            local dialog = StaticPopup_Show("ExtraStats_CONFIRM_OVERWRITE_EQUIPMENT_SET", popup.name);
-            if (dialog) then
-                local setID = EquipmentSet:GetEquipmentSetID(popup.name);
-                dialog.data = setID;
-                dialog.selectedIcon = icon;
-            else
-                UIErrorsFrame:AddMessage(ERR_CLIENT_LOCKED_OUT, 1.0, 0.1, 0.1, 1.0);
-            end
-            tab.frame.tempSetID = nil;
-            return ;
-        end
-    elseif ((not EquipmentSet:GetEquipmentSetID("TEMP_SET")) and (EquipmentSet:GetNumEquipmentSets() >= MAX_EQUIPMENT_SETS_PER_PLAYER)) then
-        UIErrorsFrame:AddMessage(EQUIPMENT_SETS_TOO_MANY, 1.0, 0.1, 0.1, 1.0);
-        return ;
-    elseif ((EquipmentSet:GetEquipmentSetID("TEMP_SET")) and (EquipmentSet:GetNumEquipmentSets() >= MAX_EQUIPMENT_SETS_PER_PLAYER + 1)) then
-        UIErrorsFrame:AddMessage(EQUIPMENT_SETS_TOO_MANY, 1.0, 0.1, 0.1, 1.0);
-        return ;
-    end
-
-    if (popup.isEdit) then
-        --Modifying a set
-        tab.frame.selectedSetName = popup.name;
-        local setID = EquipmentSet:GetEquipmentSetID(ExtraStats_GearManagerDialogPopup.origName);
-        --EquipmentSet:SaveEquipmentSet(setID, icon);
-        EquipmentSet:ModifyEquipmentSet(setID, popup.name, icon);
-        --EquipmentSet:AssignSpecToEquipmentSet(setID, GetActiveTalentGroup())
-    else
-        -- HACK to make ignore slots working "correct"
-        EquipmentSet:SaveEquipmentSet(tab.frame.tempSetID, icon);
-        EquipmentSet:ModifyEquipmentSet(tab.frame.tempSetID, popup.name);
-
-        --EquipmentSet:AssignSpecToEquipmentSet(tab.frame.tempSetID, GetActiveTalentGroup())
-        tab.frame.tempSetID = nil;
-        ExtraStats_PaperDollEquipmentManagerPane_Update();
-    end
-
-    popup:Hide();
-end
-function ExtraStats_GearManagerDialogPopupCancel_OnClick()
-    ExtraStats_GearManagerDialogPopup:Hide();
-end
-function ExtraStats_GearSetPopupButton_OnClick(self, button)
-    local popup = ExtraStats_GearManagerDialogPopup;
-    local offset = FauxScrollFrame_GetOffset(ExtraStats_GearManagerDialogPopupScrollFrame) or 0;
-    popup.selectedIcon = (offset * NUM_GEARSET_ICONS_PER_ROW) + self:GetID();
-    popup.selectedTexture = nil;
-    ExtraStats_GearManagerDialogPopup_Update();
-    ExtraStats_GearManagerDialogPopupOkay_Update();
+    tab.pendingNewSet = true
+    SelectSetByID(nil)
+    EquipmentSet:ClearIgnoredSlotsForSave()
+    ExtraStats_PaperDollFrame_IgnoreSlot(4)
+    ExtraStats_PaperDollFrame_IgnoreSlot(19)
+    ExtraStats_GearManagerDialogPopup:Show()
 end
 
 function ExtraStats_GearSetButton_OnDoubleClick(self)
-
-    ExtraStats_PaperDollEquipmentManagerPaneEquipSet_OnClick(self.setID)
-
-    --local id = self.setID;
-    --PlaySound(SOUNDKIT.IG_CHARACTER_INFO_TAB);
-    --if (InCombatLockdown()) then
-    --    UIErrorsFrame:AddMessage(ERR_CLIENT_LOCKED_OUT, 1.0, 0.1, 0.1, 1.0);
-    --elseif (id) then
-    --    if EquipmentSet:GetEquipmentSetAssignedSpec(id) then
-    --        SetActiveTalentGroup(EquipmentSet:GetEquipmentSetAssignedSpec(id))
-    --    else
-    --        EquipmentSet:UseEquipmentSet(id);
-    --    end
-    --end
-    --
-    --ExtraStats_PaperDollEquipmentManagerPane_Update()
-end
-
-local function BuildEquipMacroBody(setName)
-    local safeName = tostring(setName):gsub("\"", "'")
-    return "/stats equip \"" .. safeName .. "\""
-end
-
-local function FindEquipMacro(body)
-    local numGlobal, numCharacter = GetNumMacros()
-    local total = numGlobal + numCharacter
-    for i = 1, total do
-        local _, _, existingBody = GetMacroInfo(i)
-        if existingBody == body then
-            return i
-        end
+    if self.setID then
+        ExtraStats_PaperDollEquipmentManagerPaneEquipSet_OnClick(self.setID)
     end
-    return nil
-end
-
-local function BuildMacroName(setName)
-    local name = tostring(setName or "")
-    if #name > 16 then
-        name = string.sub(name, 1, 16)
-    end
-    return name
-end
-
-local function EnsureEquipMacro(setName, iconTexture)
-    local body = BuildEquipMacroBody(setName)
-    local macroId = FindEquipMacro(body)
-    if macroId then
-        if iconTexture then
-            EditMacro(macroId, nil, iconTexture, body)
-        end
-        return macroId
-    end
-
-    local numGlobal, numCharacter = GetNumMacros()
-    if numCharacter < MAX_CHARACTER_MACROS then
-        return CreateMacro(BuildMacroName(setName), iconTexture or "INV_Misc_QuestionMark", body, true)
-    end
-    if numGlobal < MAX_ACCOUNT_MACROS then
-        return CreateMacro(BuildMacroName(setName), iconTexture or "INV_Misc_QuestionMark", body, false)
-    end
-    return nil
 end
 
 function ExtraStats_GearSetButton_OnDragStart(self)
-    if (not self.setID or not self.name) then
+    if not self.setID or not self.name then
         return
     end
 
-    if (InCombatLockdown()) then
-        UIErrorsFrame:AddMessage(ERR_CLIENT_LOCKED_OUT, 1.0, 0.1, 0.1, 1.0);
+    if InCombatLockdown() then
+        UIErrorsFrame:AddMessage(ERR_CLIENT_LOCKED_OUT, 1.0, 0.1, 0.1, 1.0)
         return
     end
 
-    local macroId = EnsureEquipMacro(self.name, self.iconTexture)
-    if (macroId) then
-        PickupMacro(macroId)
+    local macroID = EnsureEquipMacro(self.name, self.iconTexture)
+    if macroID then
+        PickupMacro(macroID)
     else
-        UIErrorsFrame:AddMessage(ERR_MACRO_LIMIT, 1.0, 0.1, 0.1, 1.0);
+        UIErrorsFrame:AddMessage(ERR_MACRO_LIMIT, 1.0, 0.1, 0.1, 1.0)
     end
 end
 
 function ExtraStats_PaperDollFrame_ClearIgnoredSlots()
-    EquipmentSet:ClearIgnoredSlotsForSave();
-    for k, button in next, itemSlotButtons do
-        if (button.ignored) then
-            button.ignored = nil;
-            PaperDollItemSlotButton_Update(button);
-        end
-    end
-end
-
-function ExtraStats_PaperDollFrame_IgnoreSlotsForSet (setID)
-    local set = EquipmentSet:GetIgnoredSlots(setID);
-    for slot, ignored in ipairs(set) do
-        if (ignored == true) then
-            EquipmentSet:IgnoreSlotForSave(slot);
-            itemSlotButtons[slot].ignored = true;
-            PaperDollItemSlotButton_Update(itemSlotButtons[slot]);
+    EquipmentSet:ClearIgnoredSlotsForSave()
+    for _, button in ipairs(itemSlotButtons) do
+        if button and button.ignored then
+            button.ignored = nil
+            PaperDollItemSlotButton_Update(button)
         end
     end
 end
 
 function ExtraStats_PaperDollFrame_IgnoreSlot(slot)
-    EquipmentSet:IgnoreSlotForSave(slot);
-    itemSlotButtons[slot].ignored = true;
-    PaperDollItemSlotButton_Update(itemSlotButtons[slot]);
+    local button = itemSlotButtons[slot]
+    if not button then
+        return
+    end
+
+    EquipmentSet:IgnoreSlotForSave(slot)
+    button.ignored = true
+    PaperDollItemSlotButton_Update(button)
+end
+
+function ExtraStats_PaperDollFrame_IgnoreSlotsForSet(setID)
+    ApplyIgnoredSlotsForSet(setID)
 end
 
 function ExtraStats_GearSetDeleteButton_OnClick(self)
-    local dialog = StaticPopup_Show("CONFIRM_DELETE_EQUIPMENT_SET", self:GetParent().name);
-    if (dialog) then
+    if not self:GetParent().setID then
+        return
+    end
+
+    local dialog = StaticPopup_Show("CONFIRM_DELETE_EQUIPMENT_SET", self:GetParent().name)
+    if dialog then
         dialog.data = self:GetParent().setID
-    else
-        UIErrorsFrame:AddMessage(ERR_CLIENT_LOCKED_OUT, 1.0, 0.1, 0.1, 1.0);
     end
 end
 
+local function RebuildIconList()
+    wipe(EM_ICON_FILENAMES)
+    EM_ICON_FILENAMES[1] = DEFAULT_ICON
+
+    local seen = {}
+    seen[DEFAULT_ICON] = true
+
+    for slot = INVSLOT_FIRST_EQUIPPED, INVSLOT_LAST_EQUIPPED do
+        local texture = GetInventoryItemTexture("player", slot)
+        if texture and not seen[texture] then
+            seen[texture] = true
+            EM_ICON_FILENAMES[#EM_ICON_FILENAMES + 1] = texture
+        end
+    end
+
+    GetMacroItemIcons(EM_ICON_FILENAMES)
+    GetMacroIcons(EM_ICON_FILENAMES)
+end
+
+function ExtraStats_GetEquipmentSetIconInfo(index)
+    return EM_ICON_FILENAMES[index]
+end
+
+function ExtraStats_RefreshEquipmentSetIconInfo()
+    RebuildIconList()
+end
+
+function ExtraStats_GearManagerDialogPopup_Update()
+    RebuildIconList()
+
+    local popup = ExtraStats_GearManagerDialogPopup
+    local offset = FauxScrollFrame_GetOffset(ExtraStats_GearManagerDialogPopupScrollFrame) or 0
+
+    for i = 1, NUM_GEARSET_ICONS_SHOWN do
+        local button = popup.buttons[i]
+        local index = (offset * NUM_GEARSET_ICONS_PER_ROW) + i
+        if index <= #EM_ICON_FILENAMES then
+            local texture = ExtraStats_GetEquipmentSetIconInfo(index)
+            button.icon:SetTexture(texture)
+            button:Show()
+            button:SetChecked(index == popup.selectedIcon)
+        else
+            button.icon:SetTexture(nil)
+            button:Hide()
+        end
+    end
+
+    FauxScrollFrame_Update(ExtraStats_GearManagerDialogPopupScrollFrame, ceil(#EM_ICON_FILENAMES / NUM_GEARSET_ICONS_PER_ROW), NUM_GEARSET_ICON_ROWS, GEARSET_ICON_ROW_HEIGHT)
+end
+
+function ExtraStats_RecalculateGearManagerDialogPopup(setName, iconTexture)
+    local popup = ExtraStats_GearManagerDialogPopup
+    ExtraStats_GearManagerDialogPopupEditBox:SetText(setName or "")
+    if iconTexture then
+        popup.selectedTexture = iconTexture
+        popup.selectedIcon = nil
+        RebuildIconList()
+        for i = 1, #EM_ICON_FILENAMES do
+            if EM_ICON_FILENAMES[i] == iconTexture then
+                popup.selectedIcon = i
+                break
+            end
+        end
+    end
+
+    if not popup.selectedIcon then
+        popup.selectedIcon = 1
+    end
+
+    FauxScrollFrame_OnVerticalScroll(ExtraStats_GearManagerDialogPopupScrollFrame, 0, GEARSET_ICON_ROW_HEIGHT, nil)
+    ExtraStats_GearManagerDialogPopup_Update()
+    ExtraStats_GearManagerDialogPopupOkay_Update()
+end
+
+function ExtraStats_GearManagerDialogPopup_OnLoad(self)
+    self.buttons = {}
+
+    local button = CreateFrame("CheckButton", "ExtraStats_GearManagerDialogPopupButton1", self, "ExtraGearSetPopupButtonTemplate")
+    button:SetPoint("TOPLEFT", 24, -85)
+    button:SetID(1)
+    self.buttons[1] = button
+
+    for i = 2, NUM_GEARSET_ICONS_SHOWN do
+        button = CreateFrame("CheckButton", "ExtraStats_GearManagerDialogPopupButton" .. i, self, "ExtraGearSetPopupButtonTemplate")
+        button:SetID(i)
+
+        local lastPos = (i - 1) / NUM_GEARSET_ICONS_PER_ROW
+        if lastPos == math.floor(lastPos) then
+            button:SetPoint("TOPLEFT", self.buttons[i - NUM_GEARSET_ICONS_PER_ROW], "BOTTOMLEFT", 0, -8)
+        else
+            button:SetPoint("TOPLEFT", self.buttons[i - 1], "TOPRIGHT", 10, 0)
+        end
+
+        self.buttons[i] = button
+    end
+end
+
+function ExtraStats_GearManagerDialogPopup_OnShow(self)
+    PlaySound(SOUNDKIT.IG_CHARACTER_INFO_OPEN)
+
+    if not self.isEdit then
+        self.origName = nil
+        self.name = nil
+    end
+
+    ExtraStats_RecalculateGearManagerDialogPopup(self.name, self.selectedTexture)
+
+    PaperDollEquipmentManagerPaneSaveSet:Disable()
+    PaperDollEquipmentManagerPaneEquipSet:Disable()
+end
+
+function ExtraStats_GearManagerDialogPopup_OnHide(self)
+    self.name = nil
+    self.origName = nil
+    self.isEdit = false
+    self.selectedTexture = nil
+    self.selectedIcon = nil
+    ExtraStats_GearManagerDialogPopupEditBox:SetText("")
+
+    tab.pendingNewSet = false
+    ExtraStats_PaperDollEquipmentManagerPane_Update()
+end
+
+function ExtraStats_GearManagerDialogPopupOkay_Update()
+    local popup = ExtraStats_GearManagerDialogPopup
+    if popup.selectedIcon and popup.name and popup.name ~= "" then
+        ExtraStats_GearManagerDialogPopupOkay:Enable()
+    else
+        ExtraStats_GearManagerDialogPopupOkay:Disable()
+    end
+end
+
+function ExtraStats_GearManagerDialogPopupOkay_OnClick()
+    local popup = ExtraStats_GearManagerDialogPopup
+    local name = popup.name
+    local icon = ExtraStats_GetEquipmentSetIconInfo(popup.selectedIcon) or DEFAULT_ICON
+    if not name or name == "" then
+        return
+    end
+
+    if name == "TEMP_SET" then
+        UIErrorsFrame:AddMessage("Name TEMP_SET is reserved.", 1.0, 0.1, 0.1, 1.0)
+        return
+    end
+
+    if popup.isEdit then
+        local setID = EquipmentSet:GetEquipmentSetID(popup.origName)
+        if not setID then
+            popup:Hide()
+            return
+        end
+
+        local existing = EquipmentSet:GetEquipmentSetID(name)
+        if existing and existing ~= setID then
+            UIErrorsFrame:AddMessage(EQUIPMENT_SETS_CANT_RENAME, 1.0, 0.1, 0.1, 1.0)
+            return
+        end
+
+        local oldName = select(1, EquipmentSet:GetEquipmentSetInfo(setID))
+        EquipmentSet:ModifyEquipmentSet(setID, name, icon)
+        EquipmentSet:SaveEquipmentSet(setID)
+        RenameEquipMacros(oldName, name, icon)
+        UpdateEquipMacros(name, icon)
+        SelectSetByID(setID)
+        popup:Hide()
+        return
+    end
+
+    local existing = EquipmentSet:GetEquipmentSetID(name)
+    if existing then
+        local dialog = StaticPopup_Show("ExtraStats_CONFIRM_OVERWRITE_EQUIPMENT_SET", name)
+        if dialog then
+            dialog.data = existing
+            dialog.selectedIcon = icon
+        end
+        return
+    end
+
+    if EquipmentSet:GetNumEquipmentSets() >= MAX_EQUIPMENT_SETS_PER_PLAYER then
+        UIErrorsFrame:AddMessage(EQUIPMENT_SETS_TOO_MANY, 1.0, 0.1, 0.1, 1.0)
+        return
+    end
+
+    local setID = EquipmentSet:CreateEquipmentSet(name)
+    EquipmentSet:ModifyEquipmentSet(setID, name, icon)
+    EquipmentSet:SaveEquipmentSet(setID)
+    UpdateEquipMacros(name, icon)
+    SelectSetByID(setID)
+    popup:Hide()
+end
+
+function ExtraStats_GearManagerDialogPopupCancel_OnClick()
+    ExtraStats_GearManagerDialogPopup:Hide()
+end
+
+function ExtraStats_GearSetPopupButton_OnClick(self)
+    local popup = ExtraStats_GearManagerDialogPopup
+    local offset = FauxScrollFrame_GetOffset(ExtraStats_GearManagerDialogPopupScrollFrame) or 0
+    popup.selectedIcon = (offset * NUM_GEARSET_ICONS_PER_ROW) + self:GetID()
+    popup.selectedTexture = nil
+    ExtraStats_GearManagerDialogPopup_Update()
+    ExtraStats_GearManagerDialogPopupOkay_Update()
+end
+
 function GearSetEditButton_OnLoad(self)
-    self.Dropdown = GearSetEditButtonDropDown;
-    UIDropDownMenu_Initialize(self.Dropdown, nil, "MENU");
-    self.Dropdown.gearSetButton = self:GetParent();
-    UIDropDownMenu_SetInitializeFunction(self.Dropdown, GearSetEditButtonDropDown_Initialize);
+    self.Dropdown = GearSetEditButtonDropDown
+    UIDropDownMenu_Initialize(self.Dropdown, nil, "MENU")
+    self.Dropdown.gearSetButton = self:GetParent()
+    UIDropDownMenu_SetInitializeFunction(self.Dropdown, GearSetEditButtonDropDown_Initialize)
 end
 
 function GetPrimaryTalentTree(spec)
-    local cache = {};
-    TalentFrame_UpdateSpecInfoCache(cache, false, false, spec);
-    return cache.primaryTabIndex;
+    local cache = {}
+    TalentFrame_UpdateSpecInfoCache(cache, false, false, spec)
+    return cache.primaryTabIndex
 end
 
-function GearSetEditButtonDropDown_Initialize(dropdownFrame, level, menuList)
-    local gearSetButton = dropdownFrame.gearSetButton;
+function GearSetEditButtonDropDown_Initialize(dropdownFrame)
+    local gearSetButton = dropdownFrame.gearSetButton
 
-    local info = UIDropDownMenu_CreateInfo();
-    info.text = EQUIPMENT_SET_EDIT;
-    info.notCheckable = true;
+    local info = UIDropDownMenu_CreateInfo()
+    info.text = EQUIPMENT_SET_EDIT
+    info.notCheckable = true
     info.func = function()
-        ExtraStats_GearManagerDialogPopup:Show();
-        ExtraStats_GearManagerDialogPopup.isEdit = true;
-        ExtraStats_GearManagerDialogPopup.origName = gearSetButton.name
-        ExtraStats_RecalculateGearManagerDialogPopup(gearSetButton.name, gearSetButton.iconTexture)
-    end;
-    UIDropDownMenu_AddButton(info, UIDROPDOWN_MENU_LEVEL);
-
-    --info = UIDropDownMenu_CreateInfo();
-    --info.text = EQUIPMENT_SET_ASSIGN_TO_SPEC;
-    --info.isTitle = true;
-    --info.notCheckable = true;
-    --UIDropDownMenu_AddButton(info, UIDROPDOWN_MENU_LEVEL);
-
-    --local equipmentSetID = gearSetButton.setID;
-    --for i = 1, 2 do
-    --    info = UIDropDownMenu_CreateInfo();
-    --    info.checked = function()
-    --        return GetEquipmentSetAssignedSpec(equipmentSetID) == i;
-    --    end;
-    --
-    --    info.func = function()
-    --        local currentSpecIndex = GetEquipmentSetAssignedSpec(equipmentSetID);
-    --        if (currentSpecIndex ~= i) then
-    --            AssignSpecToEquipmentSet(equipmentSetID, i);
-    --        else
-    --            UnassignEquipmentSetSpec(equipmentSetID);
-    --        end
-    --        ExtraStats_PaperDollEquipmentManagerPane_Update(true);
-    --    end;
-    --
-    --    local specID = GetPrimaryTalentTree(i);
-    --    info.text = GetTalentTabInfo(specID);
-    --    UIDropDownMenu_AddButton(info, UIDROPDOWN_MENU_LEVEL);
-    --end
+        local popup = ExtraStats_GearManagerDialogPopup
+        popup.isEdit = true
+        popup.origName = gearSetButton.name
+        popup.name = gearSetButton.name
+        popup.selectedTexture = gearSetButton.iconTexture
+        popup:Show()
+    end
+    UIDropDownMenu_AddButton(info, UIDROPDOWN_MENU_LEVEL)
 end
 
-function AssignSpecToEquipmentSet(SetId, SpecId)
-    ExtraStats.db.char.sets[SetId] = SpecId
+function AssignSpecToEquipmentSet(setID, specID)
+    ExtraStats.db.char.sets[setID] = specID
 end
 
-function GetEquipmentSetAssignedSpec(SetId)
-    return ExtraStats.db.char.sets[SetId]
+function GetEquipmentSetAssignedSpec(setID)
+    return ExtraStats.db.char.sets[setID]
 end
 
-function UnassignEquipmentSetSpec(SetId)
-    ExtraStats.db.char.sets[SetId] = nil
+function UnassignEquipmentSetSpec(setID)
+    ExtraStats.db.char.sets[setID] = nil
 end
 
-function GetEquipmentSetForSpec(SpecId)
-    for set, spec in pairs(ExtraStats.db.char.sets) do
-        if spec == SpecId then
-            return set;
+function GetEquipmentSetForSpec(specID)
+    for setID, id in pairs(ExtraStats.db.char.sets) do
+        if id == specID then
+            return setID
         end
     end
     return nil
 end
 
 function GearSetButton_SetSpecInfo(self, specID)
-    if (specID and specID > 0) then
-        self.specID = specID;
-        local name, texture, pointsSpent, fileName = GetTalentTabInfo(specID);
-        SetPortraitToTexture(self.SpecIcon, texture);
-        self.SpecIcon:Show();
-        self.SpecRing:Show();
+    if specID and specID > 0 then
+        self.specID = specID
+        local _, texture = GetTalentTabInfo(specID)
+        SetPortraitToTexture(self.SpecIcon, texture)
+        self.SpecIcon:Show()
+        self.SpecRing:Show()
     else
-        self.specID = nil;
-        self.SpecIcon:Hide();
-        self.SpecRing:Hide();
+        self.specID = nil
+        self.SpecIcon:Hide()
+        self.SpecRing:Hide()
     end
 end
 
 function GearSetButton_UpdateSpecInfo(self)
-    if (not self.setID) then
-        GearSetButton_SetSpecInfo(self, nil);
-        return ;
+    if not self.setID then
+        GearSetButton_SetSpecInfo(self, nil)
+        return
     end
 
-    local specIndex = GetEquipmentSetAssignedSpec(self.setID);
-    if (not specIndex) then
-        GearSetButton_SetSpecInfo(self, nil);
-        return ;
+    local specIndex = GetEquipmentSetAssignedSpec(self.setID)
+    if not specIndex then
+        GearSetButton_SetSpecInfo(self, nil)
+        return
     end
 
-    local specID = GetPrimaryTalentTree(specIndex);
-    GearSetButton_SetSpecInfo(self, specID);
+    local specID = GetPrimaryTalentTree(specIndex)
+    GearSetButton_SetSpecInfo(self, specID)
 end
 
 function tab:init()
-    local frame = CreateFrame("ScrollFrame", "PaperDollEquipmentManagerPane", PaperDollFrame, "PaperDollEquipmentManagerPaneTemplate");
-
-    tab.DialogPopup = CreateFrame("Frame", "ExtraStats_GearManagerDialogPopup", frame, "ExtraGearManagerDialogPopupTemplate");
-
-    --for index, slot in pairs(itemSlotButtons) do
-    --    slot.PopoutButton = CreateFrame("Button", nil, slot, "ExtraStatsPopoutButtonTemplate");
-    --end
-
-    tab.frame = frame;
+    local frame = CreateFrame("ScrollFrame", "PaperDollEquipmentManagerPane", PaperDollFrame, "PaperDollEquipmentManagerPaneTemplate")
+    tab.DialogPopup = CreateFrame("Frame", "ExtraStats_GearManagerDialogPopup", frame, "ExtraGearManagerDialogPopupTemplate")
+    tab.frame = frame
 end
 
 function tab:IsVisible()
-    --return frame and frame:IsVisible()
 end
 
 function tab:show()
-
 end
 
 function tab:hide()
-
 end

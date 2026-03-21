@@ -6,5 +6,5 @@
 ## OptionalDeps: ElvUI TacoTip
 
 embeds.xml
-modules\Vanilla.lua
+modules\Tbc.lua
 ExtraStats.lua

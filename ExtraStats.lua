@@ -3,6 +3,7 @@ local name, stats = ...;
 CHARACTERFRAME_EXPANDED_WIDTH = 540;
 
 local EVENT_DIRTY_CATEGORIES = {
+    PLAYER_ENTERING_WORLD = { "base", "attributes", "melee", "ranged", "spell", "defenses", "enhancements" },
     PLAYER_EQUIPMENT_CHANGED = { "base", "attributes", "melee", "ranged", "spell", "defenses", "enhancements" },
     SOCKET_INFO_SUCCESS = { "base", "attributes", "melee", "ranged", "spell", "defenses", "enhancements" },
     UNIT_STATS = { "base", "attributes" },
@@ -24,19 +25,19 @@ local EVENT_DIRTY_CATEGORIES = {
 }
 
 local function GetDirtyCategories(event, target)
-    if event == "UNIT_AURA" and target ~= "player" then
+    if string.sub(event, 1, 5) == "UNIT_" and target ~= "player" then
         return nil
     end
     return EVENT_DIRTY_CATEGORIES[event]
 end
 
 local function SetAllCategoriesCollapsed(collapsed)
-    local stats = ExtraStats:LoadModule("character.stats")
-    if not stats or not stats.GetCategories then
+    local statsModule = ExtraStats:LoadModule("character.stats")
+    if not statsModule or not statsModule.GetCategories then
         return
     end
     ExtraStats.db.char.categoryCollapsed = ExtraStats.db.char.categoryCollapsed or {}
-    for _, category in pairs(stats:GetCategories()) do
+    for _, category in pairs(statsModule:GetCategories()) do
         ExtraStats.db.char.categoryCollapsed[category.id] = collapsed
     end
     ExtraStats:UpdateStatsDelayed()
@@ -73,17 +74,10 @@ function ExtraStats:EventHandler(event, target, ...)
             ExtraStats:print("use |cFF00FF00/stats|r to access addon settings");
             ExtraStats:print("Keep this addon alive by donating a coffee at " .. ExtraStats:Colorize("https://www.buymeacoffee.com/yuImx6KOY", "cyan"));
         end);
-    elseif event == "PLAYER_EQUIPMENT_CHANGED" then
-        ExtraStats:MarkStatsDirty(GetDirtyCategories(event, target))
-        ExtraStats:UpdateStatsDelayed()
     else
-        if event ~= "UNIT_AURA" then
-            ExtraStats:MarkStatsDirty(GetDirtyCategories(event, target))
-            ExtraStats:UpdateStatsDelayed()
-        end
-
-        if event == "UNIT_AURA" and target == "player" then
-            ExtraStats:MarkStatsDirty(GetDirtyCategories(event, target))
+        local dirtyCategories = GetDirtyCategories(event, target)
+        if dirtyCategories then
+            ExtraStats:MarkStatsDirty(dirtyCategories)
             ExtraStats:UpdateStatsDelayed()
         end
     end
@@ -94,7 +88,7 @@ function ExtraStats:ShowSettings()
 end
 
 function ExtraStats:SlashCommand(input)
-    local cmd, arg1, arg2, arg3 = ExtraStats:GetArgs(input, 4);
+    local cmd, arg1 = ExtraStats:GetArgs(input, 2);
 
     if cmd == "debug" then
         if ExtraStats.db.global.debug.enabled then
@@ -162,10 +156,10 @@ function ExtraStats:DefaultSettings()
                             type = "toggle",
                             order = 1,
                             width = "full",
-                            set = function(info, val)
+                            set = function(_, val)
                                 ExtraStats.db.global.debug.enabled = val
                             end,
-                            get = function(info)
+                            get = function(_)
                                 return ExtraStats.db.global.debug.enabled
                             end
                         },
@@ -174,14 +168,14 @@ function ExtraStats:DefaultSettings()
                             type = "toggle",
                             order = 2,
                             width = "full",
-                            set = function(info, val)
+                            set = function(_, val)
                                 ExtraStats.db.char.dynamic = val
                                 ExtraStats:UpdateStats()
                                 if ExtraStats.window and ExtraStats.window.UpdateRoleIcons then
                                     ExtraStats.window:UpdateRoleIcons()
                                 end
                             end,
-                            get = function(info)
+                            get = function(_)
                                 return ExtraStats.db.char.dynamic
                             end
                         },
@@ -196,14 +190,14 @@ function ExtraStats:DefaultSettings()
                                 [CLASS_ROLE_HEALER] = "Healer",
                                 [CLASS_ROLE_TANK] = "Tank",
                             },
-                            set = function(info, val)
+                            set = function(_, val)
                                 ExtraStats.db.char.rolePreset = val
                                 ExtraStats:UpdateStats()
                                 if ExtraStats.window and ExtraStats.window.UpdateRoleIcons then
                                     ExtraStats.window:UpdateRoleIcons()
                                 end
                             end,
-                            get = function(info)
+                            get = function(_)
                                 return ExtraStats.db.char.rolePreset or "AUTO"
                             end,
                             disabled = function()
@@ -316,7 +310,6 @@ end
 function ExtraStats:OnInitialize()
 
     self.db = LibStub("AceDB-3.0"):New("ExtraStatsSettings", stats.configsDefaults, true)
-    local powerType, powerToken = UnitPowerType("player");
     ExtraStats:RegisterComm(name .. "Ver", "VersionCheck")
     --ExtraStats:ScheduleRepeatingTimer("SendVersionCheck", 10)
     --ExtraStats:ScheduleRepeatingTimer("UpdateRole", 0.5)
@@ -332,7 +325,7 @@ function ExtraStats:OnEnable()
 
     ExtraStats:CreateWindow()
 
-    for name, module in ExtraStats.modules:IterateModules() do
+    for _, module in ExtraStats.modules:IterateModules() do
         module:Enable()
 
         if module.Settings then
@@ -342,38 +335,36 @@ function ExtraStats:OnEnable()
 
     ExtraStats:RegisterEvent("PLAYER_LOGIN", "EventHandler")
     ExtraStats:RegisterEvent("GROUP_ROSTER_UPDATE", "EventHandler")
-    ExtraStats:RegisterEvent("PLAYER_EQUIPMENT_CHANGED", "EventHandler")
-    ExtraStats:RegisterEvent("SOCKET_INFO_SUCCESS", "EventHandler")
     --ExtraStats:RegisterEvent("UNIT_SPELLCAST_START", "EventHandler")
     --ExtraStats:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED", "EventHandler")
     --ExtraStats:RegisterEvent("INSPECT_READY", "EventHandler")
-    ExtraStats:RegisterEvent("UNIT_AURA", "EventHandler")
     --ExtraStats:RegisterEvent("UPDATE_SHAPESHIFT_FORM", "EventHandler")
     --ExtraStats:RegisterEvent("UPDATE_SHAPESHIFT_FORMS", "EventHandler")
     --ExtraStats:RegisterEvent("UPDATE_STEALTH", "EventHandler")
-    ExtraStats:RegisterEvent("CHARACTER_POINTS_CHANGED", "EventHandler")
-    ExtraStats:RegisterEvent("ACTIVE_TALENT_GROUP_CHANGED", "EventHandler")
+    for eventName, _ in pairs(EVENT_DIRTY_CATEGORIES) do
+        ExtraStats:RegisterEvent(eventName, "EventHandler")
+    end
 
     local needReload = false;
 
-    for i, plugin in pairs(ExtraStats.plugins) do
+    for _, plugin in pairs(ExtraStats.plugins) do
         plugin:Setup();
 
-        local name = plugin.name;
-        configsTable.plugins.args["plugin." .. name] = {
-            name = name,
+        local pluginName = plugin.name;
+        configsTable.plugins.args["plugin." .. pluginName] = {
+            name = pluginName,
             type = "toggle",
-            set = function(info, val)
+            set = function(_, val)
                 if not val then
-                    ExtraStats.db.char.disabledPlugins[name] = true
+                    ExtraStats.db.char.disabledPlugins[pluginName] = true
                 else
-                    ExtraStats.db.char.disabledPlugins[name] = nil
+                    ExtraStats.db.char.disabledPlugins[pluginName] = nil
                 end
 
                 needReload = true;
             end,
-            get = function(info)
-                return ExtraStats.db.char.disabledPlugins[name] == nil
+            get = function(_)
+                return ExtraStats.db.char.disabledPlugins[pluginName] == nil
             end
         }
     end
