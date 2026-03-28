@@ -396,7 +396,13 @@ local function RegisterOutfitListener(eventName, callback)
         return
     end
     outfitListeners[eventName] = outfitListeners[eventName] or {}
-    table.insert(outfitListeners[eventName], callback)
+    local listeners = outfitListeners[eventName]
+    for i = 1, #listeners do
+        if listeners[i] == callback then
+            return
+        end
+    end
+    table.insert(listeners, callback)
     Debug("Registered outfit listener for", eventName)
 end
 

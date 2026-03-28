@@ -39,11 +39,22 @@ function ExtraStats:Colorize(str, color)
 end
 
 function ExtraStats:On(event, callback)
+    if type(event) ~= "string" or type(callback) ~= "function" then
+        return
+    end
+
     if not events[event] then
         events[event] = {}
     end
 
-    events[event][ExtraStats:tablelength(events[event]) + 1] = callback;
+    local listeners = events[event]
+    for i = 1, #listeners do
+        if listeners[i] == callback then
+            return
+        end
+    end
+
+    listeners[#listeners + 1] = callback
 end
 
 function ExtraStats:RegisterPlugin(plugin)
@@ -89,9 +100,10 @@ function ExtraStats:MarkStatsDirty(categories)
 end
 
 function ExtraStats:Trigger(event, ...)
-    if events[event] then
-        for key = 1, ExtraStats:tablelength(events[event]) do
-            events[event][key](...);
+    local listeners = events[event]
+    if listeners then
+        for i = 1, #listeners do
+            listeners[i](...)
         end
     end
 end

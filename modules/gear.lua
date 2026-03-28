@@ -49,6 +49,10 @@ local activeSlotID
 local RefreshActiveDrawer
 local UpdateFlyoutButtonsVisualState
 local drawerHoverWatchId = 0
+local flyoutRefreshRequestId = 0
+local alternativesCacheBySlot = {}
+local alternativesCacheDirty = true
+local characterFrameRefreshHooked = false
 
 local SLOT_EQUIP_LOCS = {
     [INVSLOT_HEAD] = { INVTYPE_HEAD = true },
@@ -129,18 +133,20 @@ local function NormalizeItemLink(link)
     return string.match(link, "|H(item:[^|]+)|h") or string.match(link, "(item:[^|]+)") or link
 end
 
-local function ItemFitsSlot(slotID, equipLoc)
-    if not equipLoc or equipLoc == "" then
-        return false
-    end
-    local map = SLOT_EQUIP_LOCS[slotID]
-    return map and map[equipLoc] == true
+local function MarkAlternativesCacheDirty()
+    alternativesCacheDirty = true
 end
 
-local function GetAlternativesForSlot(slotID)
-    local equippedLink = NormalizeItemLink(GetInventoryItemLink("player", slotID))
-    local seen = {}
-    local alternatives = {}
+local function RebuildAlternativesCache()
+    alternativesCacheBySlot = {}
+    local seenBySlot = {}
+    local equippedBySlot = {}
+
+    for slotID in pairs(SLOT_EQUIP_LOCS) do
+        alternativesCacheBySlot[slotID] = {}
+        seenBySlot[slotID] = {}
+        equippedBySlot[slotID] = NormalizeItemLink(GetInventoryItemLink("player", slotID))
+    end
 
     for bag = 0, NUM_BAG_SLOTS do
         local slots = GetContainerNumSlotsCompat(bag) or 0
@@ -148,42 +154,61 @@ local function GetAlternativesForSlot(slotID)
             local link = GetContainerItemLinkCompat(bag, slot)
             if link then
                 local normalized = NormalizeItemLink(link)
-                if normalized and normalized ~= equippedLink then
-                    local _, itemLink, _, _, _, _, _, _, equipLoc = GetItemInfo(link)
-                    if (not equipLoc or equipLoc == "") and GetItemInfoInstant then
-                        equipLoc = select(4, GetItemInfoInstant(link))
-                    end
-                    if ItemFitsSlot(slotID, equipLoc) then
-                        local key = normalized
-                        local item = seen[key]
-                        if not item then
-                            local icon = select(10, GetItemInfo(link))
-                            if not icon and GetItemInfoInstant then
-                                icon = select(5, GetItemInfoInstant(link))
-                            end
-                            item = {
-                                link = itemLink or link,
-                                count = 0,
-                                icon = icon,
-                                quality = select(3, GetItemInfo(link)),
-                                bag = bag,
-                                slot = slot,
-                            }
-                            seen[key] = item
-                            table.insert(alternatives, item)
+                if normalized then
+                    local _, itemLink, itemQuality, _, _, _, _, _, equipLoc, icon = GetItemInfo(link)
+                    if GetItemInfoInstant and ((not equipLoc or equipLoc == "") or (not icon or icon == 0)) then
+                        local _, _, _, instantEquipLoc, instantIcon = GetItemInfoInstant(link)
+                        if not equipLoc or equipLoc == "" then
+                            equipLoc = instantEquipLoc
                         end
-                        item.count = item.count + (GetContainerItemCountCompat(bag, slot) or 1)
+                        if not icon or icon == 0 then
+                            icon = instantIcon
+                        end
+                    end
+
+                    if equipLoc and equipLoc ~= "" then
+                        local stackCount = GetContainerItemCountCompat(bag, slot) or 1
+                        for slotID, equipLocMap in pairs(SLOT_EQUIP_LOCS) do
+                            if equipLocMap[equipLoc] and normalized ~= equippedBySlot[slotID] then
+                                local existing = seenBySlot[slotID][normalized]
+                                if not existing then
+                                    existing = {
+                                        link = itemLink or link,
+                                        count = 0,
+                                        icon = icon,
+                                        quality = itemQuality,
+                                        bag = bag,
+                                        slot = slot,
+                                    }
+                                    seenBySlot[slotID][normalized] = existing
+                                    table.insert(alternativesCacheBySlot[slotID], existing)
+                                end
+                                existing.count = existing.count + stackCount
+                            end
+                        end
                     end
                 end
             end
         end
     end
 
-    table.sort(alternatives, function(a, b)
-        return tostring(a.link) < tostring(b.link)
-    end)
+    for slotID in pairs(SLOT_EQUIP_LOCS) do
+        table.sort(alternativesCacheBySlot[slotID], function(a, b)
+            return tostring(a.link) < tostring(b.link)
+        end)
+    end
 
-    return alternatives
+    alternativesCacheDirty = false
+end
+
+local function GetAlternativesForSlot(slotID)
+    if not slotID or not SLOT_EQUIP_LOCS[slotID] then
+        return {}
+    end
+    if alternativesCacheDirty then
+        RebuildAlternativesCache()
+    end
+    return alternativesCacheBySlot[slotID] or {}
 end
 
 local function HideAltBar()
@@ -715,6 +740,24 @@ local function UpdateFlyoutButtonsVisibility()
     UpdateFlyoutButtonsVisualState()
 end
 
+local function ScheduleFlyoutButtonsRefresh(delay)
+    flyoutRefreshRequestId = flyoutRefreshRequestId + 1
+    local requestId = flyoutRefreshRequestId
+    C_Timer.After(delay or 0.05, function()
+        if requestId ~= flyoutRefreshRequestId then
+            return
+        end
+        if not CharacterFrame or not CharacterFrame:IsShown() then
+            return
+        end
+        if alternativesCacheDirty then
+            RebuildAlternativesCache()
+        end
+        UpdateFlyoutButtonsVisibility()
+        RefreshActiveDrawer()
+    end)
+end
+
 RefreshActiveDrawer = function()
     if not activeSlotID then
         return
@@ -750,14 +793,19 @@ local function UpdateGearFrame (gearFrame)
     if itemLink ~= nil then
         local _, itemInfo = GetItemInfo(itemLink)
         if itemInfo ~= nil then
+            gearFrame.ExtraStatsPendingItemInfoRetry = nil
             local itemQuality = C_Item.GetItemQualityByID(itemInfo)
             local r, g, b, _ = GetItemQualityColor(itemQuality)
             gearFrame.qualityTexture:SetVertexColor(r, g, b, 0.75)
+        elseif not gearFrame.ExtraStatsPendingItemInfoRetry then
+            gearFrame.ExtraStatsPendingItemInfoRetry = true
+            C_Timer.After(0.2, function()
+                gearFrame.ExtraStatsPendingItemInfoRetry = nil
+                UpdateGearFrame(gearFrame)
+            end)
         end
     else
-        C_Timer.After(0.2, function()
-            UpdateGearFrame(gearFrame)
-        end)
+        gearFrame.ExtraStatsPendingItemInfoRetry = nil
     end
 end
 
@@ -769,22 +817,39 @@ end
 
 local function SetupGearFrames()
     for _, frame in ipairs(GEAR_SLOT_FRAMES) do
-        frame.qualityTexture = frame:CreateTexture(nil, "OVERLAY", nil)
-        frame.qualityTexture:SetPoint("TOPLEFT", frame, "TOPLEFT", -2, 2)
-        frame.qualityTexture:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", 2, -2)
-        frame.qualityTexture:SetTexture(stats.iconPath .. "resources\\WhiteIconFrame.blp")
+        if not frame.qualityTexture then
+            frame.qualityTexture = frame:CreateTexture(nil, "OVERLAY", nil)
+            frame.qualityTexture:SetPoint("TOPLEFT", frame, "TOPLEFT", -2, 2)
+            frame.qualityTexture:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", 2, -2)
+            frame.qualityTexture:SetTexture(stats.iconPath .. "resources\\WhiteIconFrame.blp")
+        end
     end
 
     UpdateGearFrames()
     HookGearSlotAlternativesBar()
-    UpdateFlyoutButtonsVisibility()
+    if CharacterFrame and CharacterFrame:IsShown() then
+        UpdateFlyoutButtonsVisibility()
+    end
+
+    if CharacterFrame and not characterFrameRefreshHooked then
+        CharacterFrame:HookScript("OnShow", function()
+            ScheduleFlyoutButtonsRefresh(0)
+        end)
+        characterFrameRefreshHooked = true
+    end
 end
 
 local Module = ExtraStats:NewModule("Gear")
 
 function Module:EventHandler(event, ...)
-    if event ~= "MODIFIER_STATE_CHANGED" then
+    if event == "PLAYER_LOGIN" or event == "PLAYER_EQUIPMENT_CHANGED" then
+        MarkAlternativesCacheDirty()
         UpdateGearFrames()
+        ScheduleFlyoutButtonsRefresh(0)
+    elseif event == "BAG_UPDATE_DELAYED" then
+        MarkAlternativesCacheDirty()
+        ScheduleFlyoutButtonsRefresh(0.05)
+    elseif event ~= "MODIFIER_STATE_CHANGED" then
         UpdateFlyoutButtonsVisibility()
         RefreshActiveDrawer()
     end
@@ -797,20 +862,14 @@ function Module:OnEnable()
     SetupGearFrames()
     self:RegisterEvent("PLAYER_LOGIN", "EventHandler")
     self:RegisterEvent("PLAYER_EQUIPMENT_CHANGED", "EventHandler")
-    self:RegisterEvent("BAG_UPDATE", "EventHandler")
     self:RegisterEvent("BAG_UPDATE_DELAYED", "EventHandler")
-    self:RegisterEvent("PLAYERBANKSLOTS_CHANGED", "EventHandler")
-    self:RegisterEvent("PLAYERBANKBAGSLOTS_CHANGED", "EventHandler")
     self:RegisterEvent("MODIFIER_STATE_CHANGED", "EventHandler")
 end
 
 function Module:OnDisable()
     self:UnregisterEvent("PLAYER_LOGIN")
     self:UnregisterEvent("PLAYER_EQUIPMENT_CHANGED")
-    self:UnregisterEvent("BAG_UPDATE")
     self:UnregisterEvent("BAG_UPDATE_DELAYED")
-    self:UnregisterEvent("PLAYERBANKSLOTS_CHANGED")
-    self:UnregisterEvent("PLAYERBANKBAGSLOTS_CHANGED")
     self:UnregisterEvent("MODIFIER_STATE_CHANGED")
     HideAltBar()
     for _, frame in ipairs(GEAR_SLOT_FRAMES) do
