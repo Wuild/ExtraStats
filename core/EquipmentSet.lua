@@ -282,8 +282,13 @@ local function GetMissingItemCountForSet(set)
 end
 
 local pendingEquip
+local equipToken = 0
 
-local function FinishEquip(success, errorMessage)
+local function FinishEquip(success, errorMessage, token)
+    if token and (not pendingEquip or pendingEquip.token ~= token) then
+        return
+    end
+
     if errorMessage then
         UIErrorsFrame:AddMessage(errorMessage, 1.0, 0.1, 0.1, 1.0)
     end
@@ -359,19 +364,19 @@ local function TryEquipSingleSlot(set, slotID)
     return false, false
 end
 
-local function ProcessEquip()
-    if not pendingEquip then
+local function ProcessEquip(token)
+    if not pendingEquip or pendingEquip.token ~= token then
         return
     end
 
     local set = equipment.db.char.sets[pendingEquip.setID]
     if not set then
-        FinishEquip(false)
+        FinishEquip(false, nil, token)
         return
     end
 
     if InCombatLockdown() then
-        FinishEquip(false, ERR_CLIENT_LOCKED_OUT)
+        FinishEquip(false, ERR_CLIENT_LOCKED_OUT, token)
         return
     end
 
@@ -384,7 +389,7 @@ local function ProcessEquip()
         if not IsSlotIgnored(set, slotID) then
             local changed, blocked, err = TryEquipSingleSlot(set, slotID)
             if err then
-                FinishEquip(false, err)
+                FinishEquip(false, err, token)
                 return
             end
 
@@ -401,19 +406,21 @@ local function ProcessEquip()
 
     if not didAction and not blockedByLock then
         if IsSetFullyEquipped(set) then
-            FinishEquip(true)
+            FinishEquip(true, nil, token)
         else
-            FinishEquip(false, ERR_EQUIPMENT_MANAGER_MISSING_ITEMS or ERR_EQUIPMENT_MANAGER_BAGS_FULL)
+            FinishEquip(false, ERR_EQUIPMENT_MANAGER_MISSING_ITEMS or ERR_EQUIPMENT_MANAGER_BAGS_FULL, token)
         end
         return
     end
 
     if pendingEquip.attempt >= pendingEquip.maxAttempts then
-        FinishEquip(false)
+        FinishEquip(false, nil, token)
         return
     end
 
-    C_Timer.After(0.05, ProcessEquip)
+    C_Timer.After(0.05, function()
+        ProcessEquip(token)
+    end)
 end
 
 function equipment:OnInitialize()
@@ -567,21 +574,20 @@ function equipment:UseEquipmentSet(id)
         return false
     end
 
-    local missing = GetMissingItemCountForSet(set)
-    if missing > 0 then
-        UIErrorsFrame:AddMessage(ERR_EQUIPMENT_MANAGER_MISSING_ITEMS or "Missing items for equipment set.", 1.0, 0.1, 0.1, 1.0)
-        ExtraStats:SendMessage("EQUIPMENT_SWAP_FINISHED", false, id)
-        ExtraStats:Trigger("gear.swap.finished", false, id)
+    if CursorHasItem() and not PutCursorItemIntoBags() then
+        UIErrorsFrame:AddMessage(ERR_EQUIPMENT_MANAGER_BAGS_FULL or "Inventory is full.", 1.0, 0.1, 0.1, 1.0)
         return false
     end
 
+    equipToken = equipToken + 1
     pendingEquip = {
         setID = id,
+        token = equipToken,
         attempt = 0,
         maxAttempts = 120,
     }
 
-    ProcessEquip()
+    ProcessEquip(equipToken)
     return true
 end
 

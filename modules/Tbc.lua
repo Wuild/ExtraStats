@@ -934,6 +934,8 @@ Module.stats = {
             end
 
             local base, casting = GetManaRegen();
+            base = base or 0;
+            casting = casting or 0;
             local mp5FromGear = GetMP5FromGear(unit);
             local mp5ModifierCasting = GetMP5ModifierFromTalents(unit);
 
@@ -944,11 +946,14 @@ Module.stats = {
 
             -- All mana regen stats are displayed as mana/5 sec.
             local regenWhenNotCasting = (base * 5.0) + mp5FromGear + mp5FromAuras;
-            casting = mp5FromGear + mp5FromAuras; -- if GetManaRegen() gets fixed ever, this should be changed
+            local castingFromSpirit = casting * 5.0;
+            local castingFromKnownModifiers = 0;
 
             if mp5ModifierCasting > 0 then
-                casting = casting + base * mp5ModifierCasting * 5.0;
+                castingFromKnownModifiers = base * mp5ModifierCasting * 5.0;
             end
+
+            casting = mp5FromGear + mp5FromAuras + max(castingFromSpirit, castingFromKnownModifiers);
 
             local regenWhenNotCastingText = BreakUpLargeNumbers(regenWhenNotCasting);
             local castingText = BreakUpLargeNumbers(casting);
@@ -961,7 +966,7 @@ Module.stats = {
                 mp5NotCasting = regenWhenNotCastingText,
                 mp5CastingValue = floor(casting),
                 mp5NotCastingValue = floor(regenWhenNotCasting),
-                tooltip2 = format(MANA_REGEN_TOOLTIP or "Mana Regen", base or 0, casting or 0),
+                tooltip2 = format(MANA_REGEN_TOOLTIP or "Mana Regen", floor(regenWhenNotCasting), floor(casting)),
                 onEnter = CharacterManaRegenFrame_OnEnter
             }
 
