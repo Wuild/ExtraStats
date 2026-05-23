@@ -100,9 +100,15 @@
             </Layer>
             <Layer level="ARTWORK">
                 <FontString name="$parentText" inherits="GameFontNormalLeft" parentKey="text">
-                    <Size x="98" y="38"/>
+                    <Size x="98" y="18"/>
                     <Anchors>
-                        <Anchor point="LEFT" x="44"/>
+                        <Anchor point="TOPLEFT" x="44" y="-5"/>
+                    </Anchors>
+                </FontString>
+                <FontString name="$parentSpecText" inherits="GameFontDisableSmall" parentKey="SpecText" hidden="true">
+                    <Size x="98" y="14"/>
+                    <Anchors>
+                        <Anchor point="TOPLEFT" relativeKey="$parent.text" relativePoint="BOTTOMLEFT" x="0" y="-1"/>
                     </Anchors>
                 </FontString>
             </Layer>
@@ -213,7 +219,10 @@
         </Frames>
         <Scripts>
             <OnLoad>
+                self:RegisterForClicks("LeftButtonUp", "RightButtonUp");
                 self:RegisterForDrag("LeftButton");
+                self.text:SetJustifyH("LEFT");
+                self.SpecText:SetJustifyH("LEFT");
                 SetClampedTextureRotation(self.BgBottom, 180);
             </OnLoad>
             <OnClick>

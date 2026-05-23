@@ -283,6 +283,259 @@ end
 
 local pendingEquip
 local equipToken = 0
+local EQUIP_ACTION_DELAY = 0.15
+local EQUIP_LOCK_RETRY_DELAY = 0.07
+local EQUIP_ACTIONS_PER_PASS = 3
+local ProcessEquip
+local pendingSpecEquipToken = 0
+local lastAutoEquippedSpecGroup
+
+local SPEC_ICON_TEXTURES_BY_CLASS = {
+    [INDEX_CLASS_WARRIOR] = {
+        [1] = "Interface\\Icons\\Ability_Warrior_SavageBlow",
+        [2] = "Interface\\Icons\\Ability_Warrior_InnerRage",
+        [3] = "Interface\\Icons\\Ability_Warrior_DefensiveStance",
+    },
+    [INDEX_CLASS_PALADIN] = {
+        [1] = "Interface\\Icons\\Spell_Holy_HolyBolt",
+        [2] = "Interface\\Icons\\ability_paladin_shieldofthetemplar",
+        [3] = "Interface\\Icons\\Spell_Holy_AuraOfLight",
+    },
+    [INDEX_CLASS_HUNTER] = {
+        [1] = "Interface\\Icons\\Ability_Hunter_BestialDiscipline",
+        [2] = "Interface\\Icons\\Ability_Marksmanship",
+        [3] = "Interface\\Icons\\Ability_Hunter_ExplosiveShot",
+    },
+    [INDEX_CLASS_ROGUE] = {
+        [1] = "Interface\\Icons\\Ability_Rogue_Deadliness",
+        [2] = "Interface\\Icons\\Ability_Rogue_MurderSpree",
+        [3] = "Interface\\Icons\\Ability_Rogue_ShadowDance",
+    },
+    [INDEX_CLASS_PRIEST] = {
+        [1] = "Interface\\Icons\\Spell_Holy_Penance",
+        [2] = "Interface\\Icons\\Spell_Holy_GuardianSpirit",
+        [3] = "Interface\\Icons\\Spell_Shadow_Dispersion",
+    },
+    [INDEX_CLASS_DEATH_KNIGHT] = {
+        [1] = "Interface\\Icons\\Spell_Deathknight_BloodPresence",
+        [2] = "Interface\\Icons\\Spell_Deathknight_FrostPresence",
+        [3] = "Interface\\Icons\\Spell_Deathknight_UnholyPresence",
+    },
+    [INDEX_CLASS_SHAMAN] = {
+        [1] = "Interface\\Icons\\Spell_Shaman_ThunderStorm",
+        [2] = "Interface\\Icons\\Spell_Shaman_FeralSpirit",
+        [3] = "Interface\\Icons\\Spell_Nature_Riptide",
+    },
+    [INDEX_CLASS_MAGE] = {
+        [1] = "Interface\\Icons\\Spell_Arcane_ArcanePotency",
+        [2] = "Interface\\Icons\\Ability_Mage_LivingBomb",
+        [3] = "Interface\\Icons\\Spell_Frost_ChillingArmor",
+    },
+    [INDEX_CLASS_WARLOCK] = {
+        [1] = "Interface\\Icons\\Ability_Warlock_Haunt",
+        [2] = "Interface\\Icons\\Spell_Shadow_DemonForm",
+        [3] = "Interface\\Icons\\Ability_Warlock_ChaosBolt",
+    },
+    [INDEX_CLASS_DRUID] = {
+        [1] = "Interface\\Icons\\Spell_Nature_StarFall",
+        [2] = "Interface\\Icons\\Ability_Druid_CatForm",
+        [3] = "Interface\\Icons\\Spell_Nature_HealingTouch",
+    },
+}
+
+local SPEC_ICON_TEXTURES_BY_NAME = {
+    Arms = "Interface\\Icons\\Ability_Warrior_SavageBlow",
+    Fury = "Interface\\Icons\\Ability_Warrior_InnerRage",
+    Protection = "Interface\\Icons\\Ability_Warrior_DefensiveStance",
+    Holy = "Interface\\Icons\\Spell_Holy_HolyBolt",
+    Retribution = "Interface\\Icons\\Spell_Holy_AuraOfLight",
+    ["Beast Mastery"] = "Interface\\Icons\\Ability_Hunter_BestialDiscipline",
+    Marksmanship = "Interface\\Icons\\Ability_Marksmanship",
+    Survival = "Interface\\Icons\\Ability_Hunter_ExplosiveShot",
+    Assassination = "Interface\\Icons\\Ability_Rogue_Deadliness",
+    Combat = "Interface\\Icons\\Ability_Rogue_MurderSpree",
+    Subtlety = "Interface\\Icons\\Ability_Rogue_ShadowDance",
+    Discipline = "Interface\\Icons\\Spell_Holy_Penance",
+    Shadow = "Interface\\Icons\\Spell_Shadow_Dispersion",
+    Blood = "Interface\\Icons\\Spell_Deathknight_BloodPresence",
+    Frost = "Interface\\Icons\\Spell_Deathknight_FrostPresence",
+    Unholy = "Interface\\Icons\\Spell_Deathknight_UnholyPresence",
+    Elemental = "Interface\\Icons\\Spell_Shaman_ThunderStorm",
+    Enhancement = "Interface\\Icons\\Spell_Shaman_FeralSpirit",
+    Restoration = "Interface\\Icons\\Spell_Nature_HealingTouch",
+    Arcane = "Interface\\Icons\\Spell_Arcane_ArcanePotency",
+    Fire = "Interface\\Icons\\Ability_Mage_LivingBomb",
+    Affliction = "Interface\\Icons\\Ability_Warlock_Haunt",
+    Demonology = "Interface\\Icons\\Spell_Shadow_DemonForm",
+    Destruction = "Interface\\Icons\\Ability_Warlock_ChaosBolt",
+    Balance = "Interface\\Icons\\Spell_Nature_StarFall",
+    Feral = "Interface\\Icons\\Ability_Druid_CatForm",
+    ["Feral Combat"] = "Interface\\Icons\\Ability_Druid_CatForm",
+}
+
+local function IsInventorySlotLocked(slotID)
+    if IsInventoryItemLocked then
+        return IsInventoryItemLocked(slotID) == true
+    end
+    return false
+end
+
+local function HasPendingItemLocks()
+    for _, slotID in ipairs(SLOT_ORDER) do
+        if IsInventorySlotLocked(slotID) then
+            return true
+        end
+    end
+
+    for bag = 0, NUM_BAG_SLOTS do
+        local numSlots = GetContainerNumSlotsCompat(bag) or 0
+        for slot = 1, numSlots do
+            local info = GetContainerItemInfoCompat(bag, slot)
+            if info and info.isLocked then
+                return true
+            end
+        end
+    end
+
+    return false
+end
+
+local function GetActiveSpecGroup()
+    if GetActiveTalentGroup then
+        local ok, group = pcall(GetActiveTalentGroup)
+        if ok and type(group) == "number" and group > 0 then
+            return group
+        end
+    end
+
+    return 1
+end
+
+local function GetNumSpecGroups()
+    if GetNumTalentGroups then
+        local ok, numGroups = pcall(GetNumTalentGroups)
+        if ok and type(numGroups) == "number" and numGroups > 0 then
+            return numGroups
+        end
+    end
+
+    if MAX_TALENT_GROUPS and MAX_TALENT_GROUPS > 0 then
+        return MAX_TALENT_GROUPS
+    end
+
+    return GetActiveTalentGroup and 2 or 1
+end
+
+local function GetTalentTabInfoForGroup(tabIndex, group)
+    local ok, a, b, c, d, e
+
+    if group and GetActiveTalentGroup then
+        ok, a, b, c, d, e = pcall(GetTalentTabInfo, tabIndex, false, false, group)
+    end
+
+    if not ok then
+        ok, a, b, c, d, e = pcall(GetTalentTabInfo, tabIndex)
+    end
+
+    if not ok then
+        return nil, nil, nil
+    end
+
+    local name
+    if type(b) == "string" and b ~= "" then
+        name = b
+    elseif type(a) == "string" and a ~= "" then
+        name = a
+    end
+
+    local icon
+    if type(b) == "string" and (type(a) == "number" or type(a) == "string") then
+        icon = a
+    elseif type(d) == "number" or type(d) == "string" then
+        icon = d
+    elseif type(c) == "number" or type(c) == "string" then
+        icon = c
+    end
+
+    local points = tonumber(e) or tonumber(c)
+    if type(b) ~= "string" then
+        points = tonumber(c) or points
+    end
+
+    return name, icon, points
+end
+
+local function GetFallbackSpecIcon(specName, primaryTab)
+    local classIndex = CURRENT_CLASS or (ExtraStats and ExtraStats.GetCurrentClass and ExtraStats:GetCurrentClass())
+    local classIcons = classIndex and SPEC_ICON_TEXTURES_BY_CLASS[classIndex]
+
+    if classIcons and primaryTab and classIcons[primaryTab] then
+        return classIcons[primaryTab]
+    end
+
+    if specName and SPEC_ICON_TEXTURES_BY_NAME[specName] then
+        return SPEC_ICON_TEXTURES_BY_NAME[specName]
+    end
+
+    local role = classIndex and CLASS_TALENTS_ROLE[classIndex] and CLASS_TALENTS_ROLE[classIndex][primaryTab]
+
+    if role == CLASS_ROLE_TANK then
+        return "Interface\\Icons\\Ability_Warrior_DefensiveStance"
+    elseif role == CLASS_ROLE_HEALER then
+        return "Interface\\Icons\\Spell_Holy_Heal"
+    end
+
+    return "Interface\\Icons\\Ability_Rogue_Eviscerate"
+end
+
+local function GetPrimaryTalentTreeForGroup(group)
+    if TalentFrame_UpdateSpecInfoCache then
+        local cache = {}
+        local ok = pcall(TalentFrame_UpdateSpecInfoCache, cache, false, false, group)
+        if ok and cache.primaryTabIndex then
+            return cache.primaryTabIndex
+        end
+    end
+
+    local numTabs = GetNumTalentTabs and GetNumTalentTabs() or 0
+    local bestTab = nil
+    local bestPoints = -1
+
+    for tabIndex = 1, numTabs do
+        local _, _, points = GetTalentTabInfoForGroup(tabIndex, group)
+        points = tonumber(points) or 0
+        if points > bestPoints then
+            bestPoints = points
+            bestTab = tabIndex
+        end
+    end
+
+    if bestPoints <= 0 then
+        return nil
+    end
+
+    return bestTab
+end
+
+local function ScheduleProcessEquip(token, delay)
+    if not pendingEquip or pendingEquip.token ~= token then
+        return
+    end
+
+    if pendingEquip.scheduled then
+        return
+    end
+
+    pendingEquip.scheduled = true
+    C_Timer.After(delay or EQUIP_ACTION_DELAY, function()
+        if not pendingEquip or pendingEquip.token ~= token then
+            return
+        end
+
+        pendingEquip.scheduled = false
+        ProcessEquip(token)
+    end)
+end
 
 local function FinishEquip(success, errorMessage, token)
     if token and (not pendingEquip or pendingEquip.token ~= token) then
@@ -346,7 +599,9 @@ local function TryEquipSingleSlot(set, slotID)
         PickupContainerItemCompat(bag, bagSlot)
         EquipCursorItem(slotID)
         if CursorHasItem() then
-            ClearCursor()
+            if not PutCursorItemIntoBags() then
+                return false, false, ERR_EQUIPMENT_MANAGER_BAGS_FULL
+            end
         end
         return true, false
     end
@@ -356,7 +611,12 @@ local function TryEquipSingleSlot(set, slotID)
         PickupInventoryItem(equippedSourceSlot)
         EquipCursorItem(slotID)
         if CursorHasItem() then
-            ClearCursor()
+            EquipCursorItem(equippedSourceSlot)
+        end
+        if CursorHasItem() then
+            if not PutCursorItemIntoBags() then
+                return false, false, ERR_EQUIPMENT_MANAGER_BAGS_FULL
+            end
         end
         return true, false
     end
@@ -364,7 +624,7 @@ local function TryEquipSingleSlot(set, slotID)
     return false, false
 end
 
-local function ProcessEquip(token)
+function ProcessEquip(token)
     if not pendingEquip or pendingEquip.token ~= token then
         return
     end
@@ -380,9 +640,35 @@ local function ProcessEquip(token)
         return
     end
 
+    if CursorHasItem() then
+        if HasPendingItemLocks() then
+            ScheduleProcessEquip(token, EQUIP_LOCK_RETRY_DELAY)
+            return
+        end
+
+        if not PutCursorItemIntoBags() then
+            FinishEquip(false, ERR_EQUIPMENT_MANAGER_BAGS_FULL, token)
+            return
+        end
+
+        ScheduleProcessEquip(token, EQUIP_ACTION_DELAY)
+        return
+    end
+
+    if HasPendingItemLocks() then
+        pendingEquip.attempt = pendingEquip.attempt + 1
+        if pendingEquip.attempt >= pendingEquip.maxAttempts then
+            FinishEquip(false, nil, token)
+            return
+        end
+
+        ScheduleProcessEquip(token, EQUIP_LOCK_RETRY_DELAY)
+        return
+    end
+
     pendingEquip.attempt = pendingEquip.attempt + 1
 
-    local didAction = false
+    local actionCount = 0
     local blockedByLock = false
 
     for _, slotID in ipairs(SLOT_ORDER) do
@@ -398,11 +684,15 @@ local function ProcessEquip(token)
             end
 
             if changed then
-                didAction = true
-                break
+                actionCount = actionCount + 1
+                if actionCount >= EQUIP_ACTIONS_PER_PASS then
+                    break
+                end
             end
         end
     end
+
+    local didAction = actionCount > 0
 
     if not didAction and not blockedByLock then
         if IsSetFullyEquipped(set) then
@@ -418,9 +708,7 @@ local function ProcessEquip(token)
         return
     end
 
-    C_Timer.After(0.05, function()
-        ProcessEquip(token)
-    end)
+    ScheduleProcessEquip(token, didAction and EQUIP_ACTION_DELAY or EQUIP_LOCK_RETRY_DELAY)
 end
 
 function equipment:OnInitialize()
@@ -431,6 +719,30 @@ function equipment:OnInitialize()
     })
 
     self:ClearIgnoredSlotsForSave()
+end
+
+function equipment:OnEnable()
+    self:RegisterEvent("BAG_UPDATE_DELAYED", "EventHandler")
+    self:RegisterEvent("ITEM_LOCK_CHANGED", "EventHandler")
+    self:RegisterEvent("PLAYER_EQUIPMENT_CHANGED", "EventHandler")
+    self:RegisterEvent("ACTIVE_TALENT_GROUP_CHANGED", "EventHandler")
+end
+
+function equipment:OnDisable()
+    self:UnregisterEvent("BAG_UPDATE_DELAYED")
+    self:UnregisterEvent("ITEM_LOCK_CHANGED")
+    self:UnregisterEvent("PLAYER_EQUIPMENT_CHANGED")
+    self:UnregisterEvent("ACTIVE_TALENT_GROUP_CHANGED")
+end
+
+function equipment:EventHandler(event)
+    if pendingEquip then
+        ScheduleProcessEquip(pendingEquip.token, EQUIP_LOCK_RETRY_DELAY)
+    end
+
+    if event == "ACTIVE_TALENT_GROUP_CHANGED" then
+        self:EquipSetForActiveSpec()
+    end
 end
 
 function equipment:CreateEquipmentSet(name)
@@ -473,6 +785,23 @@ end
 
 function equipment:DeleteEquipmentSet(setId)
     table.remove(self.db.char.sets, setId)
+
+    if ExtraStats.db and ExtraStats.db.char and ExtraStats.db.char.sets then
+        local assignedSpecs = ExtraStats.db.char.sets
+        local shiftedSpecs = {}
+
+        for assignedSetID, specGroup in pairs(assignedSpecs) do
+            local numericSetID = tonumber(assignedSetID)
+            if numericSetID and numericSetID < setId then
+                shiftedSpecs[numericSetID] = specGroup
+            elseif numericSetID and numericSetID > setId then
+                shiftedSpecs[numericSetID - 1] = specGroup
+            end
+        end
+
+        ExtraStats.db.char.sets = shiftedSpecs
+    end
+
     ExtraStats:Trigger("gear.update")
 end
 
@@ -569,6 +898,10 @@ function equipment:UseEquipmentSet(id)
         return false
     end
 
+    if pendingEquip then
+        return false
+    end
+
     if InCombatLockdown() then
         UIErrorsFrame:AddMessage(ERR_CLIENT_LOCKED_OUT, 1.0, 0.1, 0.1, 1.0)
         return false
@@ -585,10 +918,16 @@ function equipment:UseEquipmentSet(id)
         token = equipToken,
         attempt = 0,
         maxAttempts = 120,
+        scheduled = false,
     }
 
+    ExtraStats:Trigger("gear.update")
     ProcessEquip(equipToken)
     return true
+end
+
+function equipment:IsEquipmentSwapActive()
+    return pendingEquip ~= nil
 end
 
 function equipment:GetNumEquipmentSets()
@@ -608,4 +947,103 @@ function equipment:GetEquipmentSetInfoByName(arg)
     end
 
     return self:GetEquipmentSetInfo(arg)
+end
+
+function equipment:GetSpecGroupCount()
+    return GetNumSpecGroups()
+end
+
+function equipment:GetSpecGroupInfo(group)
+    local primaryTab = GetPrimaryTalentTreeForGroup(group)
+    local name, icon
+
+    if primaryTab then
+        name, icon = GetTalentTabInfoForGroup(primaryTab, group)
+    end
+
+    local specName = name
+    icon = GetFallbackSpecIcon(specName, primaryTab) or icon
+
+    if name and name ~= "" then
+        name = string.format("Spec %d: %s", group, name)
+    else
+        name = string.format("Spec %d", group)
+    end
+
+    return name, icon, primaryTab, specName
+end
+
+function equipment:AssignSpecToEquipmentSet(setID, specGroup)
+    if not self.db.char.sets[setID] then
+        return
+    end
+
+    ExtraStats.db.char.sets = ExtraStats.db.char.sets or {}
+
+    for assignedSetID, assignedSpecGroup in pairs(ExtraStats.db.char.sets) do
+        if assignedSetID ~= setID and assignedSpecGroup == specGroup then
+            ExtraStats.db.char.sets[assignedSetID] = nil
+        end
+    end
+
+    ExtraStats.db.char.sets[setID] = specGroup
+    ExtraStats:Trigger("gear.update")
+end
+
+function equipment:GetEquipmentSetAssignedSpec(setID)
+    ExtraStats.db.char.sets = ExtraStats.db.char.sets or {}
+    return ExtraStats.db.char.sets[setID]
+end
+
+function equipment:UnassignSpecFromEquipmentSet(setID)
+    ExtraStats.db.char.sets = ExtraStats.db.char.sets or {}
+    ExtraStats.db.char.sets[setID] = nil
+    ExtraStats:Trigger("gear.update")
+end
+
+function equipment:GetEquipmentSetForSpec(specGroup)
+    ExtraStats.db.char.sets = ExtraStats.db.char.sets or {}
+
+    for setID, assignedSpecGroup in pairs(ExtraStats.db.char.sets) do
+        if assignedSpecGroup == specGroup and self.db.char.sets[setID] then
+            return setID
+        end
+    end
+
+    return nil
+end
+
+function equipment:EquipSetForActiveSpec()
+    pendingSpecEquipToken = pendingSpecEquipToken + 1
+    local token = pendingSpecEquipToken
+
+    C_Timer.After(0.5, function()
+        if token ~= pendingSpecEquipToken then
+            return
+        end
+
+        if InCombatLockdown() then
+            return
+        end
+
+        local specGroup = GetActiveSpecGroup()
+        if specGroup == lastAutoEquippedSpecGroup then
+            return
+        end
+
+        local setID = self:GetEquipmentSetForSpec(specGroup)
+        if not setID then
+            lastAutoEquippedSpecGroup = specGroup
+            return
+        end
+
+        local _, _, _, isEquipped = self:GetEquipmentSetInfo(setID)
+        if isEquipped then
+            lastAutoEquippedSpecGroup = specGroup
+            return
+        end
+
+        lastAutoEquippedSpecGroup = specGroup
+        self:UseEquipmentSet(setID)
+    end)
 end

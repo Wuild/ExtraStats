@@ -329,9 +329,10 @@ function ExtraStats_PaperDollEquipmentManagerPane_OnUpdate(self)
     end
     self.lastHoverUpdate = now
 
+    local isEquipInProgress = EquipmentSet:IsEquipmentSwapActive()
     for i = 1, #self.buttons do
         local button = self.buttons[i]
-        if button:IsShown() and button:IsMouseOver() and button.name then
+        if button:IsShown() and button:IsMouseOver() and button.name and not isEquipInProgress then
             button.DeleteButton:Show()
             button.EditButton:Show()
             button.HighlightBar:Show()
@@ -381,8 +382,9 @@ function ExtraStats_PaperDollEquipmentManagerPane_Update()
         selectedSetID = nil
     end
 
+    local isEquipInProgress = EquipmentSet:IsEquipmentSwapActive()
     local selectedSetName, _, _, isEquipped = EquipmentSet:GetEquipmentSetInfo(selectedSetID or 0)
-    if selectedSetID and selectedSetName then
+    if selectedSetID and selectedSetName and not isEquipInProgress then
         PaperDollEquipmentManagerPaneSaveSet:Enable()
         if isEquipped then
             PaperDollEquipmentManagerPaneEquipSet:Disable()
@@ -411,7 +413,6 @@ function ExtraStats_PaperDollEquipmentManagerPane_Update()
         local button = buttons[i]
         if row <= numRows then
             button:Show()
-            button:Enable()
             button.setID = nil
 
             if row <= numSets then
@@ -434,6 +435,13 @@ function ExtraStats_PaperDollEquipmentManagerPane_Update()
 
                 button.Check:SetShown(setEquipped == true)
                 button.SelectedBar:SetShown(button.setID == tab.frame.selectedSetID)
+                if isEquipInProgress then
+                    button:Disable()
+                    button.DeleteButton:Hide()
+                    button.EditButton:Hide()
+                else
+                    button:Enable()
+                end
             else
                 button.name = nil
                 button.iconTexture = nil
@@ -444,6 +452,11 @@ function ExtraStats_PaperDollEquipmentManagerPane_Update()
                 button.icon:SetPoint("LEFT", 7, 0)
                 button.Check:Hide()
                 button.SelectedBar:Hide()
+                if isEquipInProgress then
+                    button:Disable()
+                else
+                    button:Enable()
+                end
             end
 
             button.BgTop:Hide()
@@ -478,7 +491,22 @@ function ExtraStats_GearSetButton_OnEnter(self)
     end
 end
 
-function ExtraStats_GearSetButton_OnClick(self)
+function ExtraStats_GearSetButton_OnClick(self, button)
+    if button == "RightButton" and self.setID and self.EditButton and self.EditButton.Dropdown then
+        ExtraStats_GearManagerDialogPopup:Hide()
+        PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
+        SelectSetByID(self.setID)
+        ExtraStats_PaperDollEquipmentManagerPane_Update()
+
+        if self.EditButton.Dropdown.gearSetButton ~= self then
+            HideDropDownMenu(1)
+            self.EditButton.Dropdown.gearSetButton = self
+        end
+
+        ToggleDropDownMenu(1, nil, self.EditButton.Dropdown, self, 0, 0)
+        return
+    end
+
     if self.setID then
         ExtraStats_GearManagerDialogPopup:Hide()
         PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
@@ -767,13 +795,12 @@ function GearSetEditButton_OnLoad(self)
 end
 
 function GetPrimaryTalentTree(spec)
-    local cache = {}
-    TalentFrame_UpdateSpecInfoCache(cache, false, false, spec)
-    return cache.primaryTabIndex
+    return select(3, EquipmentSet:GetSpecGroupInfo(spec))
 end
 
 function GearSetEditButtonDropDown_Initialize(dropdownFrame)
     local gearSetButton = dropdownFrame.gearSetButton
+    local setID = gearSetButton and gearSetButton.setID
 
     local info = UIDropDownMenu_CreateInfo()
     info.text = EQUIPMENT_SET_EDIT
@@ -787,41 +814,70 @@ function GearSetEditButtonDropDown_Initialize(dropdownFrame)
         popup:Show()
     end
     UIDropDownMenu_AddButton(info, UIDROPDOWN_MENU_LEVEL)
+
+    if not setID then
+        return
+    end
+
+    local assignedSpec = EquipmentSet:GetEquipmentSetAssignedSpec(setID)
+    local specCount = EquipmentSet:GetSpecGroupCount()
+
+    for specGroup = 1, specCount do
+        local specLabel, _, _, specName = EquipmentSet:GetSpecGroupInfo(specGroup)
+        local assignInfo = UIDropDownMenu_CreateInfo()
+        if specName and specName ~= "" then
+            assignInfo.text = string.format("Auto equip for Spec %d (%s)", specGroup, specName)
+        else
+            assignInfo.text = string.format("Auto equip for %s", specLabel)
+        end
+        assignInfo.checked = assignedSpec == specGroup
+        assignInfo.func = function()
+            EquipmentSet:AssignSpecToEquipmentSet(setID, specGroup)
+            ExtraStats_PaperDollEquipmentManagerPane_Update()
+        end
+        UIDropDownMenu_AddButton(assignInfo, UIDROPDOWN_MENU_LEVEL)
+    end
+
+    if assignedSpec then
+        local clearInfo = UIDropDownMenu_CreateInfo()
+        clearInfo.text = "Clear auto equip spec"
+        clearInfo.notCheckable = true
+        clearInfo.func = function()
+            EquipmentSet:UnassignSpecFromEquipmentSet(setID)
+            ExtraStats_PaperDollEquipmentManagerPane_Update()
+        end
+        UIDropDownMenu_AddButton(clearInfo, UIDROPDOWN_MENU_LEVEL)
+    end
 end
 
 function AssignSpecToEquipmentSet(setID, specID)
-    ExtraStats.db.char.sets[setID] = specID
+    EquipmentSet:AssignSpecToEquipmentSet(setID, specID)
 end
 
 function GetEquipmentSetAssignedSpec(setID)
-    return ExtraStats.db.char.sets[setID]
+    return EquipmentSet:GetEquipmentSetAssignedSpec(setID)
 end
 
 function UnassignEquipmentSetSpec(setID)
-    ExtraStats.db.char.sets[setID] = nil
+    EquipmentSet:UnassignSpecFromEquipmentSet(setID)
 end
 
 function GetEquipmentSetForSpec(specID)
-    for setID, id in pairs(ExtraStats.db.char.sets) do
-        if id == specID then
-            return setID
-        end
-    end
-    return nil
+    return EquipmentSet:GetEquipmentSetForSpec(specID)
 end
 
-function GearSetButton_SetSpecInfo(self, specID)
-    if specID and specID > 0 then
+function GearSetButton_SetSpecInfo(self, specID, specName)
+    if specID and specID > 0 and specName and specName ~= "" then
         self.specID = specID
-        local _, texture = GetTalentTabInfo(specID)
-        SetPortraitToTexture(self.SpecIcon, texture)
-        self.SpecIcon:Show()
-        self.SpecRing:Show()
+        self.SpecText:SetText(specName)
+        self.SpecText:Show()
     else
         self.specID = nil
-        self.SpecIcon:Hide()
-        self.SpecRing:Hide()
+        self.SpecText:Hide()
     end
+
+    self.SpecIcon:Hide()
+    self.SpecRing:Hide()
 end
 
 function GearSetButton_UpdateSpecInfo(self)
@@ -830,14 +886,14 @@ function GearSetButton_UpdateSpecInfo(self)
         return
     end
 
-    local specIndex = GetEquipmentSetAssignedSpec(self.setID)
-    if not specIndex then
+    local specGroup = GetEquipmentSetAssignedSpec(self.setID)
+    if not specGroup then
         GearSetButton_SetSpecInfo(self, nil)
         return
     end
 
-    local specID = GetPrimaryTalentTree(specIndex)
-    GearSetButton_SetSpecInfo(self, specID)
+    local _, _, specID, specName = EquipmentSet:GetSpecGroupInfo(specGroup)
+    GearSetButton_SetSpecInfo(self, specID, specName)
 end
 
 function tab:init()
