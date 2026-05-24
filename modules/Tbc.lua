@@ -114,30 +114,35 @@ local function BuildHasteTooltipDetails(hastePercent, hasteRating, kindLabel)
 end
 
 local function ComputeAvoidanceTotals(unit)
-    local dodgeChance = GetDodgeChance() or 0
-    local parryChance = GetParryChance() or 0
-    local blockChance = GetBlockChance() or 0
-    local skillRank, skillModifier = UnitDefense(unit)
-    local defenseValue = max(0, (skillRank or 0) + (skillModifier or 0))
     local playerLevel = UnitLevel(unit)
-    local npcWeaponskill = playerLevel * 5
-    local bossWeaponskill = (playerLevel + 3) * 5
+    local skillRank, skillModifier = UnitDefense(unit)
+    local defense = max(0, skillRank + skillModifier)
 
-    local missChanceVsNpc = max(0, 5 + ((defenseValue - npcWeaponskill) * 0.04))
-    local missChanceVsBoss = max(0, 5 + ((defenseValue - bossWeaponskill) * 0.04))
+    local dodge = GetDodgeChance() or 0
+    local parry = GetParryChance() or 0
+    local block = GetBlockChance() or 0
 
-    local totalAvoidanceVsNpc = dodgeChance + parryChance + blockChance + missChanceVsNpc
-    local totalAvoidanceVsBoss = dodgeChance + parryChance + blockChance + missChanceVsBoss
+    local function GetMobMiss(enemyLevel)
+        local enemyWeaponSkill = enemyLevel * 5
+        return max(0, 5 + ((defense - enemyWeaponSkill) * 0.04))
+    end
+
+    local missVsNpc = GetMobMiss(playerLevel)
+    local missVsBoss = GetMobMiss(playerLevel + 3)
 
     return {
         playerLevel = playerLevel,
-        dodge = dodgeChance,
-        parry = parryChance,
-        block = blockChance,
-        missVsNpc = missChanceVsNpc,
-        missVsBoss = missChanceVsBoss,
-        totalVsNpc = totalAvoidanceVsNpc,
-        totalVsBoss = totalAvoidanceVsBoss,
+        defense = defense,
+
+        dodge = dodge,
+        parry = parry,
+        block = block,
+
+        missVsNpc = missVsNpc,
+        missVsBoss = missVsBoss,
+
+        totalVsNpc = dodge + parry + block + missVsNpc,
+        totalVsBoss = dodge + parry + block + missVsBoss,
     }
 end
 
@@ -623,7 +628,7 @@ Module.stats = {
                 value = critChance,
                 tooltip = HIGHLIGHT_FONT_COLOR_CODE .. format(PAPERDOLLFRAME_TOOLTIP_FORMAT, MELEE_CRIT_CHANCE) .. " " .. critChance .. FONT_COLOR_CODE_CLOSE,
                 tooltip2 = format(CR_CRIT_MELEE_TOOLTIP or "Crit from rating: %d (%.2f%%)", GetCombatRating(CR_CRIT_MELEE_RATING) or 0, GetCombatRatingBonus(CR_CRIT_MELEE_RATING) or 0)
-                    .. "\n" .. BuildCritTooltipDetails(crit, CR_CRIT_MELEE_RATING)
+                        .. "\n" .. BuildCritTooltipDetails(crit, CR_CRIT_MELEE_RATING)
             }
         end,
         HitChance = function()
@@ -663,8 +668,8 @@ Module.stats = {
             ohExpertiseRaw = ratingExpertise + ohBonusExpertise
 
             tooltip2 = tooltip2
-                .. "\n" .. format("From Rating: %.2F Expertise", ratingExpertise)
-                .. "\n" .. format("From Bonuses/Buffs: %.2F Expertise", mhBonusExpertise)
+                    .. "\n" .. format("From Rating: %.2F Expertise", ratingExpertise)
+                    .. "\n" .. format("From Bonuses/Buffs: %.2F Expertise", mhBonusExpertise)
 
             if math.abs(ohBonusExpertise - mhBonusExpertise) > 0.005 then
                 tooltip2 = tooltip2 .. "\n" .. format("From Bonuses/Buffs (OH): %.2F Expertise", ohBonusExpertise)
@@ -675,12 +680,12 @@ Module.stats = {
                 local offhandPercent = ohExpertiseRaw * 0.25
                 if math.abs(mainhandPercent - offhandPercent) > 0.005 then
                     tooltip2 = tooltip2
-                        .. "\n" .. format("Reduces Dodge by %.2F%% (Main Hand)", mainhandPercent)
-                        .. "\n" .. format("Reduces Parry by %.2F%% (Off Hand)", offhandPercent)
+                            .. "\n" .. format("Reduces Dodge by %.2F%% (Main Hand)", mainhandPercent)
+                            .. "\n" .. format("Reduces Parry by %.2F%% (Off Hand)", offhandPercent)
                 else
                     tooltip2 = tooltip2
-                        .. "\n" .. format("Reduces Dodge by %.2F%%", mainhandPercent)
-                        .. "\n" .. format("Reduces Parry by %.2F%%", mainhandPercent)
+                            .. "\n" .. format("Reduces Dodge by %.2F%%", mainhandPercent)
+                            .. "\n" .. format("Reduces Parry by %.2F%%", mainhandPercent)
                 end
             end
 
@@ -1041,76 +1046,149 @@ Module.stats = {
     defense = {
         Armor = function(unit)
             local base, effectiveArmor, armor, posBuff, negBuff = UnitArmor(unit);
+
             if (unit ~= "player") then
-                --[[ In 1.12.0, UnitArmor didn't report positive / negative buffs for units that weren't the active player.
-                     This hack replicates that behavior for the UI. ]]
+                -- Replicate old UI behavior
                 base = effectiveArmor;
                 armor = effectiveArmor;
                 posBuff = 0;
                 negBuff = 0;
             end
 
-            local playerLevel = UnitLevel(unit);
-            local armorReduction = effectiveArmor / ((85 * playerLevel) + 400);
-            armorReduction = 100 * (armorReduction / (armorReduction + 1));
+            local level = UnitLevel(unit);
+            local valueNum = max(0, base + posBuff + negBuff);
+
+            local armorReduction = 0;
+
+            if level and level > 0 then
+                local denominator;
+
+                if level < 60 then
+                    denominator = (85 * level) + effectiveArmor + 400;
+                else
+                    denominator = (467.5 * level) + effectiveArmor - 22167.5;
+                end
+
+                if denominator > 0 then
+                    armorReduction = (effectiveArmor / denominator) * 100;
+                end
+                armorReduction = min(75, max(0, armorReduction));
+            end
 
             local _, tooltipText = FormatStat(ARMOR, base, posBuff, negBuff);
-            local valueNum = max(0, base + posBuff + negBuff);
 
             return {
                 value = valueNum,
                 tooltip = tooltipText,
-                tooltip2 = format(ARMOR_TOOLTIP, playerLevel, armorReduction);
+                tooltip2 = format(ARMOR_TOOLTIP, level, armorReduction);
             };
         end,
         Defense = function(unit)
-            local skillRank, skillModifier = UnitDefense(unit);
-            local playerLevel = UnitLevel(unit);
+            local skillRank, skillModifier = UnitDefense(unit)
+            local playerLevel = UnitLevel(unit)
 
-            local posBuff = 0;
-            local negBuff = 0;
-            if (skillModifier > 0) then
-                posBuff = skillModifier;
-            elseif (skillModifier < 0) then
-                negBuff = skillModifier;
-            end
-            local _, defenseText = FormatStat(DEFENSE_COLON, skillRank, posBuff, negBuff);
-            local valueNum = max(0, skillRank + posBuff + negBuff);
+            local posBuff = 0
+            local negBuff = 0
 
-            local npcWeaponskill = playerLevel * 5; -- same level as player
-            local bossWeaponskill = (playerLevel + 3) * 5;
-            local dodgeChance = GetDodgeChance() or 0;
-            local parryChance = GetParryChance() or 0;
-            local blockChance = GetBlockChance() or 0;
-            local missChanceVsNpc = max(0, 5 + ((valueNum - npcWeaponskill) * 0.04));
-            local missChanceVsBoss = max(0, 5 + ((valueNum - bossWeaponskill) * 0.04));
-            local totalAvoidanceVsNpc = dodgeChance + parryChance + blockChance + missChanceVsNpc;
-            local totalAvoidanceVsBoss = dodgeChance + parryChance + blockChance + missChanceVsBoss;
-            local defenseCritReductionVsNpc = math.max(0, valueNum - npcWeaponskill) * 0.04;
-            local defenseCritReductionVsBoss = math.max(0, valueNum - bossWeaponskill) * 0.04;
-            local resilienceCritReduction = GetCombatRatingBonus(CR_CRIT_TAKEN_MELEE_RATING) or 0;
-            if resilienceCritReduction <= 0 then
-                resilienceCritReduction = GetCombatRatingBonus(CR_CRIT_TAKEN_RANGED_RATING) or 0;
+            if skillModifier > 0 then
+                posBuff = skillModifier
+            elseif skillModifier < 0 then
+                negBuff = skillModifier
             end
+
+            local valueNum = max(0, skillRank + posBuff + negBuff)
+            local _, defenseText = FormatStat(DEFENSE_COLON, skillRank, posBuff, negBuff)
+
+            local npcLevel = playerLevel
+            local bossLevel = playerLevel + 3
+
+            local baseDefense = playerLevel * 5
+            local npcWeaponskill = npcLevel * 5
+            local bossWeaponskill = bossLevel * 5
+
+            local dodgeChance = GetDodgeChance() or 0
+            local parryChance = GetParryChance() or 0
+            local blockChance = GetBlockChance() or 0
+
+            local resilienceCritReduction = GetCombatRatingBonus(CR_CRIT_TAKEN_MELEE_RATING) or 0
+
             if resilienceCritReduction <= 0 then
-                resilienceCritReduction = GetCombatRatingBonus(CR_CRIT_TAKEN_SPELL_RATING) or 0;
+                resilienceCritReduction = GetCombatRatingBonus(CR_CRIT_TAKEN_RANGED_RATING) or 0
             end
-            local totalDefenseVsNpc = defenseCritReductionVsNpc + resilienceCritReduction;
-            local totalDefenseVsBoss = defenseCritReductionVsBoss + resilienceCritReduction;
+
+            if resilienceCritReduction <= 0 then
+                resilienceCritReduction = GetCombatRatingBonus(CR_CRIT_TAKEN_SPELL_RATING) or 0
+            end
+
+            local defenseEffectVsNpc = math.max(0, valueNum - npcWeaponskill) * 0.04
+            local defenseEffectVsBoss = math.max(0, valueNum - bossWeaponskill) * 0.04
+            local totalDefenseVsNpc = defenseEffectVsNpc + resilienceCritReduction
+            local totalDefenseVsBoss = defenseEffectVsBoss + resilienceCritReduction
+
+            local missChanceVsNpc =
+            5 + (math.max(0, valueNum - npcWeaponskill) * 0.04)
+
+            local missChanceVsBoss =
+            5 + (math.max(0, valueNum - bossWeaponskill) * 0.04)
+
+            -- Total avoidance
+            local totalAvoidanceVsNpc =
+            dodgeChance +
+                    parryChance +
+                    blockChance +
+                    missChanceVsNpc
+
+            local totalAvoidanceVsBoss =
+            dodgeChance +
+                    parryChance +
+                    blockChance +
+                    missChanceVsBoss
 
             local tooltip = "Increases chance to Dodge, Block and Parry.\nDecreases chance to be hit and critically hit."
             tooltip = tooltip .. " \n";
             tooltip = tooltip .. "Effect vs. \n";
-            tooltip = tooltip .. format(SYMBOL_TAB .. "Level " .. playerLevel .. " NPC: %.2F%%", math.max(0, skillRank + skillModifier - npcWeaponskill) * 0.04) .. "\n";
-            tooltip = tooltip .. format(SYMBOL_TAB .. "Level " .. (playerLevel + 3) .. " NPC/Boss: %.2F%%", math.max(0, skillRank + skillModifier - bossWeaponskill) * 0.04) .. "\n";
+
+            tooltip = tooltip ..
+                    format(
+                            SYMBOL_TAB .. "Level " .. playerLevel .. " NPC: %.2F%%",
+                            defenseEffectVsNpc
+                    ) .. "\n";
+
+            tooltip = tooltip ..
+                    format(
+                            SYMBOL_TAB .. "Level " .. (playerLevel + 3) .. " NPC/Boss: %.2F%%",
+                            defenseEffectVsBoss
+                    ) .. "\n";
+
             tooltip = tooltip .. " \n";
             tooltip = tooltip .. "Total defense (Defense + Resilience): \n";
-            tooltip = tooltip .. format(SYMBOL_TAB .. "Level " .. playerLevel .. " NPC: %.2F%%", totalDefenseVsNpc) .. "\n";
-            tooltip = tooltip .. format(SYMBOL_TAB .. "Level " .. (playerLevel + 3) .. " NPC/Boss: %.2F%%", totalDefenseVsBoss) .. "\n";
+
+            tooltip = tooltip ..
+                    format(
+                            SYMBOL_TAB .. "Level " .. playerLevel .. " NPC: %.2F%%",
+                            totalDefenseVsNpc
+                    ) .. "\n";
+
+            tooltip = tooltip ..
+                    format(
+                            SYMBOL_TAB .. "Level " .. (playerLevel + 3) .. " NPC/Boss: %.2F%%",
+                            totalDefenseVsBoss
+                    ) .. "\n";
+
             tooltip = tooltip .. " \n";
             tooltip = tooltip .. "Total avoidance (Dodge + Parry + Block + Miss): \n";
-            tooltip = tooltip .. format(SYMBOL_TAB .. "Level " .. playerLevel .. " NPC: %.2F%%", totalAvoidanceVsNpc) .. "\n";
-            tooltip = tooltip .. format(SYMBOL_TAB .. "Level " .. (playerLevel + 3) .. " NPC/Boss: %.2F%%", totalAvoidanceVsBoss) .. "\n";
+
+            tooltip = tooltip ..
+                    format(
+                            SYMBOL_TAB .. "Level " .. playerLevel .. " NPC: %.2F%%",
+                            totalAvoidanceVsNpc
+                    ) .. "\n";
+
+            tooltip = tooltip ..
+                    format(
+                            SYMBOL_TAB .. "Level " .. (playerLevel + 3) .. " NPC/Boss: %.2F%%",
+                            totalAvoidanceVsBoss
+                    ) .. "\n";
 
             return {
                 value = valueNum,
@@ -1162,8 +1240,8 @@ Module.stats = {
             local tooltip = BLOCK_CHANCE .. ": " .. string.format("%.2F", blockChance) .. "%\n";
             tooltip = tooltip .. ITEM_MOD_BLOCK_VALUE_SHORT .. ": " .. blockValue
             tooltip = tooltip
-                .. "\n" .. format("%s %d", RATING_LABEL, (GetCombatRating and GetCombatRating(CR_BLOCK_RATING)) or 0)
-                .. "\n" .. format("From Rating: %.2F%%", (GetCombatRatingBonus and GetCombatRatingBonus(CR_BLOCK_RATING)) or 0)
+                    .. "\n" .. format("%s %d", RATING_LABEL, (GetCombatRating and GetCombatRating(CR_BLOCK_RATING)) or 0)
+                    .. "\n" .. format("From Rating: %.2F%%", (GetCombatRatingBonus and GetCombatRatingBonus(CR_BLOCK_RATING)) or 0)
 
             return {
                 value = string.format("%.2F", blockChance) .. "%",
