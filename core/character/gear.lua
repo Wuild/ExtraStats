@@ -743,7 +743,6 @@ function ExtraStats_GearManagerDialogPopupOkay_OnClick()
 
         local oldName = select(1, EquipmentSet:GetEquipmentSetInfo(setID))
         EquipmentSet:ModifyEquipmentSet(setID, name, icon)
-        EquipmentSet:SaveEquipmentSet(setID)
         RenameEquipMacros(oldName, name, icon)
         UpdateEquipMacros(name, icon)
         SelectSetByID(setID)
