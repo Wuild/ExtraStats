@@ -7,6 +7,8 @@ SPELL_HIT_SUBTOOLTIP_TXT = "Spell Hit chance (Gear + Talents):";
 ARCANE_SPELL_HIT_TXT = "Arcane Spell Hit";
 FIRE_SPELL_HIT_TXT = "Fire Spell Hit";
 FROST_SPELL_HIT_TXT = "Frost Spell Hit";
+NATURE_SPELL_HIT_TXT = "Nature Spell Hit";
+SHADOW_SPELL_HIT_TXT = "Shadow Spell Hit";
 DESTRUCTION_SPELL_HIT_TXT = "Destruction Spell Hit";
 AFFLICTION_SPELL_HIT_TXT = "Affliction Spell Hit";
 LIGHTNING_TXT = "Lightning";
@@ -73,11 +75,119 @@ local RATING_LABEL = RATING_COLON or STAT_RATING or "Rating:"
 -- 1 expertise point = 0.25% dodge/parry reduction
 local EXPERTISE_RATING_PER_POINT = 3.9423
 
-local function BuildHitTooltipDetails(totalHit, fromRating, fromModifier, ratingValue)
+local EnchantMp5 = {
+    [2381] = 10, -- Enchant Chest - Greater Mana Restoration
+    [2565] = 4, -- Enchant Bracer - Mana Regeneration
+    [2624] = 4, -- Minor Mana Oil
+    [2625] = 8, -- Lesser Mana Oil
+    [2629] = 12, -- Brilliant Mana Oil
+    [2656] = 4, -- Enchant Boots - Vitality
+    [2677] = 14, -- Superior Mana Oil
+    [2679] = 6, -- Enchant Bracer - Restore Mana Prime
+    [2715] = 4, -- Resilience of the Scourge
+    [2980] = 4, -- Greater Inscription of Faith
+    [2992] = 5, -- Inscription of the Oracle
+    [2993] = 6, -- Greater Inscription of the Oracle
+    [3001] = 7, -- Glyph of Renewal
+    [3150] = 6, -- Enchant Chest - Restore Mana Prime
+    [3244] = 7, -- Enchant Boots - Greater Vitality
+    [3298] = 19, -- Exceptional Mana Oil
+}
+
+local GemMp5 = {
+    [23106] = 2, -- Dazzling Deep Peridot
+    [23109] = 2, -- Royal Shadow Draenite
+    [23121] = 3, -- Lustrous Azure Moonstone
+    [24037] = 4, -- Lustrous Star of Elune
+    [24057] = 2, -- Royal Nightseye
+    [24065] = 2, -- Dazzling Talasite
+    [28465] = 2, -- Lustrous Zircon
+    [30550] = 2, -- Sundered Chrysoprase
+    [30560] = 2, -- Rune Covered Chrysoprase
+    [30589] = 2, -- Dazzling Chrysoprase
+    [30594] = 2, -- Effulgent Chrysoprase
+    [30603] = 2, -- Royal Tanzanite
+    [30606] = 2, -- Lambent Chrysoprase
+    [31864] = 1, -- Infused Shadow Draenite
+    [31865] = 2, -- Infused Nightseye
+    [32202] = 5, -- Lustrous Empyrean Sapphire
+    [32214] = 3, -- Infused Shadowsong Amethyst
+    [32216] = 3, -- Royal Shadowsong Amethyst
+    [32225] = 3, -- Dazzling Seaspray Emerald
+}
+
+local Mp5SetItems = {
+    AUGURS_REGALIA = {
+        items = { [19609] = true, [19828] = true, [19829] = true, [19830] = true, [19956] = true },
+        pieces = 2,
+        mp5 = 4,
+        classId = INDEX_CLASS_SHAMAN,
+    },
+    BLOODSOUL_EMBRACE = {
+        items = { [19690] = true, [19691] = true, [19692] = true },
+        pieces = 3,
+        mp5 = 12,
+    },
+    FEL_IRON_CHAIN = {
+        items = { [23490] = true, [23491] = true, [23493] = true, [23494] = true },
+        pieces = 4,
+        mp5 = 8,
+    },
+    FREETHINKERS_ARMOR = {
+        items = { [19588] = true, [19825] = true, [19826] = true, [19827] = true, [19952] = true },
+        pieces = 2,
+        mp5 = 4,
+        classId = INDEX_CLASS_PALADIN,
+    },
+    GREEN_DRAGON_MAIL_2 = {
+        items = { [15045] = true, [15046] = true, [20296] = true },
+        pieces = 2,
+        mp5 = 3,
+    },
+    GREEN_DRAGON_MAIL_3 = {
+        items = { [15045] = true, [15046] = true, [20296] = true },
+        pieces = 3,
+        mp5 = 20,
+    },
+    HARUSPEXS_GARB = {
+        items = { [19613] = true, [19838] = true, [19839] = true, [19840] = true, [19955] = true },
+        pieces = 2,
+        mp5 = 4,
+        classId = INDEX_CLASS_DRUID,
+    },
+    STORMRAGE_RAIMENT = {
+        items = { [16897] = true, [16898] = true, [16899] = true, [16900] = true, [16901] = true, [16902] = true, [16903] = true, [16904] = true },
+        pieces = 3,
+        mp5 = 20,
+        classId = INDEX_CLASS_DRUID,
+    },
+    VESTMENTS_OF_TRANSCENDENCE = {
+        items = { [16919] = true, [16920] = true, [16921] = true, [16922] = true, [16923] = true, [16924] = true, [16925] = true, [16926] = true },
+        pieces = 3,
+        mp5 = 20,
+        classId = INDEX_CLASS_PRIEST,
+    },
+    WINDHAWK_ARMOR = {
+        items = { [29522] = true, [29523] = true, [29524] = true },
+        pieces = 3,
+        mp5 = 8,
+    },
+}
+
+local Mp5CastingModifierSetItems = {
+    PRIMAL_MOONCLOTH = {
+        items = { [21873] = true, [21874] = true, [21875] = true },
+        pieces = 3,
+        modifier = 0.05,
+    },
+}
+
+local function BuildHitTooltipDetails(totalHit, fromRating, fromModifier, ratingValue, fromTalents)
     return table.concat({
         format("%s %d", RATING_LABEL, ratingValue or 0),
         format("From Rating: %.2F%%", fromRating or 0),
         format("Other Bonuses: %.2F%%", fromModifier or 0),
+        format("Talent Bonuses: %.2F%%", fromTalents or 0),
         format("Total Hit: %.2F%%", totalHit or 0),
     }, "\n")
 end
@@ -240,38 +350,56 @@ local function SpellDamageFrame_OnEnter(self)
     GameTooltip:Show();
 end
 
-local function GetMP5ModifierFromTalents(unit)
-    local unitClassId = select(3, UnitClass(unit));
-    local spellRank = 0;
-
-    if unitClassId == INDEX_CLASS_PRIEST then
-        -- Meditation
-        spellRank = select(5, GetTalentInfo(1, 8));
-    elseif unitClassId == INDEX_CLASS_MAGE then
-        -- Arcane Meditation
-        spellRank = select(5, GetTalentInfo(1, 12));
-    elseif unitClassId == INDEX_CLASS_DRUID then
-        -- Reflection
-        spellRank = select(5, GetTalentInfo(3, 6));
+local function GetItemLinkEnchantAndGems(itemLink)
+    if not itemLink then
+        return nil, nil, nil, nil
     end
 
-    local modifier = spellRank * 0.05;
+    local _, enchant, gem1, gem2, gem3 = itemLink:match("item:(%d+):(%d*):(%d*):(%d*):(%d*)")
 
-    return modifier;
+    return tonumber(enchant), tonumber(gem1), tonumber(gem2), tonumber(gem3)
 end
 
-local function HasEnchant(unit, slotId, enchantId)
-    local itemLink = GetInventoryItemLink(unit, slotId);
-    if itemLink then
-        local enchant = itemLink:match("item:%d+:(%d*)");
-        if enchant then
-            if tonumber(enchant) == enchantId then
-                return true;
-            end
+local function IsSetBonusActive(setData, unitClassId)
+    if setData.classId and setData.classId ~= unitClassId then
+        return false
+    end
+
+    local equippedPieces = 0
+    for slotId = 1, 17 do
+        local itemId = GetInventoryItemID("player", slotId)
+        if itemId and setData.items[itemId] then
+            equippedPieces = equippedPieces + 1
         end
     end
 
-    return false;
+    return equippedPieces >= setData.pieces
+end
+
+local function GetMP5FromSetBonuses(unit)
+    local unitClassId = select(3, UnitClass(unit))
+    local mp5 = 0
+
+    for _, setData in pairs(Mp5SetItems) do
+        if IsSetBonusActive(setData, unitClassId) then
+            mp5 = mp5 + setData.mp5
+        end
+    end
+
+    return mp5
+end
+
+local function GetMP5CastingModifierFromSetBonuses(unit)
+    local unitClassId = select(3, UnitClass(unit))
+    local modifier = 0
+
+    for _, setData in pairs(Mp5CastingModifierSetItems) do
+        if IsSetBonusActive(setData, unitClassId) then
+            modifier = modifier + setData.modifier
+        end
+    end
+
+    return modifier
 end
 
 local function GetMP5FromGear(unit)
@@ -287,24 +415,18 @@ local function GetMP5FromGear(unit)
                     mp5 = mp5 + statMP5 + 1;
                 end
             end
+
+            local enchant, gem1, gem2, gem3 = GetItemLinkEnchantAndGems(itemLink)
+            mp5 = mp5 + (EnchantMp5[enchant] or 0)
+            mp5 = mp5 + (GemMp5[gem1] or 0)
+            mp5 = mp5 + (GemMp5[gem2] or 0)
+            mp5 = mp5 + (GemMp5[gem3] or 0)
         end
     end
 
-    if (HasEnchant(unit, INVSLOT_WRIST, 2565)) then
-        -- Mana Regen
-        mp5 = mp5 + 4;
-    end
-
-    if (HasEnchant(unit, INVSLOT_SHOULDER, 2715)) then
-        -- Resilience of the Scourge
-        mp5 = mp5 + 5;
-    end
-
     local tempMHEnchantId = select(4, GetWeaponEnchantInfo());
-    if (tempMHEnchantId == 2629) then
-        -- Brilliant Mana Oil
-        mp5 = mp5 + 12;
-    end
+    mp5 = mp5 + (EnchantMp5[tempMHEnchantId] or 0)
+    mp5 = mp5 + GetMP5FromSetBonuses(unit)
 
     return mp5;
 end
@@ -355,6 +477,102 @@ local function GetMP5FromAuras()
     return mp5FromAuras, mp5CombatModifier;
 end
 
+local function IsKnownSpell(spellId)
+    if C_SpellBook and C_SpellBook.IsSpellKnown then
+        return C_SpellBook.IsSpellKnown(spellId)
+    end
+
+    if IsSpellKnown then
+        return IsSpellKnown(spellId)
+    end
+
+    return false
+end
+
+local function GetActiveTalentSpell(talentSpells)
+    for rank = #talentSpells, 1, -1 do
+        if IsKnownSpell(talentSpells[rank]) then
+            return rank
+        end
+    end
+
+    return 0
+end
+
+local function GetActiveTalentRank(talentSpells, treeIndex, talentName)
+    local rank = GetActiveTalentSpell(talentSpells)
+    if rank > 0 then
+        return rank
+    end
+
+    if GetNumTalents and GetTalentInfo and treeIndex and talentName then
+        local numTalents = GetNumTalents(treeIndex) or 0
+        for talentIndex = 1, numTalents do
+            local name, _, _, _, talentRank = GetTalentInfo(treeIndex, talentIndex)
+            if name == talentName then
+                return talentRank or 0
+            end
+        end
+    end
+
+    return 0
+end
+
+local function GetMP5ModifierFromTalents(unit)
+    local unitClassId = select(3, UnitClass(unit))
+    local spellRank = 0
+
+    if unitClassId == INDEX_CLASS_PRIEST then
+        spellRank = GetActiveTalentRank({ 14521, 14776, 14777 }, 1, "Meditation")
+    elseif unitClassId == INDEX_CLASS_MAGE then
+        spellRank = GetActiveTalentRank({ 14521, 18463, 18464 }, 1, "Arcane Meditation")
+    elseif unitClassId == INDEX_CLASS_DRUID then
+        spellRank = GetActiveTalentRank({ 17106, 17107, 17108 }, 3, "Intensity")
+    end
+
+    return spellRank * 0.1
+end
+
+local function GetTbcSpellHitFromTalents(unit, apiSpellHitModifier)
+    local unitClassId = select(3, UnitClass(unit))
+    local apiHasGenericSpellHit = (apiSpellHitModifier or 0) > 0
+    local allSpellHit = 0
+    local hitBySchool = {}
+
+    if unitClassId == INDEX_CLASS_MAGE then
+        local arcaneFocus = GetActiveTalentRank({ 11222, 12839, 12840, 12841, 12842 }, 1, "Arcane Focus") * 2
+        local elementalPrecision = GetActiveTalentRank({ 29438, 29439, 29440 }, 3, "Elemental Precision")
+
+        hitBySchool.arcane = arcaneFocus
+        hitBySchool.fire = elementalPrecision
+        hitBySchool.frost = elementalPrecision
+    elseif unitClassId == INDEX_CLASS_PRIEST then
+        hitBySchool.shadow = GetActiveTalentRank({ 15260, 15327, 15328, 15329, 15330 }, 3, "Shadow Focus") * 2
+    elseif unitClassId == INDEX_CLASS_SHAMAN then
+        local elementalPrecision = GetActiveTalentRank({ 30672, 30673, 30674 }, 1, "Elemental Precision") * 2
+
+        hitBySchool.fire = elementalPrecision
+        hitBySchool.frost = elementalPrecision
+        hitBySchool.nature = elementalPrecision
+
+        if not apiHasGenericSpellHit then
+            allSpellHit = GetActiveTalentRank({ 16180, 16196, 16198 }, 3, "Nature's Guidance")
+        end
+    elseif unitClassId == INDEX_CLASS_PALADIN then
+        if not apiHasGenericSpellHit then
+            allSpellHit = GetActiveTalentRank({ 20189, 20192, 20193 }, 2, "Precision")
+        end
+    elseif unitClassId == INDEX_CLASS_WARLOCK then
+        hitBySchool.affliction = GetActiveTalentRank({ 18174, 18175, 18176, 18177, 18178 }, 1, "Suppression") * 2
+    elseif unitClassId == INDEX_CLASS_DRUID then
+        if not apiHasGenericSpellHit then
+            allSpellHit = GetActiveTalentRank({ 33592, 33596 }, 1, "Balance of Power") * 2
+        end
+    end
+
+    return allSpellHit, hitBySchool
+end
+
 local function CharacterManaRegenFrame_OnEnter(self)
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
     local title = MANA_REGEN;
@@ -377,7 +595,18 @@ local function SpellHitChanceFrame_OnEnter(self)
     GameTooltip:AddLine(" ");
     GameTooltip:AddDoubleLine("From Rating:", format("%.2F%%", self.hitFromRating or 0), NORMAL_FONT_COLOR.r, NORMAL_FONT_COLOR.g, NORMAL_FONT_COLOR.b, HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g, HIGHLIGHT_FONT_COLOR.b);
     GameTooltip:AddDoubleLine("Other Bonuses:", format("%.2F%%", self.hitFromModifier or 0), NORMAL_FONT_COLOR.r, NORMAL_FONT_COLOR.g, NORMAL_FONT_COLOR.b, HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g, HIGHLIGHT_FONT_COLOR.b);
+    GameTooltip:AddDoubleLine("Talent Bonuses:", format("%.2F%%", self.hitFromTalents or 0), NORMAL_FONT_COLOR.r, NORMAL_FONT_COLOR.g, NORMAL_FONT_COLOR.b, HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g, HIGHLIGHT_FONT_COLOR.b);
     GameTooltip:AddDoubleLine(RATING_LABEL, tostring(self.hitRating or 0), NORMAL_FONT_COLOR.r, NORMAL_FONT_COLOR.g, NORMAL_FONT_COLOR.b, HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g, HIGHLIGHT_FONT_COLOR.b);
+
+    if self.spellHitSchools and #self.spellHitSchools > 0 then
+        GameTooltip:AddLine(" ");
+        GameTooltip:AddLine(SPELL_HIT_SUBTOOLTIP_TXT);
+
+        for _, school in ipairs(self.spellHitSchools) do
+            GameTooltip:AddDoubleLine(SYMBOL_TAB .. school.label, format("%.2F%%", school.hit), NORMAL_FONT_COLOR.r, NORMAL_FONT_COLOR.g, NORMAL_FONT_COLOR.b, HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g, HIGHLIGHT_FONT_COLOR.b);
+        end
+    end
+
     GameTooltip:Show();
 end
 
@@ -943,6 +1172,7 @@ Module.stats = {
             casting = casting or 0;
             local mp5FromGear = GetMP5FromGear(unit);
             local mp5ModifierCasting = GetMP5ModifierFromTalents(unit);
+            mp5ModifierCasting = mp5ModifierCasting + GetMP5CastingModifierFromSetBonuses(unit)
 
             local mp5FromAuras, mp5CombatModifier = GetMP5FromAuras();
             if mp5CombatModifier > 0 then
@@ -1016,23 +1246,48 @@ Module.stats = {
             local hitFromRating = GetCombatRatingBonus(CR_HIT_SPELL_RATING) or 0
             local hitFromModifier = GetSpellHitModifier() or 0
             local hitRating = GetCombatRating(CR_HIT_SPELL_RATING) or 0
-            local hitChance = hitFromRating + hitFromModifier
             local unitClassId = select(3, UnitClass(unit));
+            local allTalentHit, hitBySchool = GetTbcSpellHitFromTalents(unit, hitFromModifier)
+            local hitChance = hitFromRating + hitFromModifier + allTalentHit
+            local highestHitChance = hitChance
+            local spellHitSchools = {}
+
+            if unitClassId == INDEX_CLASS_MAGE then
+                table.insert(spellHitSchools, { label = ARCANE_SPELL_HIT_TXT, hit = hitChance + (hitBySchool.arcane or 0) })
+                table.insert(spellHitSchools, { label = FIRE_SPELL_HIT_TXT, hit = hitChance + (hitBySchool.fire or 0) })
+                table.insert(spellHitSchools, { label = FROST_SPELL_HIT_TXT, hit = hitChance + (hitBySchool.frost or 0) })
+            elseif unitClassId == INDEX_CLASS_PRIEST then
+                table.insert(spellHitSchools, { label = SHADOW_SPELL_HIT_TXT, hit = hitChance + (hitBySchool.shadow or 0) })
+            elseif unitClassId == INDEX_CLASS_SHAMAN then
+                table.insert(spellHitSchools, { label = FIRE_SPELL_HIT_TXT, hit = hitChance + (hitBySchool.fire or 0) })
+                table.insert(spellHitSchools, { label = FROST_SPELL_HIT_TXT, hit = hitChance + (hitBySchool.frost or 0) })
+                table.insert(spellHitSchools, { label = NATURE_SPELL_HIT_TXT, hit = hitChance + (hitBySchool.nature or 0) })
+            elseif unitClassId == INDEX_CLASS_WARLOCK then
+                table.insert(spellHitSchools, { label = AFFLICTION_SPELL_HIT_TXT, hit = hitChance + (hitBySchool.affliction or 0) })
+                table.insert(spellHitSchools, { label = DESTRUCTION_SPELL_HIT_TXT, hit = hitChance })
+            end
+
+            for _, school in ipairs(spellHitSchools) do
+                highestHitChance = max(highestHitChance, school.hit)
+            end
+            local highestTalentHit = highestHitChance - hitFromRating - hitFromModifier
 
             return {
-                value = format("%.2F%%", hitChance),
-                hitChance = hitChance,
+                value = format("%.2F%%", highestHitChance),
+                hitChance = highestHitChance,
                 hitFromRating = hitFromRating,
                 hitFromModifier = hitFromModifier,
+                hitFromTalents = highestTalentHit,
                 hitRating = hitRating,
                 unitClassId = unitClassId,
-                tooltip = STAT_HIT_CHANCE .. ": " .. format("%.2F%%", hitChance),
-                tooltip2 = BuildHitTooltipDetails(hitChance, hitFromRating, hitFromModifier, hitRating),
+                spellHitSchools = spellHitSchools,
+                tooltip = STAT_HIT_CHANCE .. ": " .. format("%.2F%%", highestHitChance),
+                tooltip2 = BuildHitTooltipDetails(highestHitChance, hitFromRating, hitFromModifier, hitRating, highestTalentHit),
                 onEnter = SpellHitChanceFrame_OnEnter
             }
         end,
         Haste = function()
-            local hastePercent = GetCombatRatingBonus(CR_HASTE_SPELL_RATING) or 0
+            local hastePercent = (GetHaste and GetHaste()) or GetCombatRatingBonus(CR_HASTE_SPELL_RATING) or 0
             local hasteRating = GetCombatRating(CR_HASTE_SPELL_RATING) or 0
 
             return {
