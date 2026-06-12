@@ -17,6 +17,9 @@ local DEFAULT_ICON = 134400
 local ShowGearSetTooltip
 local HideGearSetTooltip
 local HookNativeGearSetButtonTooltips
+local EnsureGearSetButtonTooltipScripts
+local IsFrameUnderCursor
+local GetGearSetButtonFromMouseFocus
 
 local itemSlotButtons = {
     CharacterHeadSlot,
@@ -272,6 +275,9 @@ function ExtraStats_PaperDollEquipmentManagerPane_OnLoad(self)
     HybridScrollFrame_OnLoad(self)
     self.update = ExtraStats_PaperDollEquipmentManagerPane_Update
     HybridScrollFrame_CreateButtons(self, "ExtraGearSetButtonTemplate", 2, -(self.EquipSet:GetHeight() + 4))
+    for _, button in ipairs(self.buttons or {}) do
+        EnsureGearSetButtonTooltipScripts(button)
+    end
 
     self:RegisterEvent("EQUIPMENT_SWAP_FINISHED")
     self:RegisterEvent("EQUIPMENT_SETS_CHANGED")
@@ -334,10 +340,17 @@ function ExtraStats_PaperDollEquipmentManagerPane_OnUpdate(self)
     self.lastHoverUpdate = now
 
     local isEquipInProgress = EquipmentSet:IsEquipmentSwapActive()
-    local hoveredSetButton = nil
+    local hoveredSetButton = GetGearSetButtonFromMouseFocus(self)
     for i = 1, #self.buttons do
         local button = self.buttons[i]
-        if button:IsShown() and button:IsMouseOver() and button.name and not isEquipInProgress then
+        if button:IsShown() and button.name and IsFrameUnderCursor(button) then
+            hoveredSetButton = button
+        end
+    end
+
+    for i = 1, #self.buttons do
+        local button = self.buttons[i]
+        if button == hoveredSetButton and button.name and not isEquipInProgress then
             hoveredSetButton = button
             button.DeleteButton:Show()
             button.EditButton:Show()
@@ -354,7 +367,7 @@ function ExtraStats_PaperDollEquipmentManagerPane_OnUpdate(self)
         self.hoveredSetButton = hoveredSetButton
     end
 
-    if hoveredSetButton and not hoveredSetButton.DeleteButton:IsMouseOver() and not hoveredSetButton.EditButton:IsMouseOver() then
+    if hoveredSetButton and hoveredSetButton.name and not IsFrameUnderCursor(hoveredSetButton.DeleteButton) and not IsFrameUnderCursor(hoveredSetButton.EditButton) then
         ShowGearSetTooltip(hoveredSetButton)
     end
 end
@@ -384,6 +397,70 @@ function ExtraStats_PaperDollEquipmentManagerPaneSaveSet_OnClick()
     if dialog then
         dialog.data = setID
     end
+end
+
+EnsureGearSetButtonTooltipScripts = function(button)
+    if not button then
+        return
+    end
+
+    local parent = button:GetParent()
+    if parent and parent.GetFrameLevel and button.SetFrameLevel then
+        button:SetFrameLevel((parent:GetFrameLevel() or 0) + 2)
+    end
+    if button.SetHitRectInsets then
+        button:SetHitRectInsets(0, 0, 0, 0)
+    end
+    button:EnableMouse(true)
+    button:SetScript("OnEnter", function(self)
+        ShowGearSetTooltip(self)
+    end)
+    button:SetScript("OnLeave", function(self)
+        HideGearSetTooltip(self)
+    end)
+end
+
+IsFrameUnderCursor = function(frame)
+    if not frame or not frame.GetRect or not frame:IsShown() then
+        return false
+    end
+
+    if frame.IsMouseOver and frame:IsMouseOver() then
+        return true
+    end
+
+    local left, bottom, width, height = frame:GetRect()
+    if not left or not bottom or not width or not height then
+        return false
+    end
+
+    local cursorX, cursorY = GetCursorPosition()
+    local scale = frame:GetEffectiveScale() or UIParent:GetEffectiveScale() or 1
+    cursorX = cursorX / scale
+    cursorY = cursorY / scale
+
+    return cursorX >= left and cursorX <= (left + width) and cursorY >= bottom and cursorY <= (bottom + height)
+end
+
+GetGearSetButtonFromMouseFocus = function(frame)
+    if not frame or not GetMouseFocus then
+        return nil
+    end
+
+    local focus = GetMouseFocus()
+    local depth = 0
+    while focus and depth < 8 do
+        for i = 1, #(frame.buttons or {}) do
+            local button = frame.buttons[i]
+            if focus == button then
+                return button
+            end
+        end
+        focus = focus.GetParent and focus:GetParent()
+        depth = depth + 1
+    end
+
+    return nil
 end
 
 function ExtraStats_PaperDollEquipmentManagerPane_Update()
@@ -427,6 +504,7 @@ function ExtraStats_PaperDollEquipmentManagerPane_Update()
         local row = i + scrollOffset
         local button = buttons[i]
         if row <= numRows then
+            EnsureGearSetButtonTooltipScripts(button)
             button:Show()
             button.setID = nil
 
@@ -513,11 +591,20 @@ ShowGearSetTooltip = function(button)
     end
 
     local setID = button.setID or EquipmentSet:GetEquipmentSetID(setName)
+    local _, _, _, isEquipped, numLost = EquipmentSet:GetEquipmentSetInfo(setID or 0)
 
     GameTooltip:SetOwner(button, "ANCHOR_RIGHT")
     GameTooltip:ClearLines()
     GameTooltip:SetText(setName, HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g, HIGHLIGHT_FONT_COLOR.b)
     if setID then
+        if isEquipped then
+            GameTooltip:AddLine(EQUIPPED or "Equipped", GREEN_FONT_COLOR.r, GREEN_FONT_COLOR.g, GREEN_FONT_COLOR.b)
+        elseif (numLost or 0) > 0 then
+            GameTooltip:AddLine((numLost == 1 and "1 missing item" or tostring(numLost) .. " missing items"), RED_FONT_COLOR.r, RED_FONT_COLOR.g, RED_FONT_COLOR.b)
+        else
+            GameTooltip:AddLine(EQUIPSET_EQUIP or "Equip Set", NORMAL_FONT_COLOR.r, NORMAL_FONT_COLOR.g, NORMAL_FONT_COLOR.b)
+        end
+
         local missingItems = EquipmentSet:GetMissingEquipmentSetItems(setID)
         if #missingItems > 0 then
             GameTooltip:AddLine(" ")

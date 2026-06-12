@@ -463,6 +463,7 @@ local EQUIP_LOCK_RETRY_DELAY = 0.07
 local ProcessEquip
 local pendingSpecEquipToken = 0
 local lastAutoEquippedSpecGroup
+local MISSING_ITEMS_ERROR = ERR_EQUIPMENT_MANAGER_MISSING_ITEMS or "Equipment swap failed, one or more items are missing."
 
 local SPEC_ICON_TEXTURES_BY_CLASS = {
     [INDEX_CLASS_WARRIOR] = {
@@ -949,7 +950,7 @@ function ProcessEquip(token)
         if IsSetFullyEquipped(set) then
             FinishEquip(true, nil, token)
         else
-            FinishEquip(false, ERR_EQUIPMENT_MANAGER_MISSING_ITEMS or ERR_EQUIPMENT_MANAGER_BAGS_FULL, token)
+            FinishEquip(false, MISSING_ITEMS_ERROR, token)
         end
         return
     end
