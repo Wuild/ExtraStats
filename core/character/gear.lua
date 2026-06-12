@@ -14,6 +14,9 @@ GEARSET_ICON_ROW_HEIGHT = 36
 
 local STRIPE_COLOR = { r = 0.9, g = 0.9, b = 1 }
 local DEFAULT_ICON = 134400
+local ShowGearSetTooltip
+local HideGearSetTooltip
+local HookNativeGearSetButtonTooltips
 
 local itemSlotButtons = {
     CharacterHeadSlot,
@@ -265,6 +268,7 @@ StaticPopupDialogs["ExtraStats_CONFIRM_OVERWRITE_EQUIPMENT_SET"] = {
 }
 
 function ExtraStats_PaperDollEquipmentManagerPane_OnLoad(self)
+    HookNativeGearSetButtonTooltips()
     HybridScrollFrame_OnLoad(self)
     self.update = ExtraStats_PaperDollEquipmentManagerPane_Update
     HybridScrollFrame_CreateButtons(self, "ExtraGearSetButtonTemplate", 2, -(self.EquipSet:GetHeight() + 4))
@@ -330,9 +334,11 @@ function ExtraStats_PaperDollEquipmentManagerPane_OnUpdate(self)
     self.lastHoverUpdate = now
 
     local isEquipInProgress = EquipmentSet:IsEquipmentSwapActive()
+    local hoveredSetButton = nil
     for i = 1, #self.buttons do
         local button = self.buttons[i]
         if button:IsShown() and button:IsMouseOver() and button.name and not isEquipInProgress then
+            hoveredSetButton = button
             button.DeleteButton:Show()
             button.EditButton:Show()
             button.HighlightBar:Show()
@@ -341,6 +347,15 @@ function ExtraStats_PaperDollEquipmentManagerPane_OnUpdate(self)
             button.EditButton:Hide()
             button.HighlightBar:Hide()
         end
+    end
+
+    if hoveredSetButton ~= self.hoveredSetButton then
+        HideGearSetTooltip(self.hoveredSetButton)
+        self.hoveredSetButton = hoveredSetButton
+    end
+
+    if hoveredSetButton and not hoveredSetButton.DeleteButton:IsMouseOver() and not hoveredSetButton.EditButton:IsMouseOver() then
+        ShowGearSetTooltip(hoveredSetButton)
     end
 end
 
@@ -484,11 +499,74 @@ function ExtraStats_GetEquipmentSetInfoByName(arg)
     return EquipmentSet:GetEquipmentSetInfoByName(arg)
 end
 
-function ExtraStats_GearSetButton_OnEnter(self)
-    if self.name and self.name ~= "" then
-        GameTooltip_SetDefaultAnchor(GameTooltip, self)
-        GameTooltip:SetEquipmentSet(self.name)
+ShowGearSetTooltip = function(button)
+    if not button then
+        return
     end
+
+    local setName = button.name
+    if (not setName or setName == "") and button.setID then
+        setName = select(1, EquipmentSet:GetEquipmentSetInfo(button.setID))
+    end
+    if not setName or setName == "" then
+        return
+    end
+
+    local setID = button.setID or EquipmentSet:GetEquipmentSetID(setName)
+
+    GameTooltip:SetOwner(button, "ANCHOR_RIGHT")
+    GameTooltip:ClearLines()
+    GameTooltip:SetText(setName, HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g, HIGHLIGHT_FONT_COLOR.b)
+    if setID then
+        local missingItems = EquipmentSet:GetMissingEquipmentSetItems(setID)
+        if #missingItems > 0 then
+            GameTooltip:AddLine(" ")
+            GameTooltip:AddLine("Missing items:", RED_FONT_COLOR.r, RED_FONT_COLOR.g, RED_FONT_COLOR.b)
+            for _, item in ipairs(missingItems) do
+                GameTooltip:AddLine(item.slotLabel .. " -> " .. item.itemName, HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g, HIGHLIGHT_FONT_COLOR.b)
+            end
+        end
+    end
+    GameTooltip.extraStatsGearSetButton = button
+    GameTooltip:Show()
+end
+
+HideGearSetTooltip = function(button)
+    if GameTooltip.extraStatsGearSetButton == button then
+        GameTooltip.extraStatsGearSetButton = nil
+        GameTooltip:Hide()
+    end
+end
+
+function ExtraStats_GearSetButton_OnEnter(self)
+    ShowGearSetTooltip(self)
+end
+
+function ExtraStats_GearSetButton_OnLeave(self)
+    HideGearSetTooltip(self)
+end
+
+HookNativeGearSetButtonTooltips = function()
+    if tab.nativeGearSetTooltipHooksApplied then
+        return
+    end
+
+    local hooked = false
+    if type(GearSetButton_OnEnter) == "function" and type(hooksecurefunc) == "function" then
+        hooksecurefunc("GearSetButton_OnEnter", function(button)
+            ShowGearSetTooltip(button)
+        end)
+        hooked = true
+    end
+
+    if type(GearSetButton_OnLeave) == "function" and type(hooksecurefunc) == "function" then
+        hooksecurefunc("GearSetButton_OnLeave", function(button)
+            HideGearSetTooltip(button)
+        end)
+        hooked = true
+    end
+
+    tab.nativeGearSetTooltipHooksApplied = hooked
 end
 
 function ExtraStats_GearSetButton_OnClick(self, button)
@@ -896,6 +974,7 @@ function GearSetButton_UpdateSpecInfo(self)
 end
 
 function tab:init()
+    HookNativeGearSetButtonTooltips()
     local frame = CreateFrame("ScrollFrame", "PaperDollEquipmentManagerPane", PaperDollFrame, "PaperDollEquipmentManagerPaneTemplate")
     tab.DialogPopup = CreateFrame("Frame", "ExtraStats_GearManagerDialogPopup", frame, "ExtraGearManagerDialogPopupTemplate")
     tab.frame = frame

@@ -233,7 +233,7 @@
                 ExtraStats_GearSetButton_OnEnter(self);
             </OnEnter>
             <OnLeave>
-                GameTooltip:Hide();
+                ExtraStats_GearSetButton_OnLeave(self);
             </OnLeave>
             <OnDragStart>
                 ExtraStats_GearSetButton_OnDragStart(self);

@@ -23,6 +23,29 @@ local SLOT_NAME_BY_ID = {
     [INVSLOT_AMMO] = "AmmoSlot",
 }
 
+local SLOT_LABEL_BY_ID = {
+    [INVSLOT_HEAD] = HEADSLOT or "Head",
+    [INVSLOT_NECK] = NECKSLOT or "Neck",
+    [INVSLOT_SHOULDER] = SHOULDERSLOT or "Shoulder",
+    [INVSLOT_BACK] = BACKSLOT or "Back",
+    [INVSLOT_CHEST] = CHESTSLOT or "Chest",
+    [INVSLOT_BODY] = SHIRTSLOT or "Shirt",
+    [INVSLOT_TABARD] = TABARDSLOT or "Tabard",
+    [INVSLOT_WRIST] = WRISTSLOT or "Wrist",
+    [INVSLOT_HAND] = HANDSSLOT or "Hands",
+    [INVSLOT_WAIST] = WAISTSLOT or "Waist",
+    [INVSLOT_LEGS] = LEGSSLOT or "Legs",
+    [INVSLOT_FEET] = FEETSLOT or "Feet",
+    [INVSLOT_FINGER1] = FINGER0SLOT or "Finger 1",
+    [INVSLOT_FINGER2] = FINGER1SLOT or "Finger 2",
+    [INVSLOT_TRINKET1] = TRINKET0SLOT or "Trinket 1",
+    [INVSLOT_TRINKET2] = TRINKET1SLOT or "Trinket 2",
+    [INVSLOT_MAINHAND] = MAINHANDSLOT or "Main Hand",
+    [INVSLOT_OFFHAND] = SECONDARYHANDSLOT or "Off Hand",
+    [INVSLOT_RANGED] = RANGEDSLOT or "Ranged",
+    [INVSLOT_AMMO] = AMMOSLOT or "Ammo",
+}
+
 local SLOT_ORDER = {
     INVSLOT_HEAD,
     INVSLOT_NECK,
@@ -109,6 +132,25 @@ local function GetContainerItemLinkCompat(bag, slot)
         return CONTAINER.GetContainerItemLink(bag, slot)
     end
     return GetContainerItemLink(bag, slot)
+end
+
+local function IsNormalBag(bag)
+    if bag == 0 then
+        return true
+    end
+
+    local invBagSlot = ContainerIDToInventoryIDCompat(bag)
+    if not invBagSlot then
+        return false
+    end
+
+    local bagLink = GetInventoryItemLink("player", invBagSlot)
+    if not bagLink then
+        return false
+    end
+
+    local itemFamily = GetItemFamily and GetItemFamily(bagLink)
+    return itemFamily == 0
 end
 
 local function BuildSlotInfo()
@@ -204,27 +246,120 @@ local function FindEquippedSlotWithItem(set, itemID, itemLink, excludedSlotID)
     return nil
 end
 
+local function FindDesiredItemInBags(set, slotID)
+    local slotName = SLOT_NAME_BY_ID[slotID]
+    local desiredItemID = set.items[slotName]
+    local desiredItemLink = set.itemLinks and set.itemLinks[slotName]
+
+    local bag, bagSlot = FindItemInBagsByLink(desiredItemLink)
+    if (not bag or not bagSlot) and desiredItemID then
+        bag, bagSlot = FindItemInBags(desiredItemID)
+    end
+
+    return bag, bagSlot
+end
+
+local function GetNextEquipSlot(set)
+    local fallbackSlotID = nil
+    local bagSlotID = nil
+    local emptySlotID = nil
+
+    for _, slotID in ipairs(SLOT_ORDER) do
+        if not IsSlotIgnored(set, slotID) and not IsSlotSetMatched(set, slotID) then
+            local slotName = SLOT_NAME_BY_ID[slotID]
+            local desiredItemID = set.items[slotName]
+            local desiredItemLink = set.itemLinks and set.itemLinks[slotName]
+
+            fallbackSlotID = fallbackSlotID or slotID
+
+            if desiredItemID == nil and desiredItemLink == nil then
+                emptySlotID = emptySlotID or slotID
+            elseif FindEquippedSlotWithItem(set, desiredItemID, desiredItemLink, slotID) then
+                return slotID
+            elseif not bagSlotID and FindDesiredItemInBags(set, slotID) then
+                bagSlotID = slotID
+            end
+        end
+    end
+
+    return bagSlotID or emptySlotID or fallbackSlotID
+end
+
 local function PutCursorItemIntoBags()
     if not CursorHasItem() then
         return true
     end
 
-    PutItemInBackpack()
-    if not CursorHasItem() then
-        return true
-    end
-
-    for bag = 1, NUM_BAG_SLOTS do
-        local invBagSlot = ContainerIDToInventoryIDCompat(bag)
-        if invBagSlot then
-            PutItemInBag(invBagSlot)
-            if not CursorHasItem() then
-                return true
+    for bag = NUM_BAG_SLOTS, 0, -1 do
+        if IsNormalBag(bag) then
+            local numSlots = GetContainerNumSlotsCompat(bag) or 0
+            for slot = 1, numSlots do
+                local info = GetContainerItemInfoCompat(bag, slot)
+                if not GetContainerItemIDCompat(bag, slot) and not (info and info.isLocked) then
+                    PickupContainerItemCompat(bag, slot)
+                    if not CursorHasItem() then
+                        return true
+                    end
+                end
             end
         end
     end
 
     return false
+end
+
+local function FindFreeBagSlot()
+    for bag = NUM_BAG_SLOTS, 0, -1 do
+        if IsNormalBag(bag) then
+            local numSlots = GetContainerNumSlotsCompat(bag) or 0
+            for slot = 1, numSlots do
+                local info = GetContainerItemInfoCompat(bag, slot)
+                if not GetContainerItemIDCompat(bag, slot) and not (info and info.isLocked) then
+                    return bag, slot
+                end
+            end
+        end
+    end
+end
+
+local function IsTwoHandedWeapon(itemID, itemLink)
+    local item = itemLink or itemID
+    if GetItemInfoInstant then
+        local _, _, _, equipLoc = GetItemInfoInstant(item)
+        if equipLoc then
+            return equipLoc == "INVTYPE_2HWEAPON"
+        end
+    end
+    local _, _, _, _, _, _, _, _, equipLoc = GetItemInfo(item)
+    return equipLoc == "INVTYPE_2HWEAPON"
+end
+
+local function ClearOffhandForTwoHander(set)
+    local offhandSlotName = SLOT_NAME_BY_ID[INVSLOT_OFFHAND]
+    if set.items[offhandSlotName] or (set.itemLinks and set.itemLinks[offhandSlotName]) then
+        return true, false, nil, false
+    end
+
+    if not GetEquippedItemID(INVSLOT_OFFHAND) then
+        return true, false, nil, false
+    end
+
+    local bag, slot = FindFreeBagSlot()
+    if not bag then
+        return false, false, ERR_EQUIPMENT_MANAGER_BAGS_FULL
+    end
+
+    PickupInventoryItem(INVSLOT_OFFHAND)
+    if not CursorHasItem() then
+        return false, true
+    end
+
+    PickupContainerItemCompat(bag, slot)
+    if CursorHasItem() then
+        return false, true
+    end
+
+    return true, false, nil, true
 end
 
 local function CountAvailableItemIDs()
@@ -281,11 +416,50 @@ local function GetMissingItemCountForSet(set)
     return missing
 end
 
+local function GetItemDisplayName(itemID, itemLink)
+    local name = GetItemInfo(itemLink or itemID)
+    if name then
+        return name
+    end
+    if itemID then
+        return tostring(itemID)
+    end
+    return UNKNOWN or "Unknown"
+end
+
+local function GetMissingItemsForSet(set)
+    local available = CountAvailableItemIDs()
+    local missing = {}
+
+    for _, slotID in ipairs(SLOT_ORDER) do
+        if not IsSlotIgnored(set, slotID) then
+            local key = SLOT_NAME_BY_ID[slotID]
+            local itemID = set.items[key]
+            if itemID then
+                local have = available[itemID] or 0
+                if have > 0 then
+                    available[itemID] = have - 1
+                else
+                    table.insert(missing, {
+                        slotID = slotID,
+                        slotName = key,
+                        slotLabel = SLOT_LABEL_BY_ID[slotID] or key,
+                        itemID = itemID,
+                        itemLink = set.itemLinks and set.itemLinks[key],
+                        itemName = GetItemDisplayName(itemID, set.itemLinks and set.itemLinks[key]),
+                    })
+                end
+            end
+        end
+    end
+
+    return missing
+end
+
 local pendingEquip
 local equipToken = 0
 local EQUIP_ACTION_DELAY = 0.15
 local EQUIP_LOCK_RETRY_DELAY = 0.07
-local EQUIP_ACTIONS_PER_PASS = 3
 local ProcessEquip
 local pendingSpecEquipToken = 0
 local lastAutoEquippedSpecGroup
@@ -398,6 +572,45 @@ local function HasPendingItemLocks()
     end
 
     return false
+end
+
+local function PutCursorItemIntoPreferredSlot(bag, slot)
+    if not CursorHasItem() or bag == nil or slot == nil then
+        return not CursorHasItem()
+    end
+
+    local info = GetContainerItemInfoCompat(bag, slot)
+    if info and info.isLocked then
+        return false
+    end
+
+    if GetContainerItemIDCompat(bag, slot) then
+        return false
+    end
+
+    PickupContainerItemCompat(bag, slot)
+    return not CursorHasItem()
+end
+
+local function PutCursorItemAway(preferredBag, preferredSlot)
+    if not CursorHasItem() then
+        return true, false
+    end
+
+    local hasPreferredSlot = preferredBag ~= nil and preferredSlot ~= nil
+    if PutCursorItemIntoPreferredSlot(preferredBag, preferredSlot) then
+        return true, false
+    end
+
+    if PutCursorItemIntoBags() then
+        return true, false
+    end
+
+    if hasPreferredSlot then
+        return false, true
+    end
+
+    return false, HasPendingItemLocks()
 end
 
 local function GetActiveSpecGroup()
@@ -555,6 +768,10 @@ local function FinishEquip(success, errorMessage, token)
 end
 
 local function TryEquipSingleSlot(set, slotID)
+    if SpellIsTargeting and SpellIsTargeting() then
+        return false, true
+    end
+
     local slotName = SLOT_NAME_BY_ID[slotID]
     local desiredItemID = set.items[slotName]
     local desiredItemLink = set.itemLinks and set.itemLinks[slotName]
@@ -579,17 +796,31 @@ local function TryEquipSingleSlot(set, slotID)
             return false, true
         end
 
-        if not PutCursorItemIntoBags() then
+        local stored, blocked = PutCursorItemAway()
+        if not stored then
+            if blocked then
+                return false, true
+            end
             return false, false, ERR_EQUIPMENT_MANAGER_BAGS_FULL
         end
 
         return true, false
     end
 
-    local bag, bagSlot = FindItemInBagsByLink(desiredItemLink)
-    if (not bag or not bagSlot) and desiredItemID then
-        bag, bagSlot = FindItemInBags(desiredItemID)
+    if slotID == INVSLOT_MAINHAND and IsTwoHandedWeapon(desiredItemID, desiredItemLink) then
+        local cleared, blocked, err, changed = ClearOffhandForTwoHander(set)
+        if err then
+            return false, false, err
+        end
+        if not cleared then
+            return false, blocked == true
+        end
+        if changed then
+            return true, false
+        end
     end
+
+    local bag, bagSlot = FindDesiredItemInBags(set, slotID)
     if bag and bagSlot then
         local info = GetContainerItemInfoCompat(bag, bagSlot)
         if info and info.isLocked then
@@ -597,11 +828,21 @@ local function TryEquipSingleSlot(set, slotID)
         end
 
         PickupContainerItemCompat(bag, bagSlot)
-        EquipCursorItem(slotID)
+        PickupInventoryItem(slotID)
         if CursorHasItem() then
-            if not PutCursorItemIntoBags() then
+            local stored, blocked = PutCursorItemAway(bag, bagSlot)
+            if not stored then
+                if blocked then
+                    pendingEquip.cursorPreferredBag = bag
+                    pendingEquip.cursorPreferredSlot = bagSlot
+                    return true, true
+                end
                 return false, false, ERR_EQUIPMENT_MANAGER_BAGS_FULL
             end
+        end
+        if pendingEquip then
+            pendingEquip.cursorPreferredBag = nil
+            pendingEquip.cursorPreferredSlot = nil
         end
         return true, false
     end
@@ -609,12 +850,16 @@ local function TryEquipSingleSlot(set, slotID)
     local equippedSourceSlot = FindEquippedSlotWithItem(set, desiredItemID, desiredItemLink, slotID)
     if equippedSourceSlot then
         PickupInventoryItem(equippedSourceSlot)
-        EquipCursorItem(slotID)
+        PickupInventoryItem(slotID)
         if CursorHasItem() then
-            EquipCursorItem(equippedSourceSlot)
+            PickupInventoryItem(equippedSourceSlot)
         end
         if CursorHasItem() then
-            if not PutCursorItemIntoBags() then
+            local stored, blocked = PutCursorItemAway()
+            if not stored then
+                if blocked then
+                    return true, true
+                end
                 return false, false, ERR_EQUIPMENT_MANAGER_BAGS_FULL
             end
         end
@@ -640,16 +885,28 @@ function ProcessEquip(token)
         return
     end
 
+    if SpellIsTargeting and SpellIsTargeting() then
+        ScheduleProcessEquip(token, EQUIP_LOCK_RETRY_DELAY)
+        return
+    end
+
     if CursorHasItem() then
         if HasPendingItemLocks() then
             ScheduleProcessEquip(token, EQUIP_LOCK_RETRY_DELAY)
             return
         end
 
-        if not PutCursorItemIntoBags() then
+        local stored, blocked = PutCursorItemAway(pendingEquip.cursorPreferredBag, pendingEquip.cursorPreferredSlot)
+        if not stored then
+            if blocked then
+                ScheduleProcessEquip(token, EQUIP_LOCK_RETRY_DELAY)
+                return
+            end
             FinishEquip(false, ERR_EQUIPMENT_MANAGER_BAGS_FULL, token)
             return
         end
+        pendingEquip.cursorPreferredBag = nil
+        pendingEquip.cursorPreferredSlot = nil
 
         ScheduleProcessEquip(token, EQUIP_ACTION_DELAY)
         return
@@ -668,33 +925,27 @@ function ProcessEquip(token)
 
     pendingEquip.attempt = pendingEquip.attempt + 1
 
-    local actionCount = 0
     local blockedByLock = false
+    local slotID = GetNextEquipSlot(set)
 
-    for _, slotID in ipairs(SLOT_ORDER) do
-        if not IsSlotIgnored(set, slotID) then
-            local changed, blocked, err = TryEquipSingleSlot(set, slotID)
-            if err then
-                FinishEquip(false, err, token)
-                return
-            end
+    if slotID then
+        local changed, blocked, err = TryEquipSingleSlot(set, slotID)
+        if err then
+            FinishEquip(false, err, token)
+            return
+        end
 
-            if blocked then
-                blockedByLock = true
-            end
+        if blocked then
+            blockedByLock = true
+        end
 
-            if changed then
-                actionCount = actionCount + 1
-                if actionCount >= EQUIP_ACTIONS_PER_PASS then
-                    break
-                end
-            end
+        if changed then
+            ScheduleProcessEquip(token, EQUIP_ACTION_DELAY)
+            return
         end
     end
 
-    local didAction = actionCount > 0
-
-    if not didAction and not blockedByLock then
+    if not blockedByLock then
         if IsSetFullyEquipped(set) then
             FinishEquip(true, nil, token)
         else
@@ -708,7 +959,7 @@ function ProcessEquip(token)
         return
     end
 
-    ScheduleProcessEquip(token, didAction and EQUIP_ACTION_DELAY or EQUIP_LOCK_RETRY_DELAY)
+    ScheduleProcessEquip(token, EQUIP_LOCK_RETRY_DELAY)
 end
 
 function equipment:OnInitialize()
@@ -781,6 +1032,15 @@ function equipment:GetEquipmentSetInfo(id)
     local missing = GetMissingItemCountForSet(set)
 
     return set.name, set.icon, id, isEquipped, missing, set.items
+end
+
+function equipment:GetMissingEquipmentSetItems(id)
+    local set = self.db.char.sets[id]
+    if not set then
+        return {}
+    end
+
+    return GetMissingItemsForSet(set)
 end
 
 function equipment:DeleteEquipmentSet(setId)
@@ -907,9 +1167,16 @@ function equipment:UseEquipmentSet(id)
         return false
     end
 
-    if CursorHasItem() and not PutCursorItemIntoBags() then
-        UIErrorsFrame:AddMessage(ERR_EQUIPMENT_MANAGER_BAGS_FULL or "Inventory is full.", 1.0, 0.1, 0.1, 1.0)
+    if SpellIsTargeting and SpellIsTargeting() then
         return false
+    end
+
+    if CursorHasItem() then
+        local stored = PutCursorItemAway()
+        if not stored then
+            UIErrorsFrame:AddMessage(ERR_EQUIPMENT_MANAGER_BAGS_FULL or "Inventory is full.", 1.0, 0.1, 0.1, 1.0)
+            return false
+        end
     end
 
     equipToken = equipToken + 1
