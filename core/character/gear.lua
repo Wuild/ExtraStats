@@ -20,6 +20,12 @@ local HookNativeGearSetButtonTooltips
 local EnsureGearSetButtonTooltipScripts
 local IsFrameUnderCursor
 local GetGearSetButtonFromMouseFocus
+local ToggleIgnoredSlotForSave
+local UpdateIgnoredSlotOverlays
+local UpdateEquipmentEditModeVisuals
+local HookItemSlotIgnoreEditing
+local SetIgnoredSlotVisual
+local ClearIgnoredSlotVisuals
 
 local itemSlotButtons = {
     CharacterHeadSlot,
@@ -155,19 +161,28 @@ local function GetSetIDsSorted()
     return ids
 end
 
+local function IgnoreDefaultNewSetSlots()
+    ExtraStats_PaperDollFrame_IgnoreSlot(INVSLOT_BODY)
+    ExtraStats_PaperDollFrame_IgnoreSlot(INVSLOT_TABARD)
+end
+
 local function ApplyIgnoredSlotsForSet(setID)
-    ExtraStats_PaperDollFrame_ClearIgnoredSlots()
+    ClearIgnoredSlotVisuals()
 
     if not setID then
+        EquipmentSet:ClearIgnoredSlotsForSave()
+        UpdateIgnoredSlotOverlays()
         return
     end
 
     local ignored = EquipmentSet:GetIgnoredSlots(setID)
+    EquipmentSet:SetIgnoredSlotsForSave(ignored)
     for slotID, isIgnored in pairs(ignored) do
         if isIgnored then
-            ExtraStats_PaperDollFrame_IgnoreSlot(slotID)
+            SetIgnoredSlotVisual(slotID, true)
         end
     end
+    UpdateIgnoredSlotOverlays()
 end
 
 local function SelectSetByID(setID)
@@ -189,6 +204,19 @@ local function SelectSetByID(setID)
     tab.frame.selectedSetID = setID
     tab.frame.selectedSetName = name
     ApplyIgnoredSlotsForSet(setID)
+end
+
+local function SelectCurrentlyEquippedSet()
+    for _, setID in ipairs(GetSetIDsSorted()) do
+        local _, _, _, isEquipped = EquipmentSet:GetEquipmentSetInfo(setID)
+        if isEquipped then
+            SelectSetByID(setID)
+            return true
+        end
+    end
+
+    SelectSetByID(nil)
+    return false
 end
 
 StaticPopupDialogs["CONFIRM_SAVE_EQUIPMENT_SET"] = {
@@ -290,22 +318,26 @@ function ExtraStats_PaperDollEquipmentManagerPane_OnLoad(self)
         end
     end)
     ExtraStats:On("gear.swap.finished", function(success, setID)
-        if success and setID and tab.frame then
+        if success and setID and tab.frame and self:IsShown() then
             SelectSetByID(setID)
-            if self:IsShown() then
-                ExtraStats_PaperDollEquipmentManagerPane_Update()
-            end
+            ExtraStats_PaperDollEquipmentManagerPane_Update()
         end
     end)
 end
 
 function ExtraStats_PaperDollEquipmentManagerPane_OnShow(self)
+    self.equipmentEditMode = true
+    HookItemSlotIgnoreEditing()
+    SelectCurrentlyEquippedSet()
+    UpdateEquipmentEditModeVisuals()
     ExtraStats_PaperDollEquipmentManagerPane_Update()
     ExtraStats:Trigger("gear.tab.show", self)
 end
 
 function ExtraStats_PaperDollEquipmentManagerPane_OnHide(self)
+    self.equipmentEditMode = nil
     ExtraStats_PaperDollFrame_ClearIgnoredSlots()
+    UpdateEquipmentEditModeVisuals()
     ExtraStats_GearManagerDialogPopup:Hide()
     StaticPopup_Hide("CONFIRM_SAVE_EQUIPMENT_SET")
     StaticPopup_Hide("CONFIRM_DELETE_EQUIPMENT_SET")
@@ -316,7 +348,7 @@ end
 function ExtraStats_PaperDollEquipmentManagerPane_OnEvent(self, event, ...)
     if event == "EQUIPMENT_SWAP_FINISHED" then
         local completed, setID = ...
-        if completed and setID then
+        if completed and setID and self:IsShown() then
             PlaySound(SOUNDKIT.PUT_DOWN_SMALL_CHAIN)
             SelectSetByID(setID)
         end
@@ -340,6 +372,18 @@ function ExtraStats_PaperDollEquipmentManagerPane_OnUpdate(self)
     self.lastHoverUpdate = now
 
     local isEquipInProgress = EquipmentSet:IsEquipmentSwapActive()
+    if isEquipInProgress then
+        HideGearSetTooltip(self.hoveredSetButton)
+        self.hoveredSetButton = nil
+        for i = 1, #self.buttons do
+            local button = self.buttons[i]
+            button.DeleteButton:Hide()
+            button.EditButton:Hide()
+            button.HighlightBar:Hide()
+        end
+        return
+    end
+
     local hoveredSetButton = GetGearSetButtonFromMouseFocus(self)
     for i = 1, #self.buttons do
         local button = self.buttons[i]
@@ -350,7 +394,7 @@ function ExtraStats_PaperDollEquipmentManagerPane_OnUpdate(self)
 
     for i = 1, #self.buttons do
         local button = self.buttons[i]
-        if button == hoveredSetButton and button.name and not isEquipInProgress then
+        if button == hoveredSetButton and button.name then
             hoveredSetButton = button
             button.DeleteButton:Show()
             button.EditButton:Show()
@@ -367,7 +411,7 @@ function ExtraStats_PaperDollEquipmentManagerPane_OnUpdate(self)
         self.hoveredSetButton = hoveredSetButton
     end
 
-    if hoveredSetButton and hoveredSetButton.name and not IsFrameUnderCursor(hoveredSetButton.DeleteButton) and not IsFrameUnderCursor(hoveredSetButton.EditButton) then
+    if hoveredSetButton and hoveredSetButton.name and GameTooltip.extraStatsGearSetButton ~= hoveredSetButton and not IsFrameUnderCursor(hoveredSetButton.DeleteButton) and not IsFrameUnderCursor(hoveredSetButton.EditButton) then
         ShowGearSetTooltip(hoveredSetButton)
     end
 end
@@ -683,8 +727,7 @@ function ExtraStats_GearSetButton_OnClick(self, button)
     tab.pendingNewSet = true
     SelectSetByID(nil)
     EquipmentSet:ClearIgnoredSlotsForSave()
-    ExtraStats_PaperDollFrame_IgnoreSlot(4)
-    ExtraStats_PaperDollFrame_IgnoreSlot(19)
+    IgnoreDefaultNewSetSlots()
     ExtraStats_GearManagerDialogPopup:Show()
 end
 
@@ -712,25 +755,149 @@ function ExtraStats_GearSetButton_OnDragStart(self)
     end
 end
 
-function ExtraStats_PaperDollFrame_ClearIgnoredSlots()
-    EquipmentSet:ClearIgnoredSlotsForSave()
+local function EnsureIgnoredSlotOverlay(button)
+    if not button then
+        return
+    end
+
+    if button.ExtraStatsIgnoredOverlay then
+        button.ExtraStatsIgnoredOverlay:Hide()
+    end
+
+    if button.ignoreTexture then
+        return
+    end
+
+    local overlay = button:CreateTexture(nil, "OVERLAY")
+    overlay:SetTexture("Interface\\PaperDollInfoFrame\\UI-GearManager-LeaveItem-Transparent")
+    overlay:SetSize(40, 40)
+    overlay:SetPoint("CENTER", button, "CENTER", 0, 0)
+    overlay:Hide()
+
+    button.ignoreTexture = overlay
+end
+
+local function EnsureEquipmentEditModeOverlay(button)
+    if not button or button.ExtraStatsEquipmentEditOverlay then
+        return
+    end
+
+    local overlay = button:CreateTexture(nil, "OVERLAY", nil, -1)
+    overlay:SetTexture("Interface\\Buttons\\ButtonHilight-Square")
+    overlay:SetBlendMode("ADD")
+    overlay:SetAlpha(0.35)
+    overlay:SetPoint("TOPLEFT", button, "TOPLEFT", 1, -1)
+    overlay:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -1, 1)
+    overlay:Hide()
+
+    button.ExtraStatsEquipmentEditOverlay = overlay
+end
+
+UpdateEquipmentEditModeVisuals = function()
+    local shown = tab.frame and tab.frame.equipmentEditMode == true
+    for _, button in ipairs(itemSlotButtons) do
+        if button then
+            EnsureEquipmentEditModeOverlay(button)
+            button.ExtraStatsEquipmentEditOverlay:SetShown(shown == true)
+            if shown and button.LockHighlight then
+                button:LockHighlight()
+            elseif button.UnlockHighlight then
+                button:UnlockHighlight()
+            end
+        end
+    end
+end
+
+UpdateIgnoredSlotOverlays = function()
+    local shown = tab.frame and tab.frame.equipmentEditMode == true
+    for _, button in ipairs(itemSlotButtons) do
+        if button then
+            EnsureIgnoredSlotOverlay(button)
+            if button.ignoreTexture then
+                button.ignoreTexture:SetShown(shown == true and button.ignored == true)
+            end
+        end
+    end
+end
+
+local function IsIgnoringSlotsEditable()
+    return tab.frame and tab.frame.equipmentEditMode == true
+end
+
+ToggleIgnoredSlotForSave = function(slotID)
+    if not IsIgnoringSlotsEditable() or not slotID then
+        return false
+    end
+
+    local ignored = not EquipmentSet:IsSlotIgnoredForSave(slotID)
+    if ignored then
+        EquipmentSet:IgnoreSlotForSave(slotID)
+    else
+        EquipmentSet:UnignoreSlotForSave(slotID)
+    end
+
+    if tab.frame.selectedSetID then
+        EquipmentSet:SetEquipmentSetSlotIgnored(tab.frame.selectedSetID, slotID, ignored)
+    end
+
+    SetIgnoredSlotVisual(slotID, ignored)
+    return true
+end
+
+HookItemSlotIgnoreEditing = function()
+    for _, button in ipairs(itemSlotButtons) do
+        if button and not button.ExtraStatsIgnoreEditHooked then
+            button.ExtraStatsIgnoreEditHooked = true
+            EnsureIgnoredSlotOverlay(button)
+            EnsureEquipmentEditModeOverlay(button)
+
+            if button.RegisterForClicks then
+                button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+            end
+
+            local originalOnClick = button:GetScript("OnClick")
+            button:SetScript("OnClick", function(self, mouseButton, ...)
+                if mouseButton == "RightButton" and ToggleIgnoredSlotForSave(self:GetID()) then
+                    return
+                end
+
+                if originalOnClick then
+                    originalOnClick(self, mouseButton, ...)
+                end
+            end)
+        end
+    end
+end
+
+SetIgnoredSlotVisual = function(slot, ignored)
+    local button = itemSlotButtons[slot]
+    if not button then
+        return
+    end
+
+    button.ignored = ignored == true or nil
+    PaperDollItemSlotButton_Update(button)
+    UpdateIgnoredSlotOverlays()
+end
+
+ClearIgnoredSlotVisuals = function()
     for _, button in ipairs(itemSlotButtons) do
         if button and button.ignored then
             button.ignored = nil
             PaperDollItemSlotButton_Update(button)
         end
     end
+    UpdateIgnoredSlotOverlays()
+end
+
+function ExtraStats_PaperDollFrame_ClearIgnoredSlots()
+    EquipmentSet:ClearIgnoredSlotsForSave()
+    ClearIgnoredSlotVisuals()
 end
 
 function ExtraStats_PaperDollFrame_IgnoreSlot(slot)
-    local button = itemSlotButtons[slot]
-    if not button then
-        return
-    end
-
     EquipmentSet:IgnoreSlotForSave(slot)
-    button.ignored = true
-    PaperDollItemSlotButton_Update(button)
+    SetIgnoredSlotVisual(slot, true)
 end
 
 function ExtraStats_PaperDollFrame_IgnoreSlotsForSet(setID)
@@ -963,7 +1130,7 @@ function GetPrimaryTalentTree(spec)
 end
 
 function GearSetEditButtonDropDown_Initialize(dropdownFrame)
-    local gearSetButton = dropdownFrame.gearSetButton
+    local gearSetButton = dropdownFrame.gearSetButton or GearSetEditButtonDropDown.gearSetButton
     local setID = gearSetButton and gearSetButton.setID
 
     local info = UIDropDownMenu_CreateInfo()
@@ -981,6 +1148,48 @@ function GearSetEditButtonDropDown_Initialize(dropdownFrame)
 
     if not setID then
         return
+    end
+
+    local mountSetID = EquipmentSet:GetMountEquipmentSet()
+    local mountInfo = UIDropDownMenu_CreateInfo()
+    mountInfo.text = "Auto equip while mounted"
+    mountInfo.checked = mountSetID == setID
+    mountInfo.func = function()
+        EquipmentSet:AssignMountEquipmentSet(setID)
+        ExtraStats_PaperDollEquipmentManagerPane_Update()
+    end
+    UIDropDownMenu_AddButton(mountInfo, UIDROPDOWN_MENU_LEVEL)
+
+    if mountSetID == setID then
+        local clearMountInfo = UIDropDownMenu_CreateInfo()
+        clearMountInfo.text = "Clear mounted auto equip"
+        clearMountInfo.notCheckable = true
+        clearMountInfo.func = function()
+            EquipmentSet:UnassignMountEquipmentSet()
+            ExtraStats_PaperDollEquipmentManagerPane_Update()
+        end
+        UIDropDownMenu_AddButton(clearMountInfo, UIDROPDOWN_MENU_LEVEL)
+    end
+
+    local pvpSetID = EquipmentSet:GetPvPEquipmentSet()
+    local pvpInfo = UIDropDownMenu_CreateInfo()
+    pvpInfo.text = "Auto equip in PVP instances"
+    pvpInfo.checked = pvpSetID == setID
+    pvpInfo.func = function()
+        EquipmentSet:AssignPvPEquipmentSet(setID)
+        ExtraStats_PaperDollEquipmentManagerPane_Update()
+    end
+    UIDropDownMenu_AddButton(pvpInfo, UIDROPDOWN_MENU_LEVEL)
+
+    if pvpSetID == setID then
+        local clearPvPInfo = UIDropDownMenu_CreateInfo()
+        clearPvPInfo.text = "Clear PVP auto equip"
+        clearPvPInfo.notCheckable = true
+        clearPvPInfo.func = function()
+            EquipmentSet:UnassignPvPEquipmentSet()
+            ExtraStats_PaperDollEquipmentManagerPane_Update()
+        end
+        UIDropDownMenu_AddButton(clearPvPInfo, UIDROPDOWN_MENU_LEVEL)
     end
 
     local assignedSpec = EquipmentSet:GetEquipmentSetAssignedSpec(setID)
@@ -1030,8 +1239,32 @@ function GetEquipmentSetForSpec(specID)
     return EquipmentSet:GetEquipmentSetForSpec(specID)
 end
 
+function AssignMountEquipmentSet(setID)
+    EquipmentSet:AssignMountEquipmentSet(setID)
+end
+
+function GetMountEquipmentSet()
+    return EquipmentSet:GetMountEquipmentSet()
+end
+
+function UnassignMountEquipmentSet()
+    EquipmentSet:UnassignMountEquipmentSet()
+end
+
+function AssignPvPEquipmentSet(setID)
+    EquipmentSet:AssignPvPEquipmentSet(setID)
+end
+
+function GetPvPEquipmentSet()
+    return EquipmentSet:GetPvPEquipmentSet()
+end
+
+function UnassignPvPEquipmentSet()
+    EquipmentSet:UnassignPvPEquipmentSet()
+end
+
 function GearSetButton_SetSpecInfo(self, specID, specName)
-    if specID and specID > 0 and specName and specName ~= "" then
+    if specName and specName ~= "" then
         self.specID = specID
         self.SpecText:SetText(specName)
         self.SpecText:Show()
@@ -1050,6 +1283,16 @@ function GearSetButton_UpdateSpecInfo(self)
         return
     end
 
+    if GetMountEquipmentSet() == self.setID then
+        GearSetButton_SetSpecInfo(self, 0, "Mount set")
+        return
+    end
+
+    if GetPvPEquipmentSet() == self.setID then
+        GearSetButton_SetSpecInfo(self, 0, "PVP set")
+        return
+    end
+
     local specGroup = GetEquipmentSetAssignedSpec(self.setID)
     if not specGroup then
         GearSetButton_SetSpecInfo(self, nil)
@@ -1065,6 +1308,7 @@ function tab:init()
     local frame = CreateFrame("ScrollFrame", "PaperDollEquipmentManagerPane", PaperDollFrame, "PaperDollEquipmentManagerPaneTemplate")
     tab.DialogPopup = CreateFrame("Frame", "ExtraStats_GearManagerDialogPopup", frame, "ExtraGearManagerDialogPopupTemplate")
     tab.frame = frame
+    HookItemSlotIgnoreEditing()
 end
 
 function tab:IsVisible()

@@ -50,6 +50,7 @@ local RefreshActiveDrawer
 local UpdateFlyoutButtonsVisualState
 local drawerHoverWatchId = 0
 local flyoutRefreshRequestId = 0
+local gearFrameRefreshRequestId = 0
 local alternativesCacheBySlot = {}
 local alternativesCacheDirty = true
 local characterFrameRefreshHooked = false
@@ -585,7 +586,7 @@ local function GetGearFrameBySlotID(slotID)
 end
 
 local function ShowFlyoutButtonForFrame(frame)
-    if frame and frame.ExtraStatsFlyoutButton then
+    if frame and frame.ExtraStatsFlyoutButton and not frame.ExtraStatsFlyoutButton:IsShown() then
         frame.ExtraStatsFlyoutButton:Show()
     end
 end
@@ -657,6 +658,12 @@ local function AnchorFlyoutButton(frame, isOpen)
 
     local btn = frame.ExtraStatsFlyoutButton
     local side = SLOT_ANCHOR_SIDE[frame:GetID()] or "RIGHT"
+    if btn.ExtraStatsAnchorSide == side and btn.ExtraStatsAnchorOpen == isOpen then
+        return
+    end
+
+    btn.ExtraStatsAnchorSide = side
+    btn.ExtraStatsAnchorOpen = isOpen
     btn:ClearAllPoints()
 
     if side == "RIGHT" then
@@ -675,6 +682,12 @@ local function SetFlyoutButtonVisual(frame, isOpen)
 
     local btn = frame.ExtraStatsFlyoutButton
     local side = SLOT_ANCHOR_SIDE[frame:GetID()] or "RIGHT"
+    if btn.ExtraStatsVisualSide == side and btn.ExtraStatsVisualOpen == isOpen then
+        return
+    end
+
+    btn.ExtraStatsVisualSide = side
+    btn.ExtraStatsVisualOpen = isOpen
     local reversedWhenClosed = (side == "LEFT" or side == "UP")
     local reversed = reversedWhenClosed
     if isOpen then
@@ -733,7 +746,9 @@ local function UpdateFlyoutButtonsVisibility()
             if hasAlternatives then
                 ShowFlyoutButtonForFrame(frame)
             elseif frame.ExtraStatsFlyoutButton then
-                frame.ExtraStatsFlyoutButton:Hide()
+                if frame.ExtraStatsFlyoutButton:IsShown() then
+                    frame.ExtraStatsFlyoutButton:Hide()
+                end
             end
         end
     end
@@ -786,8 +801,22 @@ local function HookGearSlotAlternativesBar()
     end
 end
 
-local function UpdateGearFrame (gearFrame)
-    gearFrame.qualityTexture:SetVertexColor(0, 0, 0, 0)
+local function SetGearFrameQualityColor(gearFrame, r, g, b, a)
+    if gearFrame.ExtraStatsQualityR == r and gearFrame.ExtraStatsQualityG == g and gearFrame.ExtraStatsQualityB == b and gearFrame.ExtraStatsQualityA == a then
+        return
+    end
+
+    gearFrame.ExtraStatsQualityR = r
+    gearFrame.ExtraStatsQualityG = g
+    gearFrame.ExtraStatsQualityB = b
+    gearFrame.ExtraStatsQualityA = a
+    gearFrame.qualityTexture:SetVertexColor(r, g, b, a)
+end
+
+local function UpdateGearFrame(gearFrame)
+    if not gearFrame or not gearFrame.qualityTexture then
+        return
+    end
 
     local itemLink = GetInventoryItemLink("player", gearFrame:GetID())
     if itemLink ~= nil then
@@ -796,7 +825,7 @@ local function UpdateGearFrame (gearFrame)
             gearFrame.ExtraStatsPendingItemInfoRetry = nil
             local itemQuality = C_Item.GetItemQualityByID(itemInfo)
             local r, g, b, _ = GetItemQualityColor(itemQuality)
-            gearFrame.qualityTexture:SetVertexColor(r, g, b, 0.75)
+            SetGearFrameQualityColor(gearFrame, r, g, b, 0.75)
         elseif not gearFrame.ExtraStatsPendingItemInfoRetry then
             gearFrame.ExtraStatsPendingItemInfoRetry = true
             C_Timer.After(0.2, function()
@@ -806,6 +835,7 @@ local function UpdateGearFrame (gearFrame)
         end
     else
         gearFrame.ExtraStatsPendingItemInfoRetry = nil
+        SetGearFrameQualityColor(gearFrame, 0, 0, 0, 0)
     end
 end
 
@@ -813,6 +843,17 @@ local function UpdateGearFrames()
     for _, gearFrame in ipairs(GEAR_SLOT_FRAMES) do
         UpdateGearFrame(gearFrame, "player")
     end
+end
+
+local function ScheduleGearFramesRefresh(delay)
+    gearFrameRefreshRequestId = gearFrameRefreshRequestId + 1
+    local requestId = gearFrameRefreshRequestId
+    C_Timer.After(delay or 0.05, function()
+        if requestId ~= gearFrameRefreshRequestId then
+            return
+        end
+        UpdateGearFrames()
+    end)
 end
 
 local function SetupGearFrames()
@@ -844,11 +885,17 @@ local Module = ExtraStats:NewModule("Gear")
 function Module:EventHandler(event, ...)
     if event == "PLAYER_LOGIN" or event == "PLAYER_EQUIPMENT_CHANGED" then
         MarkAlternativesCacheDirty()
-        UpdateGearFrames()
-        ScheduleFlyoutButtonsRefresh(0)
+        local equipmentSet = ExtraStats:GetModule("EquipmentSet")
+        if event == "PLAYER_EQUIPMENT_CHANGED" and equipmentSet and equipmentSet.IsEquipmentSwapActive and equipmentSet:IsEquipmentSwapActive() then
+            ScheduleGearFramesRefresh(0.2)
+            ScheduleFlyoutButtonsRefresh(0.2)
+        else
+            UpdateGearFrames()
+            ScheduleFlyoutButtonsRefresh(0)
+        end
     elseif event == "BAG_UPDATE_DELAYED" then
         MarkAlternativesCacheDirty()
-        ScheduleFlyoutButtonsRefresh(0.05)
+        ScheduleFlyoutButtonsRefresh(0.25)
     elseif event ~= "MODIFIER_STATE_CHANGED" then
         UpdateFlyoutButtonsVisibility()
         RefreshActiveDrawer()

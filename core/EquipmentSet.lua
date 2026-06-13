@@ -70,6 +70,7 @@ local SLOT_ORDER = {
 }
 
 local CONTAINER = C_Container or {}
+local BANK_OPEN = false
 
 local function GetContainerNumSlotsCompat(bag)
     if CONTAINER.GetContainerNumSlots then
@@ -123,6 +124,26 @@ local function NormalizeItemLink(link)
     return string.match(link, "|H(item:[^|]+)|h") or string.match(link, "(item:[^|]+)") or link
 end
 
+local function GetItemIDFromLink(itemLink)
+    local normalized = NormalizeItemLink(itemLink)
+    if not normalized then
+        return nil
+    end
+    return tonumber(string.match(normalized, "item:(%d+)"))
+end
+
+local function GetStoredItemID(set, slotName)
+    local itemID = set.items and set.items[slotName]
+    if itemID then
+        return itemID
+    end
+    return GetItemIDFromLink(set.itemLinks and set.itemLinks[slotName])
+end
+
+local function GetStoredItemLink(set, slotName)
+    return NormalizeItemLink(set.itemLinks and set.itemLinks[slotName])
+end
+
 local function GetEquippedItemLink(slotID)
     return NormalizeItemLink(GetInventoryItemLink("player", slotID))
 end
@@ -153,12 +174,39 @@ local function IsNormalBag(bag)
     return itemFamily == 0
 end
 
+local function GetBankContainerIDs()
+    if not BANK_OPEN then
+        return {}
+    end
+
+    local containers = { BANK_CONTAINER or -1 }
+    local firstBankBag = (NUM_BAG_SLOTS or 4) + 1
+    local numBankBags = NUM_BANKBAGSLOTS or 7
+
+    for bag = firstBankBag, firstBankBag + numBankBags - 1 do
+        containers[#containers + 1] = bag
+    end
+
+    return containers
+end
+
+local function IsBankContainer(bag)
+    if bag == (BANK_CONTAINER or -1) then
+        return true
+    end
+
+    local firstBankBag = (NUM_BAG_SLOTS or 4) + 1
+    local numBankBags = NUM_BANKBAGSLOTS or 7
+    return bag >= firstBankBag and bag <= firstBankBag + numBankBags - 1
+end
+
 local function BuildSlotInfo()
     local info = {}
     for _, slotID in ipairs(SLOT_ORDER) do
         table.insert(info, {
             id = slotID,
             name = SLOT_NAME_BY_ID[slotID],
+            label = SLOT_LABEL_BY_ID[slotID] or SLOT_NAME_BY_ID[slotID],
         })
     end
     return info
@@ -206,16 +254,73 @@ local function FindItemInBagsByLink(itemLink)
     return nil, nil
 end
 
+local function FindItemInBank(itemID)
+    if not itemID then
+        return nil, nil
+    end
+
+    for _, bag in ipairs(GetBankContainerIDs()) do
+        local numSlots = GetContainerNumSlotsCompat(bag) or 0
+        for slot = 1, numSlots do
+            if GetContainerItemIDCompat(bag, slot) == itemID then
+                return bag, slot
+            end
+        end
+    end
+
+    return nil, nil
+end
+
+local function FindItemInBankByLink(itemLink)
+    if not itemLink then
+        return nil, nil
+    end
+
+    for _, bag in ipairs(GetBankContainerIDs()) do
+        local numSlots = GetContainerNumSlotsCompat(bag) or 0
+        for slot = 1, numSlots do
+            local link = NormalizeItemLink(GetContainerItemLinkCompat(bag, slot))
+            if link and link == itemLink then
+                return bag, slot
+            end
+        end
+    end
+
+    return nil, nil
+end
+
 local function IsSlotSetMatched(set, slotID)
     if IsSlotIgnored(set, slotID) then
         return true
     end
     local slotName = SLOT_NAME_BY_ID[slotID]
-    local desiredLink = set.itemLinks and set.itemLinks[slotName]
+    local desiredLink = GetStoredItemLink(set, slotName)
+    local desiredItemID = GetStoredItemID(set, slotName)
+    if desiredLink and GetEquippedItemLink(slotID) == desiredLink then
+        return true
+    end
+    if desiredItemID then
+        return GetEquippedItemID(slotID) == desiredItemID
+    end
     if desiredLink then
         return GetEquippedItemLink(slotID) == desiredLink
     end
-    return GetEquippedItemID(slotID) == set.items[slotName]
+    return GetEquippedItemID(slotID) == nil
+end
+
+local function IsSlotSetExactMatched(set, slotID)
+    if IsSlotIgnored(set, slotID) then
+        return true
+    end
+
+    local slotName = SLOT_NAME_BY_ID[slotID]
+    local desiredLink = GetStoredItemLink(set, slotName)
+    if desiredLink then
+        return GetEquippedItemLink(slotID) == desiredLink
+    end
+
+    local desiredItemID = GetStoredItemID(set, slotName)
+    return GetEquippedItemID(slotID) == desiredItemID
 end
 
 local function IsSetFullyEquipped(set)
@@ -227,13 +332,23 @@ local function IsSetFullyEquipped(set)
     return true
 end
 
-local function FindEquippedSlotWithItem(set, itemID, itemLink, excludedSlotID)
+local function FindEquippedSlotWithItem(set, itemID, itemLink, excludedSlotID, exactOnly)
     if not itemID and not itemLink then
         return nil
     end
 
     for _, slotID in ipairs(SLOT_ORDER) do
-        if slotID ~= excludedSlotID and not IsSlotSetMatched(set, slotID) then
+        if slotID ~= excludedSlotID and not IsSlotIgnored(set, slotID) and itemLink and GetEquippedItemLink(slotID) == itemLink then
+            return slotID
+        end
+    end
+
+    if exactOnly then
+        return nil
+    end
+
+    for _, slotID in ipairs(SLOT_ORDER) do
+        if slotID ~= excludedSlotID and not IsSlotIgnored(set, slotID) and not IsSlotSetMatched(set, slotID) then
             if itemLink and GetEquippedItemLink(slotID) == itemLink then
                 return slotID
             end
@@ -246,10 +361,15 @@ local function FindEquippedSlotWithItem(set, itemID, itemLink, excludedSlotID)
     return nil
 end
 
+local function FindExactEquippedSlotWithItem(set, slotID)
+    local slotName = SLOT_NAME_BY_ID[slotID]
+    return FindEquippedSlotWithItem(set, nil, GetStoredItemLink(set, slotName), slotID, true)
+end
+
 local function FindDesiredItemInBags(set, slotID)
     local slotName = SLOT_NAME_BY_ID[slotID]
-    local desiredItemID = set.items[slotName]
-    local desiredItemLink = set.itemLinks and set.itemLinks[slotName]
+    local desiredItemID = GetStoredItemID(set, slotName)
+    local desiredItemLink = GetStoredItemLink(set, slotName)
 
     local bag, bagSlot = FindItemInBagsByLink(desiredItemLink)
     if (not bag or not bagSlot) and desiredItemID then
@@ -259,30 +379,84 @@ local function FindDesiredItemInBags(set, slotID)
     return bag, bagSlot
 end
 
+local function FindDesiredItemInBank(set, slotID)
+    local slotName = SLOT_NAME_BY_ID[slotID]
+    local desiredItemID = GetStoredItemID(set, slotName)
+    local desiredItemLink = GetStoredItemLink(set, slotName)
+
+    local bag, bagSlot = FindItemInBankByLink(desiredItemLink)
+    if (not bag or not bagSlot) and desiredItemID then
+        bag, bagSlot = FindItemInBank(desiredItemID)
+    end
+
+    return bag, bagSlot
+end
+
+local function FindExactDesiredItemInBags(set, slotID)
+    local slotName = SLOT_NAME_BY_ID[slotID]
+    return FindItemInBagsByLink(GetStoredItemLink(set, slotName))
+end
+
+local function FindExactDesiredItemInBank(set, slotID)
+    local slotName = SLOT_NAME_BY_ID[slotID]
+    return FindItemInBankByLink(GetStoredItemLink(set, slotName))
+end
+
+local function IsExactDesiredItemAvailable(set, slotID)
+    local slotName = SLOT_NAME_BY_ID[slotID]
+    local desiredLink = GetStoredItemLink(set, slotName)
+    if not desiredLink then
+        return false
+    end
+
+    if FindEquippedSlotWithItem(set, nil, desiredLink, slotID, true) then
+        return true
+    end
+
+    if FindExactDesiredItemInBags(set, slotID) then
+        return true
+    end
+
+    return FindExactDesiredItemInBank(set, slotID) ~= nil
+end
+
 local function GetNextEquipSlot(set)
     local fallbackSlotID = nil
     local bagSlotID = nil
+    local bankSlotID = nil
     local emptySlotID = nil
 
     for _, slotID in ipairs(SLOT_ORDER) do
-        if not IsSlotIgnored(set, slotID) and not IsSlotSetMatched(set, slotID) then
+        local exactMatched = IsSlotSetExactMatched(set, slotID)
+        local acceptableMatched = IsSlotSetMatched(set, slotID)
+        local exactAvailable = (not exactMatched) and acceptableMatched and IsExactDesiredItemAvailable(set, slotID)
+
+        if not IsSlotIgnored(set, slotID) and (not acceptableMatched or exactAvailable) then
             local slotName = SLOT_NAME_BY_ID[slotID]
-            local desiredItemID = set.items[slotName]
-            local desiredItemLink = set.itemLinks and set.itemLinks[slotName]
+            local desiredItemID = GetStoredItemID(set, slotName)
+            local desiredItemLink = GetStoredItemLink(set, slotName)
 
             fallbackSlotID = fallbackSlotID or slotID
 
             if desiredItemID == nil and desiredItemLink == nil then
                 emptySlotID = emptySlotID or slotID
+            elseif desiredItemLink and FindExactEquippedSlotWithItem(set, slotID) then
+                return slotID
+            elseif desiredItemLink and FindExactDesiredItemInBags(set, slotID) then
+                bagSlotID = slotID
+            elseif desiredItemLink and FindExactDesiredItemInBank(set, slotID) then
+                bankSlotID = slotID
             elseif FindEquippedSlotWithItem(set, desiredItemID, desiredItemLink, slotID) then
                 return slotID
             elseif not bagSlotID and FindDesiredItemInBags(set, slotID) then
                 bagSlotID = slotID
+            elseif not bankSlotID and FindDesiredItemInBank(set, slotID) then
+                bankSlotID = slotID
             end
         end
     end
 
-    return bagSlotID or emptySlotID or fallbackSlotID
+    return bagSlotID or bankSlotID or emptySlotID or fallbackSlotID
 end
 
 local function PutCursorItemIntoBags()
@@ -335,8 +509,15 @@ local function IsTwoHandedWeapon(itemID, itemLink)
 end
 
 local function ClearOffhandForTwoHander(set)
+    if IsSlotIgnored(set, INVSLOT_OFFHAND) then
+        if GetEquippedItemID(INVSLOT_OFFHAND) then
+            return false, false, nil, false
+        end
+        return true, false, nil, false
+    end
+
     local offhandSlotName = SLOT_NAME_BY_ID[INVSLOT_OFFHAND]
-    if set.items[offhandSlotName] or (set.itemLinks and set.itemLinks[offhandSlotName]) then
+    if GetStoredItemID(set, offhandSlotName) or GetStoredItemLink(set, offhandSlotName) then
         return true, false, nil, false
     end
 
@@ -382,6 +563,16 @@ local function CountAvailableItemIDs()
         end
     end
 
+    for _, bag in ipairs(GetBankContainerIDs()) do
+        local numSlots = GetContainerNumSlotsCompat(bag) or 0
+        for slot = 1, numSlots do
+            local id = GetContainerItemIDCompat(bag, slot)
+            if id then
+                counts[id] = (counts[id] or 0) + 1
+            end
+        end
+    end
+
     return counts
 end
 
@@ -391,7 +582,7 @@ local function CountRequiredItemIDs(set)
     for _, slotID in ipairs(SLOT_ORDER) do
         if not IsSlotIgnored(set, slotID) then
             local key = SLOT_NAME_BY_ID[slotID]
-            local itemID = set.items[key]
+            local itemID = GetStoredItemID(set, key)
             if itemID then
                 counts[itemID] = (counts[itemID] or 0) + 1
             end
@@ -434,7 +625,7 @@ local function GetMissingItemsForSet(set)
     for _, slotID in ipairs(SLOT_ORDER) do
         if not IsSlotIgnored(set, slotID) then
             local key = SLOT_NAME_BY_ID[slotID]
-            local itemID = set.items[key]
+            local itemID = GetStoredItemID(set, key)
             if itemID then
                 local have = available[itemID] or 0
                 if have > 0 then
@@ -445,8 +636,8 @@ local function GetMissingItemsForSet(set)
                         slotName = key,
                         slotLabel = SLOT_LABEL_BY_ID[slotID] or key,
                         itemID = itemID,
-                        itemLink = set.itemLinks and set.itemLinks[key],
-                        itemName = GetItemDisplayName(itemID, set.itemLinks and set.itemLinks[key]),
+                        itemLink = GetStoredItemLink(set, key),
+                        itemName = GetItemDisplayName(itemID, GetStoredItemLink(set, key)),
                     })
                 end
             end
@@ -457,7 +648,179 @@ local function GetMissingItemsForSet(set)
 end
 
 local pendingEquip
+local queuedEquip
 local equipToken = 0
+local knownItemLinksByLocation = {}
+local CheckMountEquipmentState
+local CheckPvPEquipmentState
+local StartQueuedEquipmentSwap
+local mountCheckToken = 0
+local pvpCheckToken = 0
+local lastMountedState = false
+local lastPvPInstanceState = false
+local mountRestoreSet = nil
+local pvpRestoreSet = nil
+local activeMountSetID = nil
+local activePvPSetID = nil
+local selectedAutomationSetID = nil
+
+local function SetKnownItemLocation(snapshot, location, itemID, itemLink)
+    local normalizedLink = NormalizeItemLink(itemLink)
+    if itemID and normalizedLink then
+        snapshot[location] = {
+            itemID = itemID,
+            itemLink = normalizedLink,
+        }
+    end
+end
+
+local function BuildKnownItemLocationSnapshot()
+    local snapshot = {}
+
+    for _, slotID in ipairs(SLOT_ORDER) do
+        SetKnownItemLocation(snapshot, "inventory:" .. tostring(slotID), GetEquippedItemID(slotID), GetEquippedItemLink(slotID))
+    end
+
+    for bag = 0, NUM_BAG_SLOTS do
+        local numSlots = GetContainerNumSlotsCompat(bag) or 0
+        for slot = 1, numSlots do
+            SetKnownItemLocation(snapshot, "bag:" .. tostring(bag) .. ":" .. tostring(slot), GetContainerItemIDCompat(bag, slot), GetContainerItemLinkCompat(bag, slot))
+        end
+    end
+
+    for _, bag in ipairs(GetBankContainerIDs()) do
+        local numSlots = GetContainerNumSlotsCompat(bag) or 0
+        for slot = 1, numSlots do
+            SetKnownItemLocation(snapshot, "bank:" .. tostring(bag) .. ":" .. tostring(slot), GetContainerItemIDCompat(bag, slot), GetContainerItemLinkCompat(bag, slot))
+        end
+    end
+
+    return snapshot
+end
+
+local function UpdateSetLinksForChangedItem(oldItemLink, newItemLink)
+    if oldItemLink == newItemLink then
+        return false
+    end
+
+    local oldItemID = GetItemIDFromLink(oldItemLink)
+    local newItemID = GetItemIDFromLink(newItemLink)
+    if not oldItemID or oldItemID ~= newItemID then
+        return false
+    end
+
+    local sets = equipment.db and equipment.db.char and equipment.db.char.sets
+    if not sets then
+        return false
+    end
+
+    local changed = false
+    for _, set in ipairs(sets) do
+        set.items = set.items or {}
+        set.itemLinks = set.itemLinks or {}
+
+        for _, slotID in ipairs(SLOT_ORDER) do
+            if not IsSlotIgnored(set, slotID) then
+                local key = SLOT_NAME_BY_ID[slotID]
+                if GetStoredItemLink(set, key) == oldItemLink then
+                    set.items[key] = newItemID
+                    set.itemLinks[key] = newItemLink
+                    changed = true
+                end
+            end
+        end
+    end
+
+    return changed
+end
+
+local function RefreshEquipmentSetItemLinks()
+    local snapshot = BuildKnownItemLocationSnapshot()
+    local changed = false
+
+    for location, current in pairs(snapshot) do
+        local previous = knownItemLinksByLocation[location]
+        if previous and previous.itemID == current.itemID and previous.itemLink ~= current.itemLink then
+            changed = UpdateSetLinksForChangedItem(previous.itemLink, current.itemLink) or changed
+        end
+    end
+
+    knownItemLinksByLocation = snapshot
+
+    if changed then
+        ExtraStats:Trigger("gear.update")
+    end
+
+    return changed
+end
+
+local function RefreshCurrentSetID()
+    local sets = equipment.db and equipment.db.char and equipment.db.char.sets
+    if not sets then
+        return
+    end
+    equipment.currentSetID = nil
+    for setID, set in ipairs(sets) do
+        if IsSetFullyEquipped(set) then
+            equipment.currentSetID = setID
+            break
+        end
+    end
+end
+
+local function RebuildKnownItemLinkSnapshot()
+    knownItemLinksByLocation = BuildKnownItemLocationSnapshot()
+end
+
+local function CopyIgnoredSlots(ignoredSlots)
+    local copy = {}
+    if ignoredSlots then
+        for slotID, ignored in pairs(ignoredSlots) do
+            if ignored then
+                copy[slotID] = true
+            end
+        end
+    end
+    return copy
+end
+
+local function BuildCurrentEquipmentSnapshot(name, ignoredSlots)
+    local set = {
+        name = name or "Temporary equipment",
+        icon = nil,
+        items = {},
+        itemLinks = {},
+        ignoredSlots = CopyIgnoredSlots(ignoredSlots),
+    }
+
+    for _, slotID in ipairs(SLOT_ORDER) do
+        if not set.ignoredSlots[slotID] then
+            local key = SLOT_NAME_BY_ID[slotID]
+            set.items[key] = GetEquippedItemID(slotID)
+            set.itemLinks[key] = GetEquippedItemLink(slotID)
+        end
+    end
+
+    return set
+end
+
+local function IsPlayerMounted()
+    if type(IsMounted) == "function" then
+        return IsMounted() == true
+    end
+
+    return false
+end
+
+local function IsPlayerInPvPInstance()
+    if type(IsInInstance) ~= "function" then
+        return false
+    end
+
+    local inInstance, instanceType = IsInInstance()
+    return inInstance == true and (instanceType == "pvp" or instanceType == "arena")
+end
+
 local EQUIP_ACTION_DELAY = 0.15
 local EQUIP_LOCK_RETRY_DELAY = 0.07
 local ProcessEquip
@@ -572,12 +935,26 @@ local function HasPendingItemLocks()
         end
     end
 
+    for _, bag in ipairs(GetBankContainerIDs()) do
+        local numSlots = GetContainerNumSlotsCompat(bag) or 0
+        for slot = 1, numSlots do
+            local info = GetContainerItemInfoCompat(bag, slot)
+            if info and info.isLocked then
+                return true
+            end
+        end
+    end
+
     return false
 end
 
 local function PutCursorItemIntoPreferredSlot(bag, slot)
     if not CursorHasItem() or bag == nil or slot == nil then
         return not CursorHasItem()
+    end
+
+    if IsBankContainer(bag) then
+        return false
     end
 
     local info = GetContainerItemInfoCompat(bag, slot)
@@ -612,6 +989,34 @@ local function PutCursorItemAway(preferredBag, preferredSlot)
     end
 
     return false, HasPendingItemLocks()
+end
+
+local function PullBankItemIntoBags(bankBag, bankSlot)
+    if not BANK_OPEN or not bankBag or not bankSlot then
+        return false, false
+    end
+
+    local info = GetContainerItemInfoCompat(bankBag, bankSlot)
+    if info and info.isLocked then
+        return false, true
+    end
+
+    local freeBag, freeSlot = FindFreeBagSlot()
+    if not freeBag then
+        return false, false, ERR_EQUIPMENT_MANAGER_BAGS_FULL
+    end
+
+    PickupContainerItemCompat(bankBag, bankSlot)
+    if not CursorHasItem() then
+        return false, true
+    end
+
+    PickupContainerItemCompat(freeBag, freeSlot)
+    if CursorHasItem() then
+        return false, true
+    end
+
+    return true, false
 end
 
 local function GetActiveSpecGroup()
@@ -761,11 +1166,37 @@ local function FinishEquip(success, errorMessage, token)
     end
 
     local setID = pendingEquip and pendingEquip.setID
+    local action = pendingEquip and pendingEquip.action
     pendingEquip = nil
+
+    if success == true then
+        equipment.currentSetID = setID
+        if action == "mount" then
+            activeMountSetID = setID
+        elseif action == "mountRestore" then
+            mountRestoreSet = nil
+            activeMountSetID = nil
+        elseif action == "pvp" then
+            activePvPSetID = setID
+        elseif action == "pvpRestore" then
+            pvpRestoreSet = nil
+            activePvPSetID = nil
+        end
+        RefreshEquipmentSetItemLinks()
+        RefreshCurrentSetID()
+        RebuildKnownItemLinkSnapshot()
+    end
 
     ExtraStats:SendMessage("EQUIPMENT_SWAP_FINISHED", success == true, setID)
     ExtraStats:Trigger("gear.swap.finished", success == true, setID)
     ExtraStats:Trigger("gear.update")
+
+    if CheckMountEquipmentState then
+        C_Timer.After(0, CheckMountEquipmentState)
+    end
+    if CheckPvPEquipmentState then
+        C_Timer.After(0, CheckPvPEquipmentState)
+    end
 end
 
 local function TryEquipSingleSlot(set, slotID)
@@ -773,9 +1204,13 @@ local function TryEquipSingleSlot(set, slotID)
         return false, true
     end
 
+    if IsSlotIgnored(set, slotID) then
+        return false, false
+    end
+
     local slotName = SLOT_NAME_BY_ID[slotID]
-    local desiredItemID = set.items[slotName]
-    local desiredItemLink = set.itemLinks and set.itemLinks[slotName]
+    local desiredItemID = GetStoredItemID(set, slotName)
+    local desiredItemLink = GetStoredItemLink(set, slotName)
     local equippedItemID = GetEquippedItemID(slotID)
     local equippedItemLink = GetEquippedItemLink(slotID)
 
@@ -821,7 +1256,62 @@ local function TryEquipSingleSlot(set, slotID)
         end
     end
 
-    local bag, bagSlot = FindDesiredItemInBags(set, slotID)
+    local exactEquippedSourceSlot = desiredItemLink and FindExactEquippedSlotWithItem(set, slotID)
+    if exactEquippedSourceSlot then
+        PickupInventoryItem(exactEquippedSourceSlot)
+        PickupInventoryItem(slotID)
+        if CursorHasItem() then
+            PickupInventoryItem(exactEquippedSourceSlot)
+        end
+        if CursorHasItem() then
+            local stored, blocked = PutCursorItemAway()
+            if not stored then
+                if blocked then
+                    return true, true
+                end
+                return false, false, ERR_EQUIPMENT_MANAGER_BAGS_FULL
+            end
+        end
+        return true, false
+    end
+
+    local bag, bagSlot = desiredItemLink and FindExactDesiredItemInBags(set, slotID)
+    if bag and bagSlot then
+        local info = GetContainerItemInfoCompat(bag, bagSlot)
+        if info and info.isLocked then
+            return false, true
+        end
+
+        PickupContainerItemCompat(bag, bagSlot)
+        PickupInventoryItem(slotID)
+        if CursorHasItem() then
+            local stored, blocked = PutCursorItemAway(bag, bagSlot)
+            if not stored then
+                if blocked then
+                    pendingEquip.cursorPreferredBag = bag
+                    pendingEquip.cursorPreferredSlot = bagSlot
+                    return true, true
+                end
+                return false, false, ERR_EQUIPMENT_MANAGER_BAGS_FULL
+            end
+        end
+        if pendingEquip then
+            pendingEquip.cursorPreferredBag = nil
+            pendingEquip.cursorPreferredSlot = nil
+        end
+        return true, false
+    end
+
+    local bankBag, bankSlot = desiredItemLink and FindExactDesiredItemInBank(set, slotID)
+    if bankBag and bankSlot then
+        local pulled, blocked, err = PullBankItemIntoBags(bankBag, bankSlot)
+        if err then
+            return false, false, err
+        end
+        return pulled, blocked == true
+    end
+
+    bag, bagSlot = FindDesiredItemInBags(set, slotID)
     if bag and bagSlot then
         local info = GetContainerItemInfoCompat(bag, bagSlot)
         if info and info.isLocked then
@@ -867,6 +1357,15 @@ local function TryEquipSingleSlot(set, slotID)
         return true, false
     end
 
+    bankBag, bankSlot = FindDesiredItemInBank(set, slotID)
+    if bankBag and bankSlot then
+        local pulled, blocked, err = PullBankItemIntoBags(bankBag, bankSlot)
+        if err then
+            return false, false, err
+        end
+        return pulled, blocked == true
+    end
+
     return false, false
 end
 
@@ -875,14 +1374,13 @@ function ProcessEquip(token)
         return
     end
 
-    local set = equipment.db.char.sets[pendingEquip.setID]
+    local set = pendingEquip.set or equipment.db.char.sets[pendingEquip.setID]
     if not set then
         FinishEquip(false, nil, token)
         return
     end
 
     if InCombatLockdown() then
-        FinishEquip(false, ERR_CLIENT_LOCKED_OUT, token)
         return
     end
 
@@ -949,8 +1447,10 @@ function ProcessEquip(token)
     if not blockedByLock then
         if IsSetFullyEquipped(set) then
             FinishEquip(true, nil, token)
-        else
+        elseif GetMissingItemCountForSet(set) > 0 then
             FinishEquip(false, MISSING_ITEMS_ERROR, token)
+        else
+            FinishEquip(false, nil, token)
         end
         return
     end
@@ -967,6 +1467,8 @@ function equipment:OnInitialize()
     equipment.db = ExtraStats.db:RegisterNamespace("equipments", {
         char = {
             sets = {},
+            mountSetID = nil,
+            pvpSetID = nil,
         },
     })
 
@@ -978,6 +1480,16 @@ function equipment:OnEnable()
     self:RegisterEvent("ITEM_LOCK_CHANGED", "EventHandler")
     self:RegisterEvent("PLAYER_EQUIPMENT_CHANGED", "EventHandler")
     self:RegisterEvent("ACTIVE_TALENT_GROUP_CHANGED", "EventHandler")
+    self:RegisterEvent("BANKFRAME_OPENED", "EventHandler")
+    self:RegisterEvent("BANKFRAME_CLOSED", "EventHandler")
+    self:RegisterEvent("PLAYER_MOUNT_DISPLAY_CHANGED", "EventHandler")
+    self:RegisterEvent("UNIT_AURA", "EventHandler")
+    self:RegisterEvent("PLAYER_REGEN_ENABLED", "EventHandler")
+    self:RegisterEvent("PLAYER_ENTERING_WORLD", "EventHandler")
+    self:RegisterEvent("ZONE_CHANGED_NEW_AREA", "EventHandler")
+    lastMountedState = IsPlayerMounted()
+    lastPvPInstanceState = IsPlayerInPvPInstance()
+    RebuildKnownItemLinkSnapshot()
 end
 
 function equipment:OnDisable()
@@ -985,15 +1497,52 @@ function equipment:OnDisable()
     self:UnregisterEvent("ITEM_LOCK_CHANGED")
     self:UnregisterEvent("PLAYER_EQUIPMENT_CHANGED")
     self:UnregisterEvent("ACTIVE_TALENT_GROUP_CHANGED")
+    self:UnregisterEvent("BANKFRAME_OPENED")
+    self:UnregisterEvent("BANKFRAME_CLOSED")
+    self:UnregisterEvent("PLAYER_MOUNT_DISPLAY_CHANGED")
+    self:UnregisterEvent("UNIT_AURA")
+    self:UnregisterEvent("PLAYER_REGEN_ENABLED")
+    self:UnregisterEvent("PLAYER_ENTERING_WORLD")
+    self:UnregisterEvent("ZONE_CHANGED_NEW_AREA")
 end
 
-function equipment:EventHandler(event)
+function equipment:EventHandler(event, arg1)
+    if event == "BANKFRAME_OPENED" then
+        BANK_OPEN = true
+        RebuildKnownItemLinkSnapshot()
+        ExtraStats:Trigger("gear.update")
+    elseif event == "BANKFRAME_CLOSED" then
+        BANK_OPEN = false
+        RebuildKnownItemLinkSnapshot()
+        ExtraStats:Trigger("gear.update")
+    end
+
     if pendingEquip then
         ScheduleProcessEquip(pendingEquip.token, EQUIP_LOCK_RETRY_DELAY)
+    elseif event == "PLAYER_REGEN_ENABLED" and StartQueuedEquipmentSwap and StartQueuedEquipmentSwap() then
+        return
+    elseif event == "PLAYER_EQUIPMENT_CHANGED" then
+        RefreshEquipmentSetItemLinks()
+        RefreshCurrentSetID()
+    elseif event == "BAG_UPDATE_DELAYED" or event == "ITEM_LOCK_CHANGED" then
+        RefreshEquipmentSetItemLinks()
+        RefreshCurrentSetID()
     end
 
     if event == "ACTIVE_TALENT_GROUP_CHANGED" then
         self:EquipSetForActiveSpec()
+    end
+
+    if event == "PLAYER_MOUNT_DISPLAY_CHANGED" or event == "PLAYER_REGEN_ENABLED" or event == "PLAYER_ENTERING_WORLD" or (event == "UNIT_AURA" and arg1 == "player") then
+        if CheckMountEquipmentState then
+            CheckMountEquipmentState()
+        end
+    end
+
+    if event == "PLAYER_ENTERING_WORLD" or event == "ZONE_CHANGED_NEW_AREA" or event == "PLAYER_REGEN_ENABLED" then
+        if CheckPvPEquipmentState then
+            CheckPvPEquipmentState()
+        end
     end
 end
 
@@ -1047,6 +1596,22 @@ end
 function equipment:DeleteEquipmentSet(setId)
     table.remove(self.db.char.sets, setId)
 
+    if self.db.char.mountSetID == setId then
+        self.db.char.mountSetID = nil
+        mountRestoreSet = nil
+        activeMountSetID = nil
+    elseif self.db.char.mountSetID and self.db.char.mountSetID > setId then
+        self.db.char.mountSetID = self.db.char.mountSetID - 1
+    end
+
+    if self.db.char.pvpSetID == setId then
+        self.db.char.pvpSetID = nil
+        pvpRestoreSet = nil
+        activePvPSetID = nil
+    elseif self.db.char.pvpSetID and self.db.char.pvpSetID > setId then
+        self.db.char.pvpSetID = self.db.char.pvpSetID - 1
+    end
+
     if ExtraStats.db and ExtraStats.db.char and ExtraStats.db.char.sets then
         local assignedSpecs = ExtraStats.db.char.sets
         local shiftedSpecs = {}
@@ -1093,6 +1658,8 @@ function equipment:SaveEquipmentSet(setId, icon)
         end
     end
 
+    self.currentSetID = setId
+    RebuildKnownItemLinkSnapshot()
     ExtraStats:Trigger("gear.update")
 end
 
@@ -1129,6 +1696,29 @@ function equipment:ClearIgnoredSlotsForSave()
     self.ignoredSlotsForSave = {}
 end
 
+function equipment:SetIgnoredSlotsForSave(ignoredSlots)
+    self.ignoredSlotsForSave = {}
+
+    if not ignoredSlots then
+        return
+    end
+
+    for slotID, ignored in pairs(ignoredSlots) do
+        if ignored then
+            self.ignoredSlotsForSave[slotID] = true
+        end
+    end
+end
+
+function equipment:UnignoreSlotForSave(slot)
+    self.ignoredSlotsForSave = self.ignoredSlotsForSave or {}
+    self.ignoredSlotsForSave[slot] = nil
+end
+
+function equipment:IsSlotIgnoredForSave(slot)
+    return self.ignoredSlotsForSave and self.ignoredSlotsForSave[slot] == true
+end
+
 function equipment:GetIgnoredSlots(setID)
     if not setID then
         return self.ignoredSlotsForSave or {}
@@ -1143,6 +1733,32 @@ function equipment:GetIgnoredSlots(setID)
     return set.ignoredSlots
 end
 
+function equipment:IsEquipmentSetSlotIgnored(setID, slotID)
+    local set = self.db.char.sets[setID]
+    if not set then
+        return false
+    end
+
+    return IsSlotIgnored(set, slotID)
+end
+
+function equipment:SetEquipmentSetSlotIgnored(setID, slotID, ignored)
+    local set = self.db.char.sets[setID]
+    if not set or not SLOT_NAME_BY_ID[slotID] then
+        return
+    end
+
+    set.ignoredSlots = set.ignoredSlots or {}
+
+    if ignored then
+        set.ignoredSlots[slotID] = true
+    else
+        set.ignoredSlots[slotID] = nil
+    end
+
+    ExtraStats:Trigger("gear.update")
+end
+
 function equipment:IgnoreSlotForSave(slot)
     self.ignoredSlotsForSave = self.ignoredSlotsForSave or {}
     self.ignoredSlotsForSave[slot] = true
@@ -1153,19 +1769,22 @@ function equipment:FindItemInBags(itemID)
     return itemID, bag, slot
 end
 
-function equipment:UseEquipmentSet(id)
-    local set = self.db.char.sets[id]
-    if not set then
-        return false
-    end
-
+local function StartEquipmentSwap(setID, set, action)
     if pendingEquip then
         return false
     end
 
     if InCombatLockdown() then
-        UIErrorsFrame:AddMessage(ERR_CLIENT_LOCKED_OUT, 1.0, 0.1, 0.1, 1.0)
-        return false
+        queuedEquip = {
+            setID = setID,
+            set = set,
+            action = action,
+        }
+        if UIErrorsFrame then
+            UIErrorsFrame:AddMessage("Equipment swap queued until combat ends.", 1.0, 0.82, 0.0, 1.0)
+        end
+        ExtraStats:Trigger("gear.update")
+        return true
     end
 
     if SpellIsTargeting and SpellIsTargeting() then
@@ -1182,7 +1801,9 @@ function equipment:UseEquipmentSet(id)
 
     equipToken = equipToken + 1
     pendingEquip = {
-        setID = id,
+        setID = setID,
+        set = set,
+        action = action,
         token = equipToken,
         attempt = 0,
         maxAttempts = 120,
@@ -1194,8 +1815,160 @@ function equipment:UseEquipmentSet(id)
     return true
 end
 
+StartQueuedEquipmentSwap = function()
+    if pendingEquip or not queuedEquip or InCombatLockdown() then
+        return false
+    end
+
+    if SpellIsTargeting and SpellIsTargeting() then
+        C_Timer.After(EQUIP_LOCK_RETRY_DELAY, StartQueuedEquipmentSwap)
+        return true
+    end
+
+    local queued = queuedEquip
+    queuedEquip = nil
+
+    if queued.setID and not equipment.db.char.sets[queued.setID] then
+        ExtraStats:Trigger("gear.update")
+        return false
+    end
+
+    return StartEquipmentSwap(queued.setID, queued.set, queued.action)
+end
+
+function equipment:UseEquipmentSet(id)
+    local set = self.db.char.sets[id]
+    if not set then
+        return false
+    end
+
+    return StartEquipmentSwap(id, nil)
+end
+
+function equipment:UseEquipmentSetForMount(id)
+    local set = self.db.char.sets[id]
+    if not set then
+        return false
+    end
+
+    return StartEquipmentSwap(id, nil, "mount")
+end
+
+function equipment:UseEquipmentSetForPvP(id)
+    local set = self.db.char.sets[id]
+    if not set then
+        return false
+    end
+
+    return StartEquipmentSwap(id, nil, "pvp")
+end
+
+function equipment:UseTemporaryEquipmentSet(set, action)
+    if not set then
+        return false
+    end
+
+    return StartEquipmentSwap(nil, set, action)
+end
+
 function equipment:IsEquipmentSwapActive()
-    return pendingEquip ~= nil
+    return pendingEquip ~= nil or queuedEquip ~= nil
+end
+
+CheckMountEquipmentState = function()
+    mountCheckToken = mountCheckToken + 1
+    local token = mountCheckToken
+
+    C_Timer.After(0.2, function()
+        if token ~= mountCheckToken then
+            return
+        end
+
+        local mounted = IsPlayerMounted()
+        local changed = mounted ~= lastMountedState
+        lastMountedState = mounted
+
+        if pendingEquip then
+            return
+        end
+
+        if IsPlayerInPvPInstance() then
+            return
+        end
+
+        local mountSetID = equipment:GetMountEquipmentSet()
+        if mounted then
+            if not mountSetID or not equipment.db.char.sets[mountSetID] then
+                return
+            end
+
+            if activeMountSetID == mountSetID then
+                return
+            end
+
+            local mountSet = equipment.db.char.sets[mountSetID]
+            if not mountRestoreSet or changed then
+                mountRestoreSet = BuildCurrentEquipmentSnapshot("Before mount", mountSet.ignoredSlots)
+            end
+
+            equipment.currentSetID = nil
+            equipment:UseEquipmentSetForMount(mountSetID)
+            return
+        end
+
+        activeMountSetID = nil
+        if mountRestoreSet then
+            equipment.currentSetID = nil
+            equipment:UseTemporaryEquipmentSet(mountRestoreSet, "mountRestore")
+        end
+    end)
+end
+
+CheckPvPEquipmentState = function()
+    pvpCheckToken = pvpCheckToken + 1
+    local token = pvpCheckToken
+
+    C_Timer.After(0.2, function()
+        if token ~= pvpCheckToken then
+            return
+        end
+
+        local inPvPInstance = IsPlayerInPvPInstance()
+        local changed = inPvPInstance ~= lastPvPInstanceState
+        lastPvPInstanceState = inPvPInstance
+
+        if pendingEquip then
+            return
+        end
+
+        local pvpSetID = equipment:GetPvPEquipmentSet()
+        if inPvPInstance then
+            if not pvpSetID or not equipment.db.char.sets[pvpSetID] then
+                return
+            end
+
+            if activePvPSetID == pvpSetID then
+                return
+            end
+
+            local pvpSet = equipment.db.char.sets[pvpSetID]
+            if not pvpRestoreSet or changed then
+                pvpRestoreSet = mountRestoreSet or BuildCurrentEquipmentSnapshot("Before PVP", pvpSet.ignoredSlots)
+                mountRestoreSet = nil
+                activeMountSetID = nil
+            end
+
+            equipment.currentSetID = nil
+            equipment:UseEquipmentSetForPvP(pvpSetID)
+            return
+        end
+
+        activePvPSetID = nil
+        if pvpRestoreSet then
+            equipment.currentSetID = nil
+            equipment:UseTemporaryEquipmentSet(pvpRestoreSet, "pvpRestore")
+        end
+    end)
 end
 
 function equipment:GetNumEquipmentSets()
@@ -1269,6 +2042,64 @@ function equipment:UnassignSpecFromEquipmentSet(setID)
     ExtraStats:Trigger("gear.update")
 end
 
+function equipment:AssignMountEquipmentSet(setID)
+    if not self.db.char.sets[setID] then
+        return
+    end
+
+    self.db.char.mountSetID = setID
+    ExtraStats:Trigger("gear.update")
+    if CheckMountEquipmentState then
+        CheckMountEquipmentState()
+    end
+end
+
+function equipment:GetMountEquipmentSet()
+    local setID = self.db.char.mountSetID
+    if setID and self.db.char.sets[setID] then
+        return setID
+    end
+
+    self.db.char.mountSetID = nil
+    return nil
+end
+
+function equipment:UnassignMountEquipmentSet()
+    self.db.char.mountSetID = nil
+    mountRestoreSet = nil
+    activeMountSetID = nil
+    ExtraStats:Trigger("gear.update")
+end
+
+function equipment:AssignPvPEquipmentSet(setID)
+    if not self.db.char.sets[setID] then
+        return
+    end
+
+    self.db.char.pvpSetID = setID
+    ExtraStats:Trigger("gear.update")
+    if CheckPvPEquipmentState then
+        CheckPvPEquipmentState()
+    end
+end
+
+function equipment:GetPvPEquipmentSet()
+    local setID = self.db.char.pvpSetID
+    if setID and self.db.char.sets[setID] then
+        return setID
+    end
+
+    self.db.char.pvpSetID = nil
+    return nil
+end
+
+function equipment:UnassignPvPEquipmentSet()
+    self.db.char.pvpSetID = nil
+    pvpRestoreSet = nil
+    activePvPSetID = nil
+    ExtraStats:Trigger("gear.update")
+end
+
 function equipment:GetEquipmentSetForSpec(specGroup)
     ExtraStats.db.char.sets = ExtraStats.db.char.sets or {}
 
@@ -1290,10 +2121,6 @@ function equipment:EquipSetForActiveSpec()
             return
         end
 
-        if InCombatLockdown() then
-            return
-        end
-
         local specGroup = GetActiveSpecGroup()
         if specGroup == lastAutoEquippedSpecGroup then
             return
@@ -1302,6 +2129,12 @@ function equipment:EquipSetForActiveSpec()
         local setID = self:GetEquipmentSetForSpec(specGroup)
         if not setID then
             lastAutoEquippedSpecGroup = specGroup
+            return
+        end
+
+        if InCombatLockdown() then
+            lastAutoEquippedSpecGroup = specGroup
+            self:UseEquipmentSet(setID)
             return
         end
 
