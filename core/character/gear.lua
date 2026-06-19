@@ -24,6 +24,7 @@ local ToggleIgnoredSlotForSave
 local UpdateIgnoredSlotOverlays
 local UpdateEquipmentEditModeVisuals
 local HookItemSlotIgnoreEditing
+local RestoreItemSlotIgnoreEditing
 local SetIgnoredSlotVisual
 local ClearIgnoredSlotVisuals
 
@@ -49,6 +50,7 @@ local itemSlotButtons = {
     CharacterTabardSlot,
 }
 
+local ignoreEditClickOverlays = {}
 local EM_ICON_FILENAMES = {}
 
 local function BuildEquipMacroBody(setName)
@@ -336,6 +338,7 @@ end
 
 function ExtraStats_PaperDollEquipmentManagerPane_OnHide(self)
     self.equipmentEditMode = nil
+    RestoreItemSlotIgnoreEditing()
     ExtraStats_PaperDollFrame_ClearIgnoredSlots()
     UpdateEquipmentEditModeVisuals()
     ExtraStats_GearManagerDialogPopup:Hide()
@@ -793,12 +796,52 @@ local function EnsureEquipmentEditModeOverlay(button)
     button.ExtraStatsEquipmentEditOverlay = overlay
 end
 
+local function EnsureIgnoreEditClickOverlay(button)
+    if not button or ignoreEditClickOverlays[button] then
+        return
+    end
+
+    local clickOverlay = CreateFrame("Button", nil, UIParent)
+    clickOverlay:SetPoint("TOPLEFT", button, "TOPLEFT", 0, 0)
+    clickOverlay:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", 0, 0)
+    clickOverlay:EnableMouse(true)
+    clickOverlay:SetFrameStrata("DIALOG")
+    clickOverlay:SetFrameLevel(1000)
+    clickOverlay:RegisterForClicks("RightButtonUp")
+    clickOverlay:SetScript("OnClick", function(self, mouseButton)
+        if mouseButton == "RightButton" then
+            ToggleIgnoredSlotForSave(self.slotID)
+        end
+    end)
+    clickOverlay:Hide()
+
+    clickOverlay.slotID = button:GetID()
+    ignoreEditClickOverlays[button] = clickOverlay
+end
+
+local function SetIgnoreEditClickOverlayShown(button, shown)
+    EnsureIgnoreEditClickOverlay(button)
+
+    local clickOverlay = ignoreEditClickOverlays[button]
+    if not clickOverlay then
+        return
+    end
+
+    clickOverlay:ClearAllPoints()
+    clickOverlay:SetPoint("TOPLEFT", button, "TOPLEFT", 0, 0)
+    clickOverlay:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", 0, 0)
+    clickOverlay:SetFrameStrata("DIALOG")
+    clickOverlay:SetFrameLevel(1000)
+    clickOverlay:SetShown(shown == true)
+end
+
 UpdateEquipmentEditModeVisuals = function()
     local shown = tab.frame and tab.frame.equipmentEditMode == true
     for _, button in ipairs(itemSlotButtons) do
         if button then
             EnsureEquipmentEditModeOverlay(button)
             button.ExtraStatsEquipmentEditOverlay:SetShown(shown == true)
+            SetIgnoreEditClickOverlayShown(button, shown)
             if shown and button.LockHighlight then
                 button:LockHighlight()
             elseif button.UnlockHighlight then
@@ -846,25 +889,18 @@ end
 
 HookItemSlotIgnoreEditing = function()
     for _, button in ipairs(itemSlotButtons) do
-        if button and not button.ExtraStatsIgnoreEditHooked then
-            button.ExtraStatsIgnoreEditHooked = true
+        if button then
             EnsureIgnoredSlotOverlay(button)
             EnsureEquipmentEditModeOverlay(button)
+            SetIgnoreEditClickOverlayShown(button, IsIgnoringSlotsEditable())
+        end
+    end
+end
 
-            if button.RegisterForClicks then
-                button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-            end
-
-            local originalOnClick = button:GetScript("OnClick")
-            button:SetScript("OnClick", function(self, mouseButton, ...)
-                if mouseButton == "RightButton" and ToggleIgnoredSlotForSave(self:GetID()) then
-                    return
-                end
-
-                if originalOnClick then
-                    originalOnClick(self, mouseButton, ...)
-                end
-            end)
+RestoreItemSlotIgnoreEditing = function()
+    for _, button in ipairs(itemSlotButtons) do
+        if button and ignoreEditClickOverlays[button] then
+            ignoreEditClickOverlays[button]:Hide()
         end
     end
 end
