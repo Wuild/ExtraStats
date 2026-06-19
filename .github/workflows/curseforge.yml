@@ -29,6 +29,8 @@ jobs:
           zip -r "$zip_path" "$addon_name" -x "$addon_name/.git/*" "$addon_name/.github/*"
 
       - name: Publish
+        id: publish_1
+        continue-on-error: true
         uses: itsmeow/curseforge-upload@v3
         with:
           token: ${{ secrets.CURSEFORGE_TOKEN }}
@@ -38,3 +40,48 @@ jobs:
           display_name: ${{ github.ref_name }}
           game_versions: "2.5.5,1.15.8,3.4.5,4.4.2"
           release_type: release
+
+      - name: Wait before retry 1
+        if: steps.publish_1.outcome == 'failure'
+        shell: bash
+        run: sleep 30
+
+      - name: Publish retry 1
+        id: publish_2
+        if: steps.publish_1.outcome == 'failure'
+        continue-on-error: true
+        uses: itsmeow/curseforge-upload@v3
+        with:
+          token: ${{ secrets.CURSEFORGE_TOKEN }}
+          project_id: "803163"
+          game_endpoint: "wow"
+          file_path: ${{ github.workspace }}/${{ github.ref_name }}.zip
+          display_name: ${{ github.ref_name }}
+          game_versions: "2.5.5,1.15.8,3.4.5,4.4.2"
+          release_type: release
+
+      - name: Wait before retry 2
+        if: steps.publish_1.outcome == 'failure' && steps.publish_2.outcome == 'failure'
+        shell: bash
+        run: sleep 60
+
+      - name: Publish retry 2
+        id: publish_3
+        if: steps.publish_1.outcome == 'failure' && steps.publish_2.outcome == 'failure'
+        continue-on-error: true
+        uses: itsmeow/curseforge-upload@v3
+        with:
+          token: ${{ secrets.CURSEFORGE_TOKEN }}
+          project_id: "803163"
+          game_endpoint: "wow"
+          file_path: ${{ github.workspace }}/${{ github.ref_name }}.zip
+          display_name: ${{ github.ref_name }}
+          game_versions: "2.5.5,1.15.8,3.4.5,4.4.2"
+          release_type: release
+
+      - name: Fail if publish failed
+        if: steps.publish_1.outcome == 'failure' && steps.publish_2.outcome == 'failure' && steps.publish_3.outcome == 'failure'
+        shell: bash
+        run: |
+          echo "CurseForge upload failed after 3 attempts."
+          exit 1
