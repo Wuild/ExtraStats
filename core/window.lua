@@ -84,7 +84,7 @@ ES_PAPERDOLL_SIDEBARS = {
     },
     {
         name = PAPERDOLL_EQUIPMENTMANAGER;
-        frame = "PaperDollEquipmentManagerPane";
+        frame = "ExtraStatsPaperDollEquipmentManagerPane";
         icon = "Interface\\PaperDollInfoFrame\\PaperDollSidebarTabs";
         texCoords = { 0.01562500, 0.53125000, 0.46875000, 0.60546875 };
 

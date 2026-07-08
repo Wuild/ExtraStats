@@ -14,10 +14,15 @@ GEARSET_ICON_ROW_HEIGHT = 36
 
 local STRIPE_COLOR = { r = 0.9, g = 0.9, b = 1 }
 local DEFAULT_ICON = 134400
+local EQUIPMENT_SET_BUTTON_OFFSET_X = 2
+local EQUIPMENT_SET_BUTTON_OFFSET_Y = -26
 local ShowGearSetTooltip
 local HideGearSetTooltip
 local HookNativeGearSetButtonTooltips
 local EnsureGearSetButtonTooltipScripts
+local EnsureEquipmentSetButtons
+local EnsureEquipmentSetScrollChild
+local HideOrphanEquipmentSetButtons
 local IsFrameUnderCursor
 local GetGearSetButtonFromMouseFocus
 local ToggleIgnoredSlotForSave
@@ -303,11 +308,9 @@ StaticPopupDialogs["ExtraStats_CONFIRM_OVERWRITE_EQUIPMENT_SET"] = {
 function ExtraStats_PaperDollEquipmentManagerPane_OnLoad(self)
     HookNativeGearSetButtonTooltips()
     HybridScrollFrame_OnLoad(self)
+    EnsureEquipmentSetScrollChild(self)
     self.update = ExtraStats_PaperDollEquipmentManagerPane_Update
-    HybridScrollFrame_CreateButtons(self, "ExtraGearSetButtonTemplate", 2, -(self.EquipSet:GetHeight() + 4))
-    for _, button in ipairs(self.buttons or {}) do
-        EnsureGearSetButtonTooltipScripts(button)
-    end
+    EnsureEquipmentSetButtons(self)
 
     self:RegisterEvent("EQUIPMENT_SWAP_FINISHED")
     self:RegisterEvent("EQUIPMENT_SETS_CHANGED")
@@ -330,9 +333,16 @@ end
 function ExtraStats_PaperDollEquipmentManagerPane_OnShow(self)
     self.equipmentEditMode = true
     HookItemSlotIgnoreEditing()
+    EnsureEquipmentSetButtons(self)
     SelectCurrentlyEquippedSet()
     UpdateEquipmentEditModeVisuals()
     ExtraStats_PaperDollEquipmentManagerPane_Update()
+    C_Timer.After(0, function()
+        if self and self:IsShown() then
+            EnsureEquipmentSetButtons(self)
+            ExtraStats_PaperDollEquipmentManagerPane_Update()
+        end
+    end)
     ExtraStats:Trigger("gear.tab.show", self)
 end
 
@@ -378,7 +388,7 @@ function ExtraStats_PaperDollEquipmentManagerPane_OnUpdate(self)
     if isEquipInProgress then
         HideGearSetTooltip(self.hoveredSetButton)
         self.hoveredSetButton = nil
-        for i = 1, #self.buttons do
+        for i = 1, #(self.buttons or {}) do
             local button = self.buttons[i]
             button.DeleteButton:Hide()
             button.EditButton:Hide()
@@ -387,18 +397,34 @@ function ExtraStats_PaperDollEquipmentManagerPane_OnUpdate(self)
         return
     end
 
+    HideOrphanEquipmentSetButtons(self)
+
     local hoveredSetButton = GetGearSetButtonFromMouseFocus(self)
-    for i = 1, #self.buttons do
-        local button = self.buttons[i]
-        if button:IsShown() and button.name and IsFrameUnderCursor(button) then
-            hoveredSetButton = button
+    if not hoveredSetButton then
+        for i = 1, #(self.buttons or {}) do
+            local button = self.buttons[i]
+            if button:IsShown() and button.name and button.IsMouseOver and button:IsMouseOver() then
+                hoveredSetButton = button
+                break
+            end
+            if button.DeleteButton and button.DeleteButton:IsShown() and button.DeleteButton.IsMouseOver and button.DeleteButton:IsMouseOver() then
+                hoveredSetButton = button
+                break
+            end
+            if button.EditButton and button.EditButton:IsShown() and button.EditButton.IsMouseOver and button.EditButton:IsMouseOver() then
+                hoveredSetButton = button
+                break
+            end
         end
     end
 
-    for i = 1, #self.buttons do
+    for i = 1, #(self.buttons or {}) do
         local button = self.buttons[i]
         if button == hoveredSetButton and button.name then
             hoveredSetButton = button
+            if button.EditButton and button.EditButton.Dropdown then
+                button.EditButton.Dropdown.gearSetButton = button
+            end
             button.DeleteButton:Show()
             button.EditButton:Show()
             button.HighlightBar:Show()
@@ -467,6 +493,130 @@ EnsureGearSetButtonTooltipScripts = function(button)
     end)
 end
 
+EnsureEquipmentSetScrollChild = function(frame)
+    if not frame then
+        return nil
+    end
+
+    local child = (frame.GetScrollChild and frame:GetScrollChild()) or frame.ScrollChild or frame.scrollChild
+    if not child then
+        child = CreateFrame("Frame", nil, frame)
+    end
+
+    local width = (frame.GetWidth and frame:GetWidth()) or 220
+    local height = (frame.GetHeight and frame:GetHeight()) or 1
+    child:SetSize(width, height)
+    child:Show()
+
+    if frame.GetScrollChild and frame:GetScrollChild() ~= child and frame.SetScrollChild then
+        frame:SetScrollChild(child)
+    elseif frame.SetScrollChild then
+        frame:SetScrollChild(child)
+    end
+
+    if frame.ScrollChild and frame.ScrollChild ~= child then
+        frame.ScrollChild:Hide()
+    end
+    if frame.scrollChild and frame.scrollChild ~= child then
+        frame.scrollChild:Hide()
+    end
+    if frame.ExtraStatsScrollChild and frame.ExtraStatsScrollChild ~= child then
+        frame.ExtraStatsScrollChild:Hide()
+    end
+
+    frame.ExtraStatsScrollChild = child
+    frame.scrollChild = child
+    frame.ScrollChild = child
+
+    return child
+end
+
+EnsureEquipmentSetButtons = function(frame)
+    if not frame then
+        return
+    end
+
+    local child = EnsureEquipmentSetScrollChild(frame)
+    if not child then
+        return
+    end
+
+    local height = (frame.GetHeight and frame:GetHeight()) or 0
+    local visibleButtons = math.max(1, math.floor((height - math.abs(EQUIPMENT_SET_BUTTON_OFFSET_Y)) / ExtraStats_EQUIPMENTSET_BUTTON_HEIGHT))
+    local buttons = frame.buttons or {}
+
+    if #buttons < visibleButtons then
+        frame.buttons = buttons
+
+        for i = #buttons + 1, visibleButtons do
+            local buttonName = frame:GetName() .. "Button" .. i
+            local button = _G[buttonName] or CreateFrame("Button", buttonName, child, "ExtraGearSetButtonTemplate")
+            button:SetParent(child)
+            button:SetID(i)
+            buttons[i] = button
+        end
+    end
+
+    for i, button in ipairs(buttons) do
+        if button:GetParent() ~= child then
+            button:SetParent(child)
+        end
+        button.ExtraStatsManagedGearSetButton = true
+        button:ClearAllPoints()
+        if i == 1 then
+            button:SetPoint("TOPLEFT", child, "TOPLEFT", EQUIPMENT_SET_BUTTON_OFFSET_X, EQUIPMENT_SET_BUTTON_OFFSET_Y)
+        else
+            button:SetPoint("TOPLEFT", buttons[i - 1], "BOTTOMLEFT", 0, 0)
+        end
+        if button.EditButton and button.EditButton.Dropdown then
+            button.EditButton.Dropdown.gearSetButton = button
+        end
+        EnsureGearSetButtonTooltipScripts(button)
+    end
+
+    HideOrphanEquipmentSetButtons(frame)
+end
+
+HideOrphanEquipmentSetButtons = function(frame)
+    if not frame then
+        return
+    end
+
+    local managed = {}
+    for _, button in ipairs(frame.buttons or {}) do
+        managed[button] = true
+    end
+
+    local function hideOrphans(parent)
+        if not parent or not parent.GetChildren then
+            return
+        end
+
+        for _, child in ipairs({ parent:GetChildren() }) do
+            if child.DeleteButton and child.EditButton and child.text and child.icon and not managed[child] then
+                child.ExtraStatsManagedGearSetButton = nil
+                child:Hide()
+                if child.DeleteButton then
+                    child.DeleteButton:Hide()
+                end
+                if child.EditButton then
+                    child.EditButton:Hide()
+                end
+                if child.HighlightBar then
+                    child.HighlightBar:Hide()
+                end
+                child:SetScript("OnEnter", nil)
+                child:SetScript("OnLeave", nil)
+                child:SetScript("OnClick", nil)
+            else
+                hideOrphans(child)
+            end
+        end
+    end
+
+    hideOrphans(frame)
+end
+
 IsFrameUnderCursor = function(frame)
     if not frame or not frame.GetRect or not frame:IsShown() then
         return false
@@ -490,21 +640,29 @@ IsFrameUnderCursor = function(frame)
 end
 
 GetGearSetButtonFromMouseFocus = function(frame)
-    if not frame or not GetMouseFocus then
+    if not frame then
         return nil
     end
 
-    local focus = GetMouseFocus()
-    local depth = 0
-    while focus and depth < 8 do
-        for i = 1, #(frame.buttons or {}) do
-            local button = frame.buttons[i]
-            if focus == button then
-                return button
+    local mouseFocuses = {}
+    if GetMouseFoci then
+        mouseFocuses = { GetMouseFoci() }
+    elseif GetMouseFocus then
+        mouseFocuses = { GetMouseFocus() }
+    end
+
+    for _, focus in ipairs(mouseFocuses) do
+        local depth = 0
+        while focus and depth < 8 do
+            for i = 1, #(frame.buttons or {}) do
+                local button = frame.buttons[i]
+                if focus == button or focus == button.DeleteButton or focus == button.EditButton then
+                    return button
+                end
             end
+            focus = focus.GetParent and focus:GetParent()
+            depth = depth + 1
         end
-        focus = focus.GetParent and focus:GetParent()
-        depth = depth + 1
     end
 
     return nil
@@ -515,6 +673,8 @@ function ExtraStats_PaperDollEquipmentManagerPane_Update()
         return
     end
 
+    EnsureEquipmentSetButtons(tab.frame)
+
     local selectedSetID = tab.frame.selectedSetID
     if selectedSetID and not EquipmentSet:GetEquipmentSetInfo(selectedSetID) then
         SelectSetByID(nil)
@@ -524,15 +684,15 @@ function ExtraStats_PaperDollEquipmentManagerPane_Update()
     local isEquipInProgress = EquipmentSet:IsEquipmentSwapActive()
     local selectedSetName, _, _, isEquipped = EquipmentSet:GetEquipmentSetInfo(selectedSetID or 0)
     if selectedSetID and selectedSetName and not isEquipInProgress then
-        PaperDollEquipmentManagerPaneSaveSet:Enable()
+        ExtraStatsPaperDollEquipmentManagerPaneSaveSet:Enable()
         if isEquipped then
-            PaperDollEquipmentManagerPaneEquipSet:Disable()
+            ExtraStatsPaperDollEquipmentManagerPaneEquipSet:Disable()
         else
-            PaperDollEquipmentManagerPaneEquipSet:Enable()
+            ExtraStatsPaperDollEquipmentManagerPaneEquipSet:Enable()
         end
     else
-        PaperDollEquipmentManagerPaneSaveSet:Disable()
-        PaperDollEquipmentManagerPaneEquipSet:Disable()
+        ExtraStatsPaperDollEquipmentManagerPaneSaveSet:Disable()
+        ExtraStatsPaperDollEquipmentManagerPaneEquipSet:Disable()
     end
 
     local ids = GetSetIDsSorted()
@@ -542,10 +702,16 @@ function ExtraStats_PaperDollEquipmentManagerPane_Update()
         numRows = numRows + 1
     end
 
-    HybridScrollFrame_Update(tab.frame, numRows * ExtraStats_EQUIPMENTSET_BUTTON_HEIGHT + PaperDollEquipmentManagerPaneEquipSet:GetHeight() + 20, tab.frame:GetHeight())
+    local totalHeight = numRows * ExtraStats_EQUIPMENTSET_BUTTON_HEIGHT + ExtraStatsPaperDollEquipmentManagerPaneEquipSet:GetHeight() + 20
+    local child = EnsureEquipmentSetScrollChild(tab.frame)
+    if child then
+        child:SetSize(tab.frame:GetWidth() or 220, math.max(totalHeight, tab.frame:GetHeight() or 1))
+    end
+
+    HybridScrollFrame_Update(tab.frame, totalHeight, tab.frame:GetHeight())
 
     local scrollOffset = HybridScrollFrame_GetOffset(tab.frame)
-    local buttons = tab.frame.buttons
+    local buttons = tab.frame.buttons or {}
 
     for i = 1, #buttons do
         local row = i + scrollOffset
@@ -1058,8 +1224,8 @@ function ExtraStats_GearManagerDialogPopup_OnShow(self)
 
     ExtraStats_RecalculateGearManagerDialogPopup(self.name, self.selectedTexture)
 
-    PaperDollEquipmentManagerPaneSaveSet:Disable()
-    PaperDollEquipmentManagerPaneEquipSet:Disable()
+    ExtraStatsPaperDollEquipmentManagerPaneSaveSet:Disable()
+    ExtraStatsPaperDollEquipmentManagerPaneEquipSet:Disable()
 end
 
 function ExtraStats_GearManagerDialogPopup_OnHide(self)
@@ -1341,7 +1507,7 @@ end
 
 function tab:init()
     HookNativeGearSetButtonTooltips()
-    local frame = CreateFrame("ScrollFrame", "PaperDollEquipmentManagerPane", PaperDollFrame, "PaperDollEquipmentManagerPaneTemplate")
+    local frame = CreateFrame("ScrollFrame", "ExtraStatsPaperDollEquipmentManagerPane", PaperDollFrame, "ExtraStatsPaperDollEquipmentManagerPaneTemplate")
     tab.DialogPopup = CreateFrame("Frame", "ExtraStats_GearManagerDialogPopup", frame, "ExtraGearManagerDialogPopupTemplate")
     tab.frame = frame
     HookItemSlotIgnoreEditing()
