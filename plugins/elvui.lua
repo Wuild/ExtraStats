@@ -257,8 +257,11 @@ function Plugin:Setup()
         CharacterStatsPane.scrollBar:StripTextures()
         S:HandleScrollBar(CharacterStatsPane.scrollBar)
 
-        PaperDollTitlesPane.scrollBar:StripTextures()
-        S:HandleScrollBar(PaperDollTitlesPane.scrollBar)
+        local titlesPane = ExtraStatsPaperDollTitlesPane or PaperDollTitlesPane
+        if titlesPane and titlesPane.scrollBar then
+            titlesPane.scrollBar:StripTextures()
+            S:HandleScrollBar(titlesPane.scrollBar)
+        end
 
         local equipmentPane = ExtraStatsPaperDollEquipmentManagerPane or PaperDollEquipmentManagerPane
         if equipmentPane and equipmentPane.scrollBar then
@@ -273,7 +276,7 @@ function Plugin:Setup()
         --SkinFrame(CharacterFrame.InsetRight)
         --SkinFrame(PaperDollItemsFrame)
         --SkinFrame(CharacterStatsPane)
-        SkinFrame(PaperDollTitlesPane)
+        SkinFrame(ExtraStatsPaperDollTitlesPane or PaperDollTitlesPane)
         SkinFrame(ExtraStatsPaperDollEquipmentManagerPane or PaperDollEquipmentManagerPane)
         SkinTabs(S)
         SkinSidebarTabs(S)

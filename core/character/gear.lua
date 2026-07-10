@@ -15,14 +15,14 @@ GEARSET_ICON_ROW_HEIGHT = 36
 local STRIPE_COLOR = { r = 0.9, g = 0.9, b = 1 }
 local DEFAULT_ICON = 134400
 local EQUIPMENT_SET_BUTTON_OFFSET_X = 2
-local EQUIPMENT_SET_BUTTON_OFFSET_Y = -26
+local EQUIPMENT_SET_BUTTON_OFFSET_Y = -24
+local EQUIPMENT_SET_TOP_MASK_HEIGHT = 24
 local ShowGearSetTooltip
 local HideGearSetTooltip
 local HookNativeGearSetButtonTooltips
 local EnsureGearSetButtonTooltipScripts
 local EnsureEquipmentSetButtons
-local EnsureEquipmentSetScrollChild
-local HideOrphanEquipmentSetButtons
+local EnsureEquipmentSetTopMask
 local IsFrameUnderCursor
 local GetGearSetButtonFromMouseFocus
 local ToggleIgnoredSlotForSave
@@ -308,9 +308,8 @@ StaticPopupDialogs["ExtraStats_CONFIRM_OVERWRITE_EQUIPMENT_SET"] = {
 function ExtraStats_PaperDollEquipmentManagerPane_OnLoad(self)
     HookNativeGearSetButtonTooltips()
     HybridScrollFrame_OnLoad(self)
-    EnsureEquipmentSetScrollChild(self)
+    EnsureEquipmentSetTopMask(self)
     self.update = ExtraStats_PaperDollEquipmentManagerPane_Update
-    EnsureEquipmentSetButtons(self)
 
     self:RegisterEvent("EQUIPMENT_SWAP_FINISHED")
     self:RegisterEvent("EQUIPMENT_SETS_CHANGED")
@@ -333,6 +332,7 @@ end
 function ExtraStats_PaperDollEquipmentManagerPane_OnShow(self)
     self.equipmentEditMode = true
     HookItemSlotIgnoreEditing()
+    EnsureEquipmentSetTopMask(self)
     EnsureEquipmentSetButtons(self)
     SelectCurrentlyEquippedSet()
     UpdateEquipmentEditModeVisuals()
@@ -396,8 +396,6 @@ function ExtraStats_PaperDollEquipmentManagerPane_OnUpdate(self)
         end
         return
     end
-
-    HideOrphanEquipmentSetButtons(self)
 
     local hoveredSetButton = GetGearSetButtonFromMouseFocus(self)
     if not hoveredSetButton then
@@ -493,128 +491,71 @@ EnsureGearSetButtonTooltipScripts = function(button)
     end)
 end
 
-EnsureEquipmentSetScrollChild = function(frame)
-    if not frame then
-        return nil
-    end
-
-    local child = (frame.GetScrollChild and frame:GetScrollChild()) or frame.ScrollChild or frame.scrollChild
-    if not child then
-        child = CreateFrame("Frame", nil, frame)
-    end
-
-    local width = (frame.GetWidth and frame:GetWidth()) or 220
-    local height = (frame.GetHeight and frame:GetHeight()) or 1
-    child:SetSize(width, height)
-    child:Show()
-
-    if frame.GetScrollChild and frame:GetScrollChild() ~= child and frame.SetScrollChild then
-        frame:SetScrollChild(child)
-    elseif frame.SetScrollChild then
-        frame:SetScrollChild(child)
-    end
-
-    if frame.ScrollChild and frame.ScrollChild ~= child then
-        frame.ScrollChild:Hide()
-    end
-    if frame.scrollChild and frame.scrollChild ~= child then
-        frame.scrollChild:Hide()
-    end
-    if frame.ExtraStatsScrollChild and frame.ExtraStatsScrollChild ~= child then
-        frame.ExtraStatsScrollChild:Hide()
-    end
-
-    frame.ExtraStatsScrollChild = child
-    frame.scrollChild = child
-    frame.ScrollChild = child
-
-    return child
-end
-
 EnsureEquipmentSetButtons = function(frame)
     if not frame then
         return
     end
 
-    local child = EnsureEquipmentSetScrollChild(frame)
-    if not child then
+    local frameHeight = frame.GetHeight and frame:GetHeight() or 0
+    if frameHeight <= math.abs(EQUIPMENT_SET_BUTTON_OFFSET_Y) then
         return
     end
 
-    local height = (frame.GetHeight and frame:GetHeight()) or 0
-    local visibleButtons = math.max(1, math.floor((height - math.abs(EQUIPMENT_SET_BUTTON_OFFSET_Y)) / ExtraStats_EQUIPMENTSET_BUTTON_HEIGHT))
-    local buttons = frame.buttons or {}
-
-    if #buttons < visibleButtons then
-        frame.buttons = buttons
-
-        for i = #buttons + 1, visibleButtons do
-            local buttonName = frame:GetName() .. "Button" .. i
-            local button = _G[buttonName] or CreateFrame("Button", buttonName, child, "ExtraGearSetButtonTemplate")
-            button:SetParent(child)
-            button:SetID(i)
-            buttons[i] = button
-        end
+    if not frame.extraStatsGearSetButtonsInitialized then
+        frame.buttons = nil
+        HybridScrollFrame_CreateButtons(frame, "ExtraGearSetButtonTemplate", EQUIPMENT_SET_BUTTON_OFFSET_X, EQUIPMENT_SET_BUTTON_OFFSET_Y)
+        frame.extraStatsGearSetButtonsInitialized = frame.buttons and #frame.buttons > 0
+    elseif not frame.buttons or #frame.buttons == 0 then
+        frame.extraStatsGearSetButtonsInitialized = nil
+        HybridScrollFrame_CreateButtons(frame, "ExtraGearSetButtonTemplate", EQUIPMENT_SET_BUTTON_OFFSET_X, EQUIPMENT_SET_BUTTON_OFFSET_Y)
+        frame.extraStatsGearSetButtonsInitialized = frame.buttons and #frame.buttons > 0
     end
 
-    for i, button in ipairs(buttons) do
-        if button:GetParent() ~= child then
-            button:SetParent(child)
-        end
-        button.ExtraStatsManagedGearSetButton = true
-        button:ClearAllPoints()
-        if i == 1 then
-            button:SetPoint("TOPLEFT", child, "TOPLEFT", EQUIPMENT_SET_BUTTON_OFFSET_X, EQUIPMENT_SET_BUTTON_OFFSET_Y)
-        else
-            button:SetPoint("TOPLEFT", buttons[i - 1], "BOTTOMLEFT", 0, 0)
-        end
+    local activeScrollChild = frame.GetScrollChild and frame:GetScrollChild()
+    if activeScrollChild then
+        frame.scrollChild = activeScrollChild
+        frame.ScrollChild = activeScrollChild
+    end
+
+    for _, button in ipairs(frame.buttons or {}) do
         if button.EditButton and button.EditButton.Dropdown then
             button.EditButton.Dropdown.gearSetButton = button
         end
         EnsureGearSetButtonTooltipScripts(button)
     end
-
-    HideOrphanEquipmentSetButtons(frame)
 end
 
-HideOrphanEquipmentSetButtons = function(frame)
+EnsureEquipmentSetTopMask = function(frame)
     if not frame then
         return
     end
 
-    local managed = {}
-    for _, button in ipairs(frame.buttons or {}) do
-        managed[button] = true
+    if not frame.ExtraStatsTopMask then
+        local mask = CreateFrame("Frame", nil, frame)
+        mask:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, 0)
+        mask:SetPoint("TOPRIGHT", frame, "TOPRIGHT", 0, 0)
+        mask:SetHeight(EQUIPMENT_SET_TOP_MASK_HEIGHT)
+        mask:EnableMouse(false)
+
+        local texture = mask:CreateTexture(nil, "BACKGROUND")
+        texture:SetAllPoints()
+        if texture.SetColorTexture then
+            texture:SetColorTexture(0, 0, 0, 0.72)
+        else
+            texture:SetTexture(0, 0, 0, 0.72)
+        end
+        mask.Texture = texture
+        frame.ExtraStatsTopMask = mask
     end
 
-    local function hideOrphans(parent)
-        if not parent or not parent.GetChildren then
-            return
-        end
-
-        for _, child in ipairs({ parent:GetChildren() }) do
-            if child.DeleteButton and child.EditButton and child.text and child.icon and not managed[child] then
-                child.ExtraStatsManagedGearSetButton = nil
-                child:Hide()
-                if child.DeleteButton then
-                    child.DeleteButton:Hide()
-                end
-                if child.EditButton then
-                    child.EditButton:Hide()
-                end
-                if child.HighlightBar then
-                    child.HighlightBar:Hide()
-                end
-                child:SetScript("OnEnter", nil)
-                child:SetScript("OnLeave", nil)
-                child:SetScript("OnClick", nil)
-            else
-                hideOrphans(child)
-            end
-        end
+    local baseFrameLevel = frame.GetFrameLevel and frame:GetFrameLevel() or 0
+    frame.ExtraStatsTopMask:SetFrameLevel(baseFrameLevel + 3)
+    if frame.EquipSet and frame.EquipSet.SetFrameLevel then
+        frame.EquipSet:SetFrameLevel(baseFrameLevel + 4)
     end
-
-    hideOrphans(frame)
+    if frame.SaveSet and frame.SaveSet.SetFrameLevel then
+        frame.SaveSet:SetFrameLevel(baseFrameLevel + 4)
+    end
 end
 
 IsFrameUnderCursor = function(frame)
@@ -702,13 +643,7 @@ function ExtraStats_PaperDollEquipmentManagerPane_Update()
         numRows = numRows + 1
     end
 
-    local totalHeight = numRows * ExtraStats_EQUIPMENTSET_BUTTON_HEIGHT + ExtraStatsPaperDollEquipmentManagerPaneEquipSet:GetHeight() + 20
-    local child = EnsureEquipmentSetScrollChild(tab.frame)
-    if child then
-        child:SetSize(tab.frame:GetWidth() or 220, math.max(totalHeight, tab.frame:GetHeight() or 1))
-    end
-
-    HybridScrollFrame_Update(tab.frame, totalHeight, tab.frame:GetHeight())
+    HybridScrollFrame_Update(tab.frame, numRows * ExtraStats_EQUIPMENTSET_BUTTON_HEIGHT + math.abs(EQUIPMENT_SET_BUTTON_OFFSET_Y), tab.frame:GetHeight())
 
     local scrollOffset = HybridScrollFrame_GetOffset(tab.frame)
     local buttons = tab.frame.buttons or {}
@@ -753,6 +688,8 @@ function ExtraStats_PaperDollEquipmentManagerPane_Update()
                 button.iconTexture = nil
                 button.text:SetText(PAPERDOLL_NEWEQUIPMENTSET)
                 button.text:SetTextColor(GREEN_FONT_COLOR.r, GREEN_FONT_COLOR.g, GREEN_FONT_COLOR.b)
+                button.text:ClearAllPoints()
+                button.text:SetPoint("LEFT", button.icon, "RIGHT", 4, 0)
                 button.icon:SetTexture("Interface\\PaperDollInfoFrame\\Character-Plus")
                 button.icon:SetSize(30, 30)
                 button.icon:SetPoint("LEFT", 7, 0)
@@ -763,6 +700,11 @@ function ExtraStats_PaperDollEquipmentManagerPane_Update()
                 else
                     button:Enable()
                 end
+            end
+
+            if button.setID then
+                button.text:ClearAllPoints()
+                button.text:SetPoint("TOPLEFT", 44, -5)
             end
 
             button.BgTop:Hide()

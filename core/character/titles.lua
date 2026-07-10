@@ -3,16 +3,22 @@ local tab = ExtraStats:CreateModule("character.titles")
 local STRIPE_COLOR = { r = 0.9, g = 0.9, b = 1 };
 
 local PLAYER_TITLE_HEIGHT = 32;
+local TITLE_BUTTON_OFFSET_X = 2;
+local TITLE_BUTTON_OFFSET_Y = -4;
 
 tab.frame = nil
+
+local EnsureTitleButtons
 
 local function TitleSort(a, b)
     return a.name < b.name;
 end
 
 local function PaperDollTitlesPane_UpdateScrollFrame()
-    local buttons = tab.frame.buttons;
-    local playerTitles = tab.frame.titles;
+    EnsureTitleButtons(tab.frame);
+
+    local buttons = tab.frame.buttons or {};
+    local playerTitles = tab.frame.titles or {};
     local numButtons = #buttons;
     local scrollOffset = HybridScrollFrame_GetOffset(tab.frame);
     local playerTitle;
@@ -51,27 +57,55 @@ local function PaperDollTitlesPane_UpdateScrollFrame()
     end
 end
 
+EnsureTitleButtons = function(frame)
+    if not frame then
+        return
+    end
+
+    local frameHeight = frame.GetHeight and frame:GetHeight() or 0
+    if frameHeight <= math.abs(TITLE_BUTTON_OFFSET_Y) then
+        return
+    end
+
+    if not frame.extraStatsTitleButtonsInitialized then
+        frame.buttons = nil
+        HybridScrollFrame_CreateButtons(frame, "ExtraStatsPlayerTitleButtonTemplate", TITLE_BUTTON_OFFSET_X, TITLE_BUTTON_OFFSET_Y)
+        frame.extraStatsTitleButtonsInitialized = frame.buttons and #frame.buttons > 0
+    elseif not frame.buttons or #frame.buttons == 0 then
+        frame.extraStatsTitleButtonsInitialized = nil
+        HybridScrollFrame_CreateButtons(frame, "ExtraStatsPlayerTitleButtonTemplate", TITLE_BUTTON_OFFSET_X, TITLE_BUTTON_OFFSET_Y)
+        frame.extraStatsTitleButtonsInitialized = frame.buttons and #frame.buttons > 0
+    end
+
+    local activeScrollChild = frame.GetScrollChild and frame:GetScrollChild()
+    if activeScrollChild then
+        frame.scrollChild = activeScrollChild
+        frame.ScrollChild = activeScrollChild
+    end
+end
+
 function tab:init()
     local mainFrame = CreateFrame("Frame")
     --mainFrame:RegisterEvent("KNOWN_TITLES_UPDATE")
     mainFrame:RegisterEvent("UNIT_NAME_UPDATE")
 
-    local frame = CreateFrame("ScrollFrame", "PaperDollTitlesPane", PaperDollFrame, "PaperDollTitlesPaneTemplate")
+    local frame = CreateFrame("ScrollFrame", "ExtraStatsPaperDollTitlesPane", PaperDollFrame, "ExtraStatsPaperDollTitlesPaneTemplate")
     frame.update = PaperDollTitlesPane_UpdateScrollFrame;
+    frame.scrollBar.doNotHide = 1;
+    frame:SetFrameLevel(CharacterFrameInsetRight:GetFrameLevel() + 1);
+    HybridScrollFrame_OnLoad(frame);
+    tab.frame = frame
 
-    frame:SetScript("OnLoad", function(self)
-        frame.scrollBar.doNotHide = 1;
-        frame:SetFrameLevel(CharacterFrameInsetRight:GetFrameLevel() + 1);
-
-        HybridScrollFrame_OnLoad(tab.frame);
-
-        HybridScrollFrame_CreateButtons(tab.frame, "PlayerTitleButtonTemplate", 2, -4);
-    end)
-
-    frame:SetScript("OnShow", function()
-        HybridScrollFrame_CreateButtons(tab.frame, "PlayerTitleButtonTemplate");
+    frame:SetScript("OnShow", function(self)
+        EnsureTitleButtons(self)
         ExtraStats:Trigger("titles.tab.show", tab.frame)
         tab:update()
+        C_Timer.After(0, function()
+            if self and self:IsShown() then
+                EnsureTitleButtons(self)
+                tab:update()
+            end
+        end)
     end)
     frame:SetScript("OnHide", function()
         ExtraStats:Trigger("titles.tab.hide", tab.frame)
@@ -81,13 +115,11 @@ function tab:init()
         local unit = ...;
         if (event == "KNOWN_TITLES_UPDATE" or (event == "UNIT_NAME_UPDATE" and unit == "player")) then
             if (tab:IsVisible()) then
-                HybridScrollFrame_CreateButtons(tab.frame, "PlayerTitleButtonTemplate");
+                EnsureTitleButtons(tab.frame)
                 tab:update()
             end
         end
     end)
-
-    tab.frame = frame
 end
 
 function tab:IsVisible()
@@ -98,10 +130,14 @@ function tab:update()
     local playerTitles = { };
     local currentTitle = GetCurrentTitle();
     local titleCount = 1;
-    local buttons = tab.frame.buttons;
-    local fontstringText = buttons[1].text;
     local playerTitle = false;
     local tempName = 0;
+    EnsureTitleButtons(tab.frame)
+
+    if not tab.frame.buttons or #tab.frame.buttons == 0 then
+        return
+    end
+
     tab.frame.selected = -1;
     playerTitles[1] = { };
 
@@ -119,7 +155,6 @@ function tab:update()
                 if (i == currentTitle) then
                     tab.frame.selected = i;
                 end
-                fontstringText:SetText(playerTitles[titleCount].name);
             end
         end
     end

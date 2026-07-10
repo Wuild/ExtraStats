@@ -72,7 +72,7 @@ ES_PAPERDOLL_SIDEBARS = {
     },
     {
         name = PAPERDOLL_SIDEBAR_TITLES;
-        frame = "PaperDollTitlesPane";
+        frame = "ExtraStatsPaperDollTitlesPane";
         icon = "Interface\\PaperDollInfoFrame\\PaperDollSidebarTabs";
         texCoords = { 0.01562500, 0.53125000, 0.32421875, 0.46093750 };
         disabledTooltip = NO_TITLES_TOOLTIP;
