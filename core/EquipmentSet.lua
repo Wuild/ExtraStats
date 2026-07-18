@@ -821,8 +821,11 @@ local function IsPlayerInPvPInstance()
     return inInstance == true and (instanceType == "pvp" or instanceType == "arena")
 end
 
-local EQUIP_ACTION_DELAY = 0.15
-local EQUIP_LOCK_RETRY_DELAY = 0.07
+-- Inventory operations are asynchronous.  Continue on the next frame and
+-- let the lock checks decide whether another retry is needed, rather than
+-- adding a fixed delay after every batch.
+local EQUIP_ACTION_DELAY = 0
+local EQUIP_LOCK_RETRY_DELAY = 0.03
 local ProcessEquip
 local pendingSpecEquipToken = 0
 local lastAutoEquippedSpecGroup
@@ -1146,8 +1149,10 @@ local function ScheduleProcessEquip(token, delay)
     end
 
     pendingEquip.scheduled = true
+    pendingEquip.scheduleID = (pendingEquip.scheduleID or 0) + 1
+    local scheduleID = pendingEquip.scheduleID
     C_Timer.After(delay or EQUIP_ACTION_DELAY, function()
-        if not pendingEquip or pendingEquip.token ~= token then
+        if not pendingEquip or pendingEquip.token ~= token or pendingEquip.scheduleID ~= scheduleID then
             return
         end
 
@@ -1199,8 +1204,29 @@ local function FinishEquip(success, errorMessage, token)
     end
 end
 
+local function ContinueEquipAfterItemLockChanged()
+    if not pendingEquip then
+        return false
+    end
+
+    if HasPendingItemLocks() or CursorHasItem() then
+        return false
+    end
+
+    -- ItemRack advances its swap queue directly from ITEM_LOCK_CHANGED.  Do
+    -- the same here so a completed batch does not wait for a polling timer.
+    pendingEquip.scheduled = false
+    pendingEquip.scheduleID = (pendingEquip.scheduleID or 0) + 1
+    ProcessEquip(pendingEquip.token)
+    return true
+end
+
 local function TryEquipSingleSlot(set, slotID)
     if SpellIsTargeting and SpellIsTargeting() then
+        return false, true
+    end
+
+    if IsInventoryItemLocked and IsInventoryItemLocked(slotID) then
         return false, true
     end
 
@@ -1369,6 +1395,117 @@ local function TryEquipSingleSlot(set, slotID)
     return false, false
 end
 
+local function FindFreeBatchBagSlot(reserved)
+    for bag = NUM_BAG_SLOTS, 0, -1 do
+        if IsNormalBag(bag) then
+            local numSlots = GetContainerNumSlotsCompat(bag) or 0
+            for slot = 1, numSlots do
+                local key = bag .. ":" .. slot
+                local info = GetContainerItemInfoCompat(bag, slot)
+                if not reserved[key] and not GetContainerItemIDCompat(bag, slot) and not (info and info.isLocked) then
+                    reserved[key] = true
+                    return bag, slot
+                end
+            end
+        end
+    end
+end
+
+local function BuildBatchEquipQueue(set)
+    local queue = { unequip = {}, inventory = {}, bags = {} }
+    local reserved = {}
+    local usedSources = {}
+    local bankRequired = false
+
+    local function addBagEquip(slotID, bag, slot)
+        if bag == nil or slot == nil then
+            return false
+        end
+        local source = bag .. ":" .. slot
+        if usedSources[source] then
+            return false
+        end
+        usedSources[source] = true
+        queue.bags[#queue.bags + 1] = { target = slotID, bag = bag, slot = slot }
+        return true
+    end
+
+    for _, slotID in ipairs(SLOT_ORDER) do
+        if not IsSlotIgnored(set, slotID) and not IsSlotSetMatched(set, slotID) then
+            local key = SLOT_NAME_BY_ID[slotID]
+            local desiredID = GetStoredItemID(set, key)
+            local desiredLink = GetStoredItemLink(set, key)
+
+            if not desiredID and not desiredLink then
+                local bag, bagSlot = FindFreeBatchBagSlot(reserved)
+                if bag then
+                    queue.unequip[#queue.unequip + 1] = { target = slotID, bag = bag, slot = bagSlot }
+                end
+            else
+                local sourceSlot = desiredLink and FindExactEquippedSlotWithItem(set, slotID)
+                if sourceSlot then
+                    queue.inventory[#queue.inventory + 1] = { source = sourceSlot, target = slotID }
+                else
+                    local bag, bagSlot = desiredLink and FindExactDesiredItemInBags(set, slotID)
+                    if not bag or not bagSlot then
+                        bag, bagSlot = FindDesiredItemInBags(set, slotID)
+                    end
+                    if bag and bagSlot then
+                        addBagEquip(slotID, bag, bagSlot)
+                    elseif FindDesiredItemInBank(set, slotID) then
+                        bankRequired = true
+                    else
+                        local equippedSource = FindEquippedSlotWithItem(set, desiredID, desiredLink, slotID)
+                        if equippedSource then
+                            queue.inventory[#queue.inventory + 1] = { source = equippedSource, target = slotID }
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    if bankRequired then
+        return nil
+    end
+    return queue
+end
+
+local function ExecuteBatchEquipQueue(queue)
+    local changed = false
+
+    for _, action in ipairs(queue.unequip) do
+        if not IsInventoryItemLocked or not IsInventoryItemLocked(action.target) then
+            PickupInventoryItem(action.target)
+            PickupContainerItemCompat(action.bag, action.slot)
+            changed = true
+        end
+    end
+
+    for _, action in ipairs(queue.inventory) do
+        if (not IsInventoryItemLocked or not IsInventoryItemLocked(action.source)) and (not IsInventoryItemLocked or not IsInventoryItemLocked(action.target)) then
+            PickupInventoryItem(action.source)
+            PickupInventoryItem(action.target)
+            PickupInventoryItem(action.source)
+            changed = true
+        end
+    end
+
+    for _, action in ipairs(queue.bags) do
+        local info = GetContainerItemInfoCompat(action.bag, action.slot)
+        if (not IsInventoryItemLocked or not IsInventoryItemLocked(action.target)) and not (info and info.isLocked) then
+            PickupContainerItemCompat(action.bag, action.slot)
+            PickupInventoryItem(action.target)
+            if CursorHasItem() then
+                PickupContainerItemCompat(action.bag, action.slot)
+            end
+            changed = true
+        end
+    end
+
+    return changed
+end
+
 function ProcessEquip(token)
     if not pendingEquip or pendingEquip.token ~= token then
         return
@@ -1423,6 +1560,38 @@ function ProcessEquip(token)
     end
 
     pendingEquip.attempt = pendingEquip.attempt + 1
+
+    -- Direct bag equips do not use the cursor, so they can all be submitted
+    -- in one frame.  Keep the cursor-based path below for swaps and bank
+    -- items, where preserving the old item requires explicit placement.
+    if EquipItemByName then
+        local directChanged = false
+        for _, directSlotID in ipairs(SLOT_ORDER) do
+            if not IsSlotIgnored(set, directSlotID) and not IsSlotSetMatched(set, directSlotID) then
+                local directKey = SLOT_NAME_BY_ID[directSlotID]
+                local directLink = GetStoredItemLink(set, directKey)
+                local directID = GetStoredItemID(set, directKey)
+                local directBag, directBagSlot
+
+                if directLink then
+                    directBag, directBagSlot = FindExactDesiredItemInBags(set, directSlotID)
+                end
+                if (not directBag or not directBagSlot) and directID then
+                    directBag, directBagSlot = FindDesiredItemInBags(set, directSlotID)
+                end
+
+                if directBag and directBagSlot and (not IsInventoryItemLocked or not IsInventoryItemLocked(directSlotID)) then
+                    EquipItemByName(directLink or directID, directSlotID)
+                    directChanged = true
+                end
+            end
+        end
+
+        if directChanged then
+            ScheduleProcessEquip(token, EQUIP_ACTION_DELAY)
+            return
+        end
+    end
 
     local blockedByLock = false
     local slotID = GetNextEquipSlot(set)
@@ -1518,6 +1687,9 @@ function equipment:EventHandler(event, arg1)
     end
 
     if pendingEquip then
+        if event == "ITEM_LOCK_CHANGED" and ContinueEquipAfterItemLockChanged() then
+            return
+        end
         ScheduleProcessEquip(pendingEquip.token, EQUIP_LOCK_RETRY_DELAY)
     elseif event == "PLAYER_REGEN_ENABLED" and StartQueuedEquipmentSwap and StartQueuedEquipmentSwap() then
         return

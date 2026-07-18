@@ -44,6 +44,8 @@
     <Script file="plugins\elvui.lua"/>
     <Script file="plugins\tacotip.lua"/>
     <Script file="plugins\arkinventory.lua"/>
+    <Script file="plugins\gearsets.lua"/>
+    <Script file="plugins\gearset_tooltips.lua"/>
 
     <!--@end-non-debug@-->
 </Ui>

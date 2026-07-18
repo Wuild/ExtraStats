@@ -78,3 +78,6 @@ Tips:
 - Guard optional dependencies before doing work.
 - Use `ExtraStats:On(...)` to hook into tab and stats lifecycle.
 - If you add stats, call `ExtraStats:MarkStatsDirty("base")` to refresh the tab.
+
+When LibDataBroker is available, ExtraStats exposes a clickable gear-set
+dropdown for Titan Panel and Bazooka.

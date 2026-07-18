@@ -127,6 +127,34 @@ local function PickupContainerItemCompat(bag, slot)
     return PickupContainerItem(bag, slot)
 end
 
+local function UnequipInventorySlot(slotID)
+    if not slotID or not GetInventoryItemLink("player", slotID) then
+        return false
+    end
+
+    PickupInventoryItem(slotID)
+    if not CursorHasItem() then
+        return false
+    end
+
+    for bag = 0, NUM_BAG_SLOTS do
+        local slots = GetContainerNumSlotsCompat(bag) or 0
+        for slot = 1, slots do
+            if not GetContainerItemLinkCompat(bag, slot) then
+                PickupContainerItemCompat(bag, slot)
+                if not CursorHasItem() then
+                    return true
+                end
+            end
+        end
+    end
+
+    -- No compatible bag space was available; put the item back where it came from.
+    PickupInventoryItem(slotID)
+    UIErrorsFrame:AddMessage(ERR_INV_FULL or "Inventory is full.", 1.0, 0.1, 0.1, 1.0)
+    return false
+end
+
 local function NormalizeItemLink(link)
     if not link then
         return nil
@@ -396,7 +424,12 @@ local function EnsureAltBarFrame()
 
         btn:SetScript("OnEnter", function(self)
             hideAltBarRequestId = hideAltBarRequestId + 1
-            if self.itemLink then
+            if self.isUnequip then
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                GameTooltip:SetText("Unequip")
+                GameTooltip:AddLine("Move the equipped item to your bags.", 1, 1, 1, true)
+                GameTooltip:Show()
+            elseif self.itemLink then
                 GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
                 GameTooltip:SetHyperlink(self.itemLink)
                 GameTooltip:Show()
@@ -410,7 +443,15 @@ local function EnsureAltBarFrame()
             if mouseButton ~= "LeftButton" and mouseButton ~= "RightButton" then
                 return
             end
-            if not self.targetSlotID or not self.bag or not self.slot then
+            if not self.targetSlotID then
+                return
+            end
+            if self.isUnequip then
+                UnequipInventorySlot(self.targetSlotID)
+                HideAltBar()
+                return
+            end
+            if self.bag == nil or not self.slot then
                 return
             end
             PickupContainerItemCompat(self.bag, self.slot)
@@ -493,7 +534,8 @@ local function ShowAlternativesBar(slotFrame, animate)
     local alternatives = GetAlternativesForSlot(slotID)
     local bar = EnsureAltBarFrame()
 
-    if #alternatives == 0 then
+    local canUnequip = GetInventoryItemLink("player", slotID) ~= nil
+    if #alternatives == 0 and not canUnequip then
         if not bar:IsShown() then
             HideAltBar()
         end
@@ -503,25 +545,39 @@ local function ShowAlternativesBar(slotFrame, animate)
     hideAltBarRequestId = hideAltBarRequestId + 1
     activeSlotID = slotID
 
-    local shown = math.min(#alternatives, ALT_BAR_MAX_BUTTONS)
+    local shown = math.min(#alternatives + (canUnequip and 1 or 0), ALT_BAR_MAX_BUTTONS)
     for i = 1, ALT_BAR_MAX_BUTTONS do
         local btn = bar.buttons[i]
         if i <= shown then
-            local item = alternatives[i]
-            btn.itemLink = item.link
             btn.targetSlotID = slotID
-            btn.bag = item.bag
-            btn.slot = item.slot
-            btn.icon:SetTexture(item.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
-            btn.count:SetText(item.count and item.count > 1 and tostring(item.count) or "")
-            if item.quality then
-                local r, g, b = GetItemQualityColor(item.quality)
-                btn.border:SetVertexColor(r or 0.2, g or 0.2, b or 0.2, 0.95)
+            btn.isUnequip = canUnequip and i == 1
+            if btn.isUnequip then
+                btn.itemLink = nil
+                btn.bag = nil
+                btn.slot = nil
+                btn.icon:SetTexture("Interface\\PaperDollInfoFrame\\UI-GearManager-LeaveItem-Transparent")
+                btn.icon:SetTexCoord(0, 1, 0, 1)
+                btn.count:SetText("")
+                btn.border:SetVertexColor(0.8, 0.15, 0.15, 0.95)
             else
-                btn.border:SetVertexColor(0.2, 0.2, 0.2, 0.85)
+                local itemIndex = i - (canUnequip and 1 or 0)
+                local item = alternatives[itemIndex]
+                btn.itemLink = item.link
+                btn.bag = item.bag
+                btn.slot = item.slot
+                btn.icon:SetTexture(item.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
+                btn.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+                btn.count:SetText(item.count and item.count > 1 and tostring(item.count) or "")
+                if item.quality then
+                    local r, g, b = GetItemQualityColor(item.quality)
+                    btn.border:SetVertexColor(r or 0.2, g or 0.2, b or 0.2, 0.95)
+                else
+                    btn.border:SetVertexColor(0.2, 0.2, 0.2, 0.85)
+                end
             end
             btn:Show()
         else
+            btn.isUnequip = nil
             btn.itemLink = nil
             btn.targetSlotID = nil
             btn.bag = nil
@@ -742,8 +798,8 @@ local function UpdateFlyoutButtonsVisibility()
         if frame then
             SetupFlyoutButton(frame)
             local slotID = frame.GetID and frame:GetID()
-            local hasAlternatives = slotID and slotID > 0 and #GetAlternativesForSlot(slotID) > 0
-            if hasAlternatives then
+            local hasDrawerActions = slotID and slotID > 0 and (#GetAlternativesForSlot(slotID) > 0 or GetInventoryItemLink("player", slotID) ~= nil)
+            if hasDrawerActions then
                 ShowFlyoutButtonForFrame(frame)
             elseif frame.ExtraStatsFlyoutButton then
                 if frame.ExtraStatsFlyoutButton:IsShown() then

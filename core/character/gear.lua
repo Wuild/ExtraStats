@@ -55,7 +55,7 @@ local itemSlotButtons = {
     CharacterTabardSlot,
 }
 
-local ignoreEditClickOverlays = {}
+local ignoreEditToggleButtons = {}
 local EM_ICON_FILENAMES = {}
 
 local function BuildEquipMacroBody(setName)
@@ -888,73 +888,62 @@ local function EnsureIgnoredSlotOverlay(button)
     button.ignoreTexture = overlay
 end
 
-local function EnsureEquipmentEditModeOverlay(button)
-    if not button or button.ExtraStatsEquipmentEditOverlay then
+local function UpdateIgnoreEditToggle(button)
+    local toggle = button and ignoreEditToggleButtons[button]
+    if not toggle then
         return
     end
 
-    local overlay = button:CreateTexture(nil, "OVERLAY", nil, -1)
-    overlay:SetTexture("Interface\\Buttons\\ButtonHilight-Square")
-    overlay:SetBlendMode("ADD")
-    overlay:SetAlpha(0.35)
-    overlay:SetPoint("TOPLEFT", button, "TOPLEFT", 1, -1)
-    overlay:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -1, 1)
-    overlay:Hide()
-
-    button.ExtraStatsEquipmentEditOverlay = overlay
+    local ignored = button.ignored == true
+    toggle:SetNormalTexture(ignored
+        and "Interface\\Buttons\\UI-PlusButton-Up"
+        or "Interface\\Buttons\\UI-MinusButton-Up")
 end
 
-local function EnsureIgnoreEditClickOverlay(button)
-    if not button or ignoreEditClickOverlays[button] then
+local function EnsureIgnoreEditToggle(button)
+    if not button or ignoreEditToggleButtons[button] then
         return
     end
 
-    local clickOverlay = CreateFrame("Button", nil, UIParent)
-    clickOverlay:SetPoint("TOPLEFT", button, "TOPLEFT", 0, 0)
-    clickOverlay:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", 0, 0)
-    clickOverlay:EnableMouse(true)
-    clickOverlay:SetFrameStrata("DIALOG")
-    clickOverlay:SetFrameLevel(1000)
-    clickOverlay:RegisterForClicks("RightButtonUp")
-    clickOverlay:SetScript("OnClick", function(self, mouseButton)
-        if mouseButton == "RightButton" then
-            ToggleIgnoredSlotForSave(self.slotID)
-        end
+    local toggle = CreateFrame("Button", nil, button)
+    toggle:SetSize(18, 18)
+    toggle:SetPoint("TOPRIGHT", button, "TOPRIGHT", 1, 1)
+    toggle:SetFrameLevel(button:GetFrameLevel() + 10)
+    toggle:RegisterForClicks("LeftButtonUp")
+
+    toggle:SetHighlightTexture("Interface\\Buttons\\UI-PlusButton-Hilight", "ADD")
+    toggle:SetScript("OnClick", function(self)
+        ToggleIgnoredSlotForSave(self.slotID)
     end)
-    clickOverlay:Hide()
+    toggle:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        if self.slotButton.ignored then
+            GameTooltip:SetText("Include this slot")
+            GameTooltip:AddLine("The equipped item will be saved with this equipment set.", 1, 1, 1, true)
+        else
+            GameTooltip:SetText("Ignore this slot")
+            GameTooltip:AddLine("Changes to this slot will not be saved with this equipment set.", 1, 1, 1, true)
+        end
+        GameTooltip:Show()
+    end)
+    toggle:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+    toggle:Hide()
 
-    clickOverlay.slotID = button:GetID()
-    ignoreEditClickOverlays[button] = clickOverlay
-end
-
-local function SetIgnoreEditClickOverlayShown(button, shown)
-    EnsureIgnoreEditClickOverlay(button)
-
-    local clickOverlay = ignoreEditClickOverlays[button]
-    if not clickOverlay then
-        return
-    end
-
-    clickOverlay:ClearAllPoints()
-    clickOverlay:SetPoint("TOPLEFT", button, "TOPLEFT", 0, 0)
-    clickOverlay:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", 0, 0)
-    clickOverlay:SetFrameStrata("DIALOG")
-    clickOverlay:SetFrameLevel(1000)
-    clickOverlay:SetShown(shown == true)
+    toggle.slotID = button:GetID()
+    toggle.slotButton = button
+    ignoreEditToggleButtons[button] = toggle
+    UpdateIgnoreEditToggle(button)
 end
 
 UpdateEquipmentEditModeVisuals = function()
     local shown = tab.frame and tab.frame.equipmentEditMode == true
     for _, button in ipairs(itemSlotButtons) do
         if button then
-            EnsureEquipmentEditModeOverlay(button)
-            button.ExtraStatsEquipmentEditOverlay:SetShown(shown == true)
-            SetIgnoreEditClickOverlayShown(button, shown)
-            if shown and button.LockHighlight then
-                button:LockHighlight()
-            elseif button.UnlockHighlight then
-                button:UnlockHighlight()
-            end
+            EnsureIgnoreEditToggle(button)
+            UpdateIgnoreEditToggle(button)
+            ignoreEditToggleButtons[button]:SetShown(shown == true)
         end
     end
 end
@@ -999,16 +988,16 @@ HookItemSlotIgnoreEditing = function()
     for _, button in ipairs(itemSlotButtons) do
         if button then
             EnsureIgnoredSlotOverlay(button)
-            EnsureEquipmentEditModeOverlay(button)
-            SetIgnoreEditClickOverlayShown(button, IsIgnoringSlotsEditable())
+            EnsureIgnoreEditToggle(button)
+            ignoreEditToggleButtons[button]:SetShown(IsIgnoringSlotsEditable())
         end
     end
 end
 
 RestoreItemSlotIgnoreEditing = function()
     for _, button in ipairs(itemSlotButtons) do
-        if button and ignoreEditClickOverlays[button] then
-            ignoreEditClickOverlays[button]:Hide()
+        if button and ignoreEditToggleButtons[button] then
+            ignoreEditToggleButtons[button]:Hide()
         end
     end
 end
@@ -1021,6 +1010,7 @@ SetIgnoredSlotVisual = function(slot, ignored)
 
     button.ignored = ignored == true or nil
     PaperDollItemSlotButton_Update(button)
+    UpdateIgnoreEditToggle(button)
     UpdateIgnoredSlotOverlays()
 end
 
@@ -1029,6 +1019,7 @@ ClearIgnoredSlotVisuals = function()
         if button and button.ignored then
             button.ignored = nil
             PaperDollItemSlotButton_Update(button)
+            UpdateIgnoreEditToggle(button)
         end
     end
     UpdateIgnoredSlotOverlays()
