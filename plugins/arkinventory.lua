@@ -146,7 +146,7 @@ local function FindBagLocation(itemID, itemLink)
                 end
             end
 
-            if itemID and GetContainerItemIDCompat(bag, slot) == itemID then
+            if not itemLink and itemID and GetContainerItemIDCompat(bag, slot) == itemID then
                 return bag, slot
             end
         end
@@ -159,7 +159,7 @@ local function FindEquippedLocation(itemID, itemLink)
         if itemLink and GetEquippedItemLink(slotID) == itemLink then
             return slotID
         end
-        if itemID and GetEquippedItemID(slotID) == itemID then
+        if not itemLink and itemID and GetEquippedItemID(slotID) == itemID then
             return slotID
         end
     end
@@ -194,7 +194,7 @@ local function BuildItemLocationsBySlot(setID, equipment)
 
             if itemLink and GetEquippedItemLink(slotID) == itemLink then
                 location = PackLocation(true, false, false, false, slotID, 0, 0, 0)
-            elseif itemID and GetEquippedItemID(slotID) == itemID then
+            elseif not itemLink and itemID and GetEquippedItemID(slotID) == itemID then
                 location = PackLocation(true, false, false, false, slotID, 0, 0, 0)
             else
                 local equippedSlotID = FindEquippedLocation(itemID, itemLink)
@@ -439,16 +439,20 @@ local function SetContainsItem(set, itemInfo)
     end
 
     local itemID = itemInfo.itemID
-    local itemLink = itemInfo.itemLink
+    local itemLink = NormalizeItemLink(itemInfo.itemLink)
     local items = set.items or {}
     local links = set.itemLinks or {}
+    local ignored = set.ignoredSlots or {}
 
-    for _, slotName in pairs(SLOT_NAME_BY_ID) do
-        if itemLink and links[slotName] and links[slotName] == itemLink then
-            return true
-        end
-        if itemID and items[slotName] and items[slotName] == itemID then
-            return true
+    for slotID, slotName in pairs(SLOT_NAME_BY_ID) do
+        if not ignored[slotID] then
+            local storedLink = NormalizeItemLink(links[slotName])
+            if itemLink and storedLink and storedLink == itemLink then
+                return true
+            end
+            if not storedLink and itemID and items[slotName] and items[slotName] == itemID then
+                return true
+            end
         end
     end
 
@@ -609,6 +613,7 @@ function Plugin:Setup()
     end
 
     _G.C_EquipmentSet = _G.C_EquipmentSet or {}
+    _G.C_EquipmentSet._ExtraStats = true
 
     _G.C_EquipmentSet.CanUseEquipmentSets = _G.CanUseEquipmentSets
     _G.C_EquipmentSet.GetNumEquipmentSets = _G.GetNumEquipmentSets

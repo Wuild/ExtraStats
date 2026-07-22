@@ -15,6 +15,12 @@
       <phpcs_by_interpreter asDefaultInterpreter="true" interpreter_id="15412eae-7685-4c57-934f-4b817594bc9b" timeout="30000" />
     </phpcs_settings>
   </component>
+  <component name="PhpIncludePathManager">
+    <include_path>
+      <path value="$PROJECT_DIR$/../IntelliJ-IDEA-Lua-IDE-WoW-API" />
+      <path value="D:/Work/wow-ui-source-classic_anniversary" />
+    </include_path>
+  </component>
   <component name="PhpStan">
     <PhpStan_settings>
       <phpstan_by_interpreter asDefaultInterpreter="true" interpreter_id="15412eae-7685-4c57-934f-4b817594bc9b" timeout="60000" />

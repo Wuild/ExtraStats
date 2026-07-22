@@ -22,7 +22,8 @@ local function FindMatchingSets(itemLink)
         return {}
     end
 
-    local itemID = GetItemID(itemLink)
+    local normalizedItemLink = NormalizeItemLink(itemLink)
+    local itemID = GetItemID(normalizedItemLink)
     local matches = {}
     local sets = equipment.db.char.sets or {}
 
@@ -54,7 +55,9 @@ local function FindMatchingSets(itemLink)
             if not ignored[slotID] then
                 local storedLink = NormalizeItemLink(itemLinks[slotName])
                 local storedID = items[slotName] or GetItemID(storedLink)
-                if (storedLink and storedLink == NormalizeItemLink(itemLink)) or (itemID and storedID == itemID) then
+                -- Full links identify gemmed/enchanted copies. Only fall
+                -- back to item IDs for sets saved before links were stored.
+                if (storedLink and storedLink == normalizedItemLink) or (not storedLink and itemID and storedID == itemID) then
                     matched = true
                     break
                 end

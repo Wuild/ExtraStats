@@ -325,7 +325,7 @@ end
 
 local function IsSetFullyEquipped(set)
     for _, slotID in ipairs(SLOT_ORDER) do
-        if not IsSlotSetMatched(set, slotID) then
+        if not IsSlotSetExactMatched(set, slotID) then
             return false
         end
     end
@@ -698,7 +698,29 @@ local function BuildKnownItemLocationSnapshot()
     return snapshot
 end
 
-local function UpdateSetLinksForChangedItem(oldItemLink, newItemLink)
+local function CountSnapshotItemLinks(snapshot)
+    local counts = {}
+
+    for _, item in pairs(snapshot) do
+        if item.itemID and item.itemLink then
+            local itemCounts = counts[item.itemID]
+            if not itemCounts then
+                itemCounts = {}
+                counts[item.itemID] = itemCounts
+            end
+            itemCounts[item.itemLink] = (itemCounts[item.itemLink] or 0) + 1
+        end
+    end
+
+    return counts
+end
+
+local function GetSnapshotItemLinkCount(counts, itemID, itemLink)
+    local itemCounts = counts[itemID]
+    return itemCounts and itemCounts[itemLink] or 0
+end
+
+local function UpdateSetLinkForChangedEquippedItem(setID, slotID, oldItemLink, newItemLink)
     if oldItemLink == newItemLink then
         return false
     end
@@ -710,38 +732,54 @@ local function UpdateSetLinksForChangedItem(oldItemLink, newItemLink)
     end
 
     local sets = equipment.db and equipment.db.char and equipment.db.char.sets
-    if not sets then
+    local set = sets and setID and sets[setID]
+    local key = slotID and SLOT_NAME_BY_ID[slotID]
+    if not set or not key or IsSlotIgnored(set, slotID) then
         return false
     end
 
-    local changed = false
-    for _, set in ipairs(sets) do
-        set.items = set.items or {}
-        set.itemLinks = set.itemLinks or {}
+    set.items = set.items or {}
+    set.itemLinks = set.itemLinks or {}
 
-        for _, slotID in ipairs(SLOT_ORDER) do
-            if not IsSlotIgnored(set, slotID) then
-                local key = SLOT_NAME_BY_ID[slotID]
-                if GetStoredItemLink(set, key) == oldItemLink then
-                    set.items[key] = newItemID
-                    set.itemLinks[key] = newItemLink
-                    changed = true
-                end
-            end
-        end
+    if GetStoredItemLink(set, key) ~= oldItemLink then
+        return false
     end
 
-    return changed
+    set.items[key] = newItemID
+    set.itemLinks[key] = newItemLink
+    return true
 end
 
 local function RefreshEquipmentSetItemLinks()
     local snapshot = BuildKnownItemLocationSnapshot()
+    local previousCounts = CountSnapshotItemLinks(knownItemLinksByLocation)
+    local currentCounts = CountSnapshotItemLinks(snapshot)
     local changed = false
 
     for location, current in pairs(snapshot) do
         local previous = knownItemLinksByLocation[location]
         if previous and previous.itemID == current.itemID and previous.itemLink ~= current.itemLink then
-            changed = UpdateSetLinksForChangedItem(previous.itemLink, current.itemLink) or changed
+            -- A different copy of the same item can move into this location
+            -- during a gear swap. Only rewrite saved sets when the old link
+            -- actually disappeared and the new link was created, as happens
+            -- when an enchant or gem changes the item itself.
+            local oldCountDecreased = GetSnapshotItemLinkCount(currentCounts, previous.itemID, previous.itemLink)
+                < GetSnapshotItemLinkCount(previousCounts, previous.itemID, previous.itemLink)
+            local newCountIncreased = GetSnapshotItemLinkCount(currentCounts, current.itemID, current.itemLink)
+                > GetSnapshotItemLinkCount(previousCounts, current.itemID, current.itemLink)
+
+            if oldCountDecreased and newCountIncreased then
+                -- Only the active set is being modified. Updating every set
+                -- that has the same old link would make identical physical
+                -- copies indistinguishable after gemming just one of them.
+                local equippedSlotID = tonumber(string.match(location, "^inventory:(%d+)$"))
+                changed = UpdateSetLinkForChangedEquippedItem(
+                    equipment.currentSetID,
+                    equippedSlotID,
+                    previous.itemLink,
+                    current.itemLink
+                ) or changed
+            end
         end
     end
 
@@ -1648,6 +1686,7 @@ function equipment:OnEnable()
     self:RegisterEvent("BAG_UPDATE_DELAYED", "EventHandler")
     self:RegisterEvent("ITEM_LOCK_CHANGED", "EventHandler")
     self:RegisterEvent("PLAYER_EQUIPMENT_CHANGED", "EventHandler")
+    self:RegisterEvent("UNIT_INVENTORY_CHANGED", "EventHandler")
     self:RegisterEvent("ACTIVE_TALENT_GROUP_CHANGED", "EventHandler")
     self:RegisterEvent("BANKFRAME_OPENED", "EventHandler")
     self:RegisterEvent("BANKFRAME_CLOSED", "EventHandler")
@@ -1665,6 +1704,7 @@ function equipment:OnDisable()
     self:UnregisterEvent("BAG_UPDATE_DELAYED")
     self:UnregisterEvent("ITEM_LOCK_CHANGED")
     self:UnregisterEvent("PLAYER_EQUIPMENT_CHANGED")
+    self:UnregisterEvent("UNIT_INVENTORY_CHANGED")
     self:UnregisterEvent("ACTIVE_TALENT_GROUP_CHANGED")
     self:UnregisterEvent("BANKFRAME_OPENED")
     self:UnregisterEvent("BANKFRAME_CLOSED")
@@ -1693,7 +1733,7 @@ function equipment:EventHandler(event, arg1)
         ScheduleProcessEquip(pendingEquip.token, EQUIP_LOCK_RETRY_DELAY)
     elseif event == "PLAYER_REGEN_ENABLED" and StartQueuedEquipmentSwap and StartQueuedEquipmentSwap() then
         return
-    elseif event == "PLAYER_EQUIPMENT_CHANGED" then
+    elseif event == "PLAYER_EQUIPMENT_CHANGED" or (event == "UNIT_INVENTORY_CHANGED" and arg1 == "player") then
         RefreshEquipmentSetItemLinks()
         RefreshCurrentSetID()
     elseif event == "BAG_UPDATE_DELAYED" or event == "ITEM_LOCK_CHANGED" then
