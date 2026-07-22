@@ -160,19 +160,13 @@ local ROLE_ICON_TEXTURES = {
 local ROLE_ORDER = { CLASS_ROLE_TANK, CLASS_ROLE_HEALER, CLASS_ROLE_DAMAGER }
 
 local function GetTalentTabName(tabIndex)
-    local a, b = GetTalentTabInfo(tabIndex);
-    if type(b) == "string" and b ~= "" then
-        return b;
-    end
-    if type(a) == "string" and a ~= "" then
-        return a;
-    end
-    return nil;
+    local name = ExtraStats:GetTalentTabInfoCompat(tabIndex);
+    return type(name) == "string" and name ~= "" and name or nil;
 end
 
 local function GetTalentTabPoints(tabIndex)
-    local points = select(5, GetTalentTabInfo(tabIndex));
-    return tonumber(points) or 0;
+    local _, _, points = ExtraStats:GetTalentTabInfoCompat(tabIndex);
+    return points;
 end
 
 local function HideDefaultTitleDropDown()

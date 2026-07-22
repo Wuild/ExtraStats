@@ -13,11 +13,7 @@ local function GetEquipmentSet()
     return ExtraStats:GetModule("EquipmentSet")
 end
 
-local function RefreshBrokerText()
-    if not dataObject then
-        return
-    end
-
+local function RefreshDisplay()
     local equipment = GetEquipmentSet()
     local name, icon
     if equipment then
@@ -30,8 +26,10 @@ local function RefreshBrokerText()
             end
         end
     end
-    dataObject.text = name or "Gear Sets"
-    dataObject.icon = icon or BROKER_ICON
+    if dataObject then
+        dataObject.text = name or "Gear Sets"
+        dataObject.icon = icon or BROKER_ICON
+    end
 end
 
 local function GetActiveSetInfo()
@@ -142,16 +140,43 @@ local function ShowMenu(anchor)
     ToggleDropDownMenu(1, nil, menuFrame, anchor, 0, 0)
 end
 
+function Plugin:Settings(configsTable)
+    configsTable.general.args.behavior.args.gearSetsMinimap = {
+        name = "Show gear-set minimap button",
+        desc = "Show a minimap button for selecting equipment sets.",
+        type = "toggle",
+        order = 4,
+        width = "full",
+        disabled = function()
+            return ExtraStats.db.char.disabledPlugins[self.name] == true
+        end,
+        get = function()
+            return ExtraStats.db.char.gearSetsMinimap.hide ~= true
+        end,
+        set = function(_, shown)
+            local settings = ExtraStats.db.char.gearSetsMinimap
+            settings.hide = not shown
+
+            local dbIcon = LibStub("LibDBIcon-1.0", true)
+            if not dbIcon or not dbIcon:IsRegistered(BROKER_NAME) then
+                return
+            end
+            if shown then
+                dbIcon:Show(BROKER_NAME)
+            else
+                dbIcon:Hide(BROKER_NAME)
+            end
+        end,
+    }
+end
+
 function Plugin:Setup()
     if ExtraStats.db.char.disabledPlugins[self.name] == true then
         return
     end
 
-    local broker = LibStub and LibStub("LibDataBroker-1.1", true)
-    if not broker then
-        return
-    end
-
+    local broker = LibStub("LibDataBroker-1.1")
+    local dbIcon = LibStub("LibDBIcon-1.0")
     dataObject = broker:NewDataObject(BROKER_NAME, {
         type = "data source",
         label = "ExtraStats Gear Sets",
@@ -171,8 +196,16 @@ function Plugin:Setup()
         end,
     })
 
-    ExtraStats:On("gear.update", RefreshBrokerText)
-    ExtraStats:On("gear.swap.finished", RefreshBrokerText)
-    RefreshBrokerText()
-    C_Timer.After(1, RefreshBrokerText)
+    local minimapSettings = ExtraStats.db.char.gearSetsMinimap
+    local previousAngle = rawget(minimapSettings, "angle")
+    if previousAngle and rawget(minimapSettings, "minimapPos") == nil then
+        minimapSettings.minimapPos = previousAngle
+        minimapSettings.angle = nil
+    end
+    dbIcon:Register(BROKER_NAME, dataObject, minimapSettings)
+
+    ExtraStats:On("gear.update", RefreshDisplay)
+    ExtraStats:On("gear.swap.finished", RefreshDisplay)
+    RefreshDisplay()
+    C_Timer.After(1, RefreshDisplay)
 end

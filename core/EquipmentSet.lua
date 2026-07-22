@@ -1087,42 +1087,7 @@ local function GetNumSpecGroups()
 end
 
 local function GetTalentTabInfoForGroup(tabIndex, group)
-    local ok, a, b, c, d, e
-
-    if group and GetActiveTalentGroup then
-        ok, a, b, c, d, e = pcall(GetTalentTabInfo, tabIndex, false, false, group)
-    end
-
-    if not ok then
-        ok, a, b, c, d, e = pcall(GetTalentTabInfo, tabIndex)
-    end
-
-    if not ok then
-        return nil, nil, nil
-    end
-
-    local name
-    if type(b) == "string" and b ~= "" then
-        name = b
-    elseif type(a) == "string" and a ~= "" then
-        name = a
-    end
-
-    local icon
-    if type(b) == "string" and (type(a) == "number" or type(a) == "string") then
-        icon = a
-    elseif type(d) == "number" or type(d) == "string" then
-        icon = d
-    elseif type(c) == "number" or type(c) == "string" then
-        icon = c
-    end
-
-    local points = tonumber(e) or tonumber(c)
-    if type(b) ~= "string" then
-        points = tonumber(c) or points
-    end
-
-    return name, icon, points
+    return ExtraStats:GetTalentTabInfoCompat(tabIndex, group)
 end
 
 local function GetFallbackSpecIcon(specName, primaryTab)

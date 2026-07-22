@@ -97,6 +97,10 @@ stats.configsDefaults = {
             },
         },
         disabledPlugins = {},
+        gearSetsMinimap = {
+            minimapPos = 225,
+            hide = false,
+        },
         sets = {},
         categories = {
             base = {

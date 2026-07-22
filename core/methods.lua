@@ -250,9 +250,41 @@ function ExtraStats:GetHitRatingBonus()
     return hit;
 end
 
+function ExtraStats:GetTalentTabInfoCompat(tabIndex, group)
+    if not GetTalentTabInfo then
+        return nil, nil, 0
+    end
+
+    if group == nil and GetActiveTalentGroup then
+        local ok, activeGroup = pcall(GetActiveTalentGroup)
+        if ok then
+            group = activeGroup
+        end
+    end
+
+    local ok, a, b, c, d, e
+    if group ~= nil then
+        ok, a, b, c, d, e = pcall(GetTalentTabInfo, tabIndex, false, false, group)
+    end
+    if not ok then
+        ok, a, b, c, d, e = pcall(GetTalentTabInfo, tabIndex)
+    end
+    if not ok then
+        return nil, nil, 0
+    end
+
+    -- Classic's older signature starts with name, icon, pointsSpent.
+    -- Newer clients start with id, name, description, icon, pointsSpent.
+    local usesClassicSignature = tonumber(c) ~= nil
+    local tabName = usesClassicSignature and a or b
+    local icon = usesClassicSignature and b or d
+    local points = usesClassicSignature and c or e
+    return tabName, icon, tonumber(points) or 0
+end
+
 function ExtraStats:GetTalentGroup(index)
-    local name, texture, pointsSpent, fileName = GetTalentTabInfo(index)
-    return tonumber(pointsSpent) or 0
+    local _, _, pointsSpent = ExtraStats:GetTalentTabInfoCompat(index)
+    return pointsSpent
 end
 
 local function GetPrimaryTalentTreeIndex()
@@ -261,24 +293,10 @@ local function GetPrimaryTalentTreeIndex()
         return nil
     end
 
-    local group = nil
-    if GetActiveTalentGroup then
-        local ok, result = pcall(GetActiveTalentGroup)
-        if ok then
-            group = result
-        end
-    end
-
     local bestTab = nil
     local bestPoints = -1
     for i = 1, numTabs do
-        local points = nil
-        if group ~= nil then
-            points = select(5, GetTalentTabInfo(i, false, false, group))
-        else
-            points = select(5, GetTalentTabInfo(i))
-        end
-        points = tonumber(points) or 0
+        local _, _, points = ExtraStats:GetTalentTabInfoCompat(i)
         if points > bestPoints then
             bestPoints = points
             bestTab = i
@@ -326,6 +344,18 @@ function ExtraStats:UpdateRole()
     local classIndex = CURRENT_CLASS or ExtraStats:GetCurrentClass()
     if not classIndex or not CLASS_TALENTS_ROLE[classIndex] then
         return
+    end
+
+    if GetTalentGroupRole and GetActiveTalentGroup then
+        local okGroup, group = pcall(GetActiveTalentGroup)
+        local okRole, role
+        if okGroup and group then
+            okRole, role = pcall(GetTalentGroupRole, group)
+        end
+        if okRole and (role == CLASS_ROLE_DAMAGER or role == CLASS_ROLE_HEALER or role == CLASS_ROLE_TANK) then
+            CURRENT_ROLE = role
+            return
+        end
     end
 
     local primaryTab = GetPrimaryTalentTreeIndex()

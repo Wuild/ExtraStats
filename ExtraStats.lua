@@ -350,6 +350,10 @@ function ExtraStats:OnEnable()
     for _, plugin in pairs(ExtraStats.plugins) do
         plugin:Setup();
 
+        if plugin.Settings then
+            plugin:Settings(configsTable)
+        end
+
         local pluginName = plugin.name;
         configsTable.plugins.args["plugin." .. pluginName] = {
             name = pluginName,
@@ -382,12 +386,6 @@ function ExtraStats:OnEnable()
             ReloadUI();
         end
     }
-
-    --for i, plugin in pairs(ExtraStats.plugins) do
-    --    if plugin.Settings then
-    --        plugin:Settings(configsTable);
-    --    end
-    --end
 
     LibStub("AceConfig-3.0"):RegisterOptionsTable("ExtraStats", {
         type = "group",

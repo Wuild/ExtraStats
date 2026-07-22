@@ -333,11 +333,13 @@ local function RefreshEquipmentSlotTooltipForModifiers()
         return
     end
 
-    if not owner.GetID then
-        return
+    local slotID
+    for _, gearSlotFrame in ipairs(GEAR_SLOT_FRAMES) do
+        if owner == gearSlotFrame and gearSlotFrame.GetID then
+            slotID = gearSlotFrame:GetID()
+            break
+        end
     end
-
-    local slotID = owner:GetID()
     if not slotID or slotID <= 0 then
         return
     end

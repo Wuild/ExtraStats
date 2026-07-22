@@ -81,11 +81,7 @@ function Plugin:Setup()
         return
     end
 
-    if not GameTooltip or not GameTooltip.HookScript then
-        return
-    end
-
-    GameTooltip:HookScript("OnTooltipSetItem", function(tooltip)
+    local function AddGearSetLines(tooltip)
         local _, itemLink = tooltip:GetItem()
         if not itemLink then
             return
@@ -105,5 +101,19 @@ function Plugin:Setup()
                 tooltip:AddLine(match.name, 1.0, 0.82, 0.2)
             end
         end
-    end)
+    end
+
+    for _, tooltipName in ipairs({
+        "GameTooltip",
+        "ShoppingTooltip1",
+        "ShoppingTooltip2",
+        "ItemRefTooltip",
+        "ItemRefShoppingTooltip1",
+        "ItemRefShoppingTooltip2",
+    }) do
+        local tooltip = _G[tooltipName]
+        if tooltip and tooltip.HookScript then
+            tooltip:HookScript("OnTooltipSetItem", AddGearSetLines)
+        end
+    end
 end
