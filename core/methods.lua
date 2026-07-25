@@ -160,8 +160,14 @@ function ExtraStats:translate(key, ...)
         return key
     end
 
+    if #arg == 0 then
+        return L[key]
+    end
+
     for i, v in ipairs(arg) do
-        arg[i] = tostring(v);
+        if type(v) ~= "number" and type(v) ~= "string" then
+            arg[i] = tostring(v);
+        end
     end
     return string.format(L[key], unpack(arg))
 end
@@ -403,7 +409,7 @@ function ExtraStats:VersionCheck(event, msg, channel, sender)
 
     if localVersion < removeVersion and not stats.NewVersionExists then
         stats.NewVersionExists = true;
-        ExtraStats:print("A new version of", stats.name, "has been detected, please visit curseforge.com to download the latest version, or use the twitch app to keep you addons updated")
+        ExtraStats:print(ExtraStats:translate("message.new_version", stats.name))
     end
 
 end

@@ -278,7 +278,7 @@ StaticPopupDialogs["CONFIRM_DELETE_EQUIPMENT_SET"] = {
 }
 
 StaticPopupDialogs["ExtraStats_CONFIRM_OVERWRITE_EQUIPMENT_SET"] = {
-    text = CONFIRM_OVERWRITE_EQUIPMENT_SET or "Overwrite equipment set %s?",
+    text = CONFIRM_OVERWRITE_EQUIPMENT_SET or ExtraStats:translate("gearsets.overwrite"),
     button1 = YES,
     button2 = NO,
     OnAccept = function(self)
@@ -753,17 +753,17 @@ ShowGearSetTooltip = function(button)
     GameTooltip:SetText(setName, HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g, HIGHLIGHT_FONT_COLOR.b)
     if setID then
         if isEquipped then
-            GameTooltip:AddLine(EQUIPPED or "Equipped", GREEN_FONT_COLOR.r, GREEN_FONT_COLOR.g, GREEN_FONT_COLOR.b)
+            GameTooltip:AddLine(EQUIPPED or ExtraStats:translate("gearsets.equipped"), GREEN_FONT_COLOR.r, GREEN_FONT_COLOR.g, GREEN_FONT_COLOR.b)
         elseif (numLost or 0) > 0 then
-            GameTooltip:AddLine((numLost == 1 and "1 missing item" or tostring(numLost) .. " missing items"), RED_FONT_COLOR.r, RED_FONT_COLOR.g, RED_FONT_COLOR.b)
+            GameTooltip:AddLine(numLost == 1 and ExtraStats:translate("gearsets.missing_one") or ExtraStats:translate("gearsets.missing_many", numLost), RED_FONT_COLOR.r, RED_FONT_COLOR.g, RED_FONT_COLOR.b)
         else
-            GameTooltip:AddLine(EQUIPSET_EQUIP or "Equip Set", NORMAL_FONT_COLOR.r, NORMAL_FONT_COLOR.g, NORMAL_FONT_COLOR.b)
+            GameTooltip:AddLine(EQUIPSET_EQUIP or ExtraStats:translate("gearsets.equip"), NORMAL_FONT_COLOR.r, NORMAL_FONT_COLOR.g, NORMAL_FONT_COLOR.b)
         end
 
         local missingItems = EquipmentSet:GetMissingEquipmentSetItems(setID)
         if #missingItems > 0 then
             GameTooltip:AddLine(" ")
-            GameTooltip:AddLine("Missing items:", RED_FONT_COLOR.r, RED_FONT_COLOR.g, RED_FONT_COLOR.b)
+            GameTooltip:AddLine(ExtraStats:translate("gearsets.missing_header"), RED_FONT_COLOR.r, RED_FONT_COLOR.g, RED_FONT_COLOR.b)
             for _, item in ipairs(missingItems) do
                 GameTooltip:AddLine(item.slotLabel .. " -> " .. item.itemName, HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g, HIGHLIGHT_FONT_COLOR.b)
             end
@@ -918,11 +918,11 @@ local function EnsureIgnoreEditToggle(button)
     toggle:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         if self.slotButton.ignored then
-            GameTooltip:SetText("Include this slot")
-            GameTooltip:AddLine("The equipped item will be saved with this equipment set.", 1, 1, 1, true)
+            GameTooltip:SetText(ExtraStats:translate("gearsets.include_slot"))
+            GameTooltip:AddLine(ExtraStats:translate("gearsets.include_slot_desc"), 1, 1, 1, true)
         else
-            GameTooltip:SetText("Ignore this slot")
-            GameTooltip:AddLine("Changes to this slot will not be saved with this equipment set.", 1, 1, 1, true)
+            GameTooltip:SetText(ExtraStats:translate("gearsets.ignore_slot"))
+            GameTooltip:AddLine(ExtraStats:translate("gearsets.ignore_slot_desc"), 1, 1, 1, true)
         end
         GameTooltip:Show()
     end)
@@ -1191,7 +1191,7 @@ function ExtraStats_GearManagerDialogPopupOkay_OnClick()
     end
 
     if name == "TEMP_SET" then
-        UIErrorsFrame:AddMessage("Name TEMP_SET is reserved.", 1.0, 0.1, 0.1, 1.0)
+        UIErrorsFrame:AddMessage(ExtraStats:translate("gearsets.reserved_name"), 1.0, 0.1, 0.1, 1.0)
         return
     end
 
@@ -1287,7 +1287,7 @@ function GearSetEditButtonDropDown_Initialize(dropdownFrame)
 
     local mountSetID = EquipmentSet:GetMountEquipmentSet()
     local mountInfo = UIDropDownMenu_CreateInfo()
-    mountInfo.text = "Auto equip while mounted"
+    mountInfo.text = ExtraStats:translate("gearsets.auto_mount")
     mountInfo.checked = mountSetID == setID
     mountInfo.func = function()
         EquipmentSet:AssignMountEquipmentSet(setID)
@@ -1297,7 +1297,7 @@ function GearSetEditButtonDropDown_Initialize(dropdownFrame)
 
     if mountSetID == setID then
         local clearMountInfo = UIDropDownMenu_CreateInfo()
-        clearMountInfo.text = "Clear mounted auto equip"
+        clearMountInfo.text = ExtraStats:translate("gearsets.clear_mount")
         clearMountInfo.notCheckable = true
         clearMountInfo.func = function()
             EquipmentSet:UnassignMountEquipmentSet()
@@ -1308,7 +1308,7 @@ function GearSetEditButtonDropDown_Initialize(dropdownFrame)
 
     local pvpSetID = EquipmentSet:GetPvPEquipmentSet()
     local pvpInfo = UIDropDownMenu_CreateInfo()
-    pvpInfo.text = "Auto equip in PVP instances"
+    pvpInfo.text = ExtraStats:translate("gearsets.auto_pvp")
     pvpInfo.checked = pvpSetID == setID
     pvpInfo.func = function()
         EquipmentSet:AssignPvPEquipmentSet(setID)
@@ -1318,7 +1318,7 @@ function GearSetEditButtonDropDown_Initialize(dropdownFrame)
 
     if pvpSetID == setID then
         local clearPvPInfo = UIDropDownMenu_CreateInfo()
-        clearPvPInfo.text = "Clear PVP auto equip"
+        clearPvPInfo.text = ExtraStats:translate("gearsets.clear_pvp")
         clearPvPInfo.notCheckable = true
         clearPvPInfo.func = function()
             EquipmentSet:UnassignPvPEquipmentSet()
@@ -1334,9 +1334,9 @@ function GearSetEditButtonDropDown_Initialize(dropdownFrame)
         local specLabel, _, _, specName = EquipmentSet:GetSpecGroupInfo(specGroup)
         local assignInfo = UIDropDownMenu_CreateInfo()
         if specName and specName ~= "" then
-            assignInfo.text = string.format("Auto equip for Spec %d (%s)", specGroup, specName)
+            assignInfo.text = ExtraStats:translate("gearsets.auto_spec", specGroup, specName)
         else
-            assignInfo.text = string.format("Auto equip for %s", specLabel)
+            assignInfo.text = ExtraStats:translate("gearsets.auto_for", specLabel)
         end
         assignInfo.checked = assignedSpec == specGroup
         assignInfo.func = function()
@@ -1348,7 +1348,7 @@ function GearSetEditButtonDropDown_Initialize(dropdownFrame)
 
     if assignedSpec then
         local clearInfo = UIDropDownMenu_CreateInfo()
-        clearInfo.text = "Clear auto equip spec"
+        clearInfo.text = ExtraStats:translate("gearsets.clear_spec")
         clearInfo.notCheckable = true
         clearInfo.func = function()
             EquipmentSet:UnassignSpecFromEquipmentSet(setID)
@@ -1419,12 +1419,12 @@ function GearSetButton_UpdateSpecInfo(self)
     end
 
     if GetMountEquipmentSet() == self.setID then
-        GearSetButton_SetSpecInfo(self, 0, "Mount set")
+        GearSetButton_SetSpecInfo(self, 0, ExtraStats:translate("gearsets.mount_set"))
         return
     end
 
     if GetPvPEquipmentSet() == self.setID then
-        GearSetButton_SetSpecInfo(self, 0, "PVP set")
+        GearSetButton_SetSpecInfo(self, 0, ExtraStats:translate("gearsets.pvp_set"))
         return
     end
 

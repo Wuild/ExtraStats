@@ -151,7 +151,7 @@ local function UnequipInventorySlot(slotID)
 
     -- No compatible bag space was available; put the item back where it came from.
     PickupInventoryItem(slotID)
-    UIErrorsFrame:AddMessage(ERR_INV_FULL or "Inventory is full.", 1.0, 0.1, 0.1, 1.0)
+    UIErrorsFrame:AddMessage(ERR_INV_FULL or ExtraStats:translate("common.inventory_full"), 1.0, 0.1, 0.1, 1.0)
     return false
 end
 
@@ -428,8 +428,8 @@ local function EnsureAltBarFrame()
             hideAltBarRequestId = hideAltBarRequestId + 1
             if self.isUnequip then
                 GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-                GameTooltip:SetText("Unequip")
-                GameTooltip:AddLine("Move the equipped item to your bags.", 1, 1, 1, true)
+                GameTooltip:SetText(ExtraStats:translate("gearsets.unequip"))
+                GameTooltip:AddLine(ExtraStats:translate("gearsets.unequip_desc"), 1, 1, 1, true)
                 GameTooltip:Show()
             elseif self.itemLink then
                 GameTooltip:SetOwner(self, "ANCHOR_RIGHT")

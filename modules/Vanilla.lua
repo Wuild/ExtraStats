@@ -1,15 +1,15 @@
 local Module = ExtraStats.modules:NewModule("Vanilla")
 local Stats = ExtraStats:LoadModule("character.stats")
 
-SPELL_HIT_TOOLTIP_TXT = "Spell Hit chance from gear: %d%%";
-SPELL_HIT_TOOLTIP_2_TXT = "Spell Hit chance (Gear and Talents): %d%%";
-SPELL_HIT_SUBTOOLTIP_TXT = "Spell Hit chance (Gear + Talents):";
-ARCANE_SPELL_HIT_TXT = "Arcane Spell Hit";
-FIRE_SPELL_HIT_TXT = "Fire Spell Hit";
-FROST_SPELL_HIT_TXT = "Frost Spell Hit";
-DESTRUCTION_SPELL_HIT_TXT = "Destruction Spell Hit";
-AFFLICTION_SPELL_HIT_TXT = "Affliction Spell Hit";
-LIGHTNING_TXT = "Lightning";
+SPELL_HIT_TOOLTIP_TXT = ExtraStats:translate("spell_hit.from_gear");
+SPELL_HIT_TOOLTIP_2_TXT = ExtraStats:translate("spell_hit.total");
+SPELL_HIT_SUBTOOLTIP_TXT = ExtraStats:translate("spell_hit.heading");
+ARCANE_SPELL_HIT_TXT = ExtraStats:translate("spell_hit.arcane");
+FIRE_SPELL_HIT_TXT = ExtraStats:translate("spell_hit.fire");
+FROST_SPELL_HIT_TXT = ExtraStats:translate("spell_hit.frost");
+DESTRUCTION_SPELL_HIT_TXT = ExtraStats:translate("spell_hit.destruction");
+AFFLICTION_SPELL_HIT_TXT = ExtraStats:translate("spell_hit.affliction");
+LIGHTNING_TXT = ExtraStats:translate("tooltip.lightning");
 
 local SYMBOL_TAB = "    ";
 
@@ -298,9 +298,9 @@ local function CharacterManaRegenFrame_OnEnter(self)
         end
     end
     GameTooltip:SetText(title, HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g, HIGHLIGHT_FONT_COLOR.b);
-    GameTooltip:AddDoubleLine(MANA_REGEN .. " (From Gear):", self.mp5FromGear);
-    GameTooltip:AddDoubleLine(MANA_REGEN .. " (While Casting):", self.mp5Casting);
-    GameTooltip:AddDoubleLine(MANA_REGEN .. " (While Not Casting):", self.mp5NotCasting);
+    GameTooltip:AddDoubleLine(MANA_REGEN .. " (" .. ExtraStats:translate("tooltip.from_gear") .. "):", self.mp5FromGear);
+    GameTooltip:AddDoubleLine(MANA_REGEN .. " (" .. ExtraStats:translate("tooltip.while_casting") .. "):", self.mp5Casting);
+    GameTooltip:AddDoubleLine(MANA_REGEN .. " (" .. ExtraStats:translate("tooltip.while_not_casting") .. "):", self.mp5NotCasting);
     GameTooltip:Show();
 end
 
@@ -1096,11 +1096,11 @@ Module.stats = {
             local npcWeaponskill = playerLevel * 5; -- same level as player
             local bossWeaponskill = playerLevel * 5; -- level 63
 
-            local tooltip = "Increases chance to Dodge, Block and Parry.\nDecreases chance to be hit and critically hit."
+            local tooltip = ExtraStats:translate("tooltip.defense_desc")
             tooltip = tooltip .. " \n";
-            tooltip = tooltip .. "Effect vs. \n";
-            tooltip = tooltip .. format(SYMBOL_TAB .. "Level " .. playerLevel .. " NPC: %.2F%%", math.max(0, skillRank + skillModifier - npcWeaponskill) * 0.04) .. "\n";
-            tooltip = tooltip .. format(SYMBOL_TAB .. "Level " .. (playerLevel + 3) .. " NPC/Boss: %.2F%%", math.max(0, skillRank + skillModifier - bossWeaponskill) * 0.04) .. "\n";
+            tooltip = tooltip .. ExtraStats:translate("tooltip.effect_vs") .. " \n";
+            tooltip = tooltip .. SYMBOL_TAB .. ExtraStats:translate("tooltip.level_npc", playerLevel, math.max(0, skillRank + skillModifier - npcWeaponskill) * 0.04) .. "\n";
+            tooltip = tooltip .. SYMBOL_TAB .. ExtraStats:translate("tooltip.level_npc_boss", playerLevel + 3, math.max(0, skillRank + skillModifier - bossWeaponskill) * 0.04) .. "\n";
 
             return {
                 value = valueNum,

@@ -1,5 +1,6 @@
 local Plugin = {
     name = "Gear Set Item Tooltips",
+    displayNameKey = "gearsets.tooltip_plugin",
 }
 
 ExtraStats:RegisterPlugin(Plugin)
@@ -67,7 +68,7 @@ local function FindMatchingSets(itemLink)
         if matched then
             local _, _, _, equipped = equipment:GetEquipmentSetInfo(setID)
             matches[#matches + 1] = {
-                name = set.name or ("Set " .. setID),
+                name = set.name or ExtraStats:translate("gearsets.default_name", setID),
                 equipped = equipped == true,
             }
         end
@@ -93,7 +94,7 @@ function Plugin:Setup()
         end
 
         tooltip:AddLine(" ")
-        tooltip:AddLine(string.format("Gear Sets (%d)", #matches), 0.4, 0.8, 1.0)
+        tooltip:AddLine(ExtraStats:translate("gearsets.memberships", #matches), 0.4, 0.8, 1.0)
         for _, match in ipairs(matches) do
             if match.equipped then
                 tooltip:AddLine("|TInterface\\Buttons\\UI-CheckBox-Check:12|t " .. match.name, 0.2, 1.0, 0.2)

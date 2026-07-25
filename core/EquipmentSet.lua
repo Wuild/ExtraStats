@@ -824,7 +824,7 @@ end
 
 local function BuildCurrentEquipmentSnapshot(name, ignoredSlots)
     local set = {
-        name = name or "Temporary equipment",
+        name = name or ExtraStats:translate("gearsets.temporary"),
         icon = nil,
         items = {},
         itemLinks = {},
@@ -867,7 +867,7 @@ local EQUIP_LOCK_RETRY_DELAY = 0.03
 local ProcessEquip
 local pendingSpecEquipToken = 0
 local lastAutoEquippedSpecGroup
-local MISSING_ITEMS_ERROR = ERR_EQUIPMENT_MANAGER_MISSING_ITEMS or "Equipment swap failed, one or more items are missing."
+local MISSING_ITEMS_ERROR = ERR_EQUIPMENT_MANAGER_MISSING_ITEMS or ExtraStats:translate("gearsets.missing_error")
 
 local SPEC_ICON_TEXTURES_BY_CLASS = {
     [INDEX_CLASS_WARRIOR] = {
@@ -1958,7 +1958,7 @@ local function StartEquipmentSwap(setID, set, action)
             action = action,
         }
         if UIErrorsFrame then
-            UIErrorsFrame:AddMessage("Equipment swap queued until combat ends.", 1.0, 0.82, 0.0, 1.0)
+            UIErrorsFrame:AddMessage(ExtraStats:translate("gearsets.queued"), 1.0, 0.82, 0.0, 1.0)
         end
         ExtraStats:Trigger("gear.update")
         return true
@@ -1971,7 +1971,7 @@ local function StartEquipmentSwap(setID, set, action)
     if CursorHasItem() then
         local stored = PutCursorItemAway()
         if not stored then
-            UIErrorsFrame:AddMessage(ERR_EQUIPMENT_MANAGER_BAGS_FULL or "Inventory is full.", 1.0, 0.1, 0.1, 1.0)
+            UIErrorsFrame:AddMessage(ERR_EQUIPMENT_MANAGER_BAGS_FULL or ExtraStats:translate("common.inventory_full"), 1.0, 0.1, 0.1, 1.0)
             return false
         end
     end
@@ -2085,7 +2085,7 @@ CheckMountEquipmentState = function()
 
             local mountSet = equipment.db.char.sets[mountSetID]
             if not mountRestoreSet or changed then
-                mountRestoreSet = BuildCurrentEquipmentSnapshot("Before mount", mountSet.ignoredSlots)
+                mountRestoreSet = BuildCurrentEquipmentSnapshot(ExtraStats:translate("gearsets.before_mount"), mountSet.ignoredSlots)
             end
 
             equipment.currentSetID = nil
@@ -2130,7 +2130,7 @@ CheckPvPEquipmentState = function()
 
             local pvpSet = equipment.db.char.sets[pvpSetID]
             if not pvpRestoreSet or changed then
-                pvpRestoreSet = mountRestoreSet or BuildCurrentEquipmentSnapshot("Before PVP", pvpSet.ignoredSlots)
+                pvpRestoreSet = mountRestoreSet or BuildCurrentEquipmentSnapshot(ExtraStats:translate("gearsets.before_pvp"), pvpSet.ignoredSlots)
                 mountRestoreSet = nil
                 activeMountSetID = nil
             end
@@ -2183,9 +2183,9 @@ function equipment:GetSpecGroupInfo(group)
     icon = GetFallbackSpecIcon(specName, primaryTab) or icon
 
     if name and name ~= "" then
-        name = string.format("Spec %d: %s", group, name)
+        name = ExtraStats:translate("gearsets.spec_named", group, name)
     else
-        name = string.format("Spec %d", group)
+        name = ExtraStats:translate("gearsets.spec", group)
     end
 
     return name, icon, primaryTab, specName

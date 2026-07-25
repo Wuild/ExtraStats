@@ -134,23 +134,10 @@ local BlizzFrames = {
 Module.CharacterFrame = CharacterFrame;
 Module.PaperDollFrame = PaperDollFrame;
 
-local SPEC_TABLE = {
-    WARRIOR = { "Arms", "Fury", "Protection" },
-    PALADIN = { "Holy", "Protection", "Retribution" },
-    HUNTER = { "Beast Mastery", "Marksmanship", "Survival" },
-    ROGUE = { "Assassination", "Combat", "Subtlety" },
-    PRIEST = { "Discipline", "Holy", "Shadow" },
-    DEATHKNIGHT = { "Blood", "Frost", "Unholy" },
-    SHAMAN = { "Elemental", "Enhancement", "Restoration" },
-    MAGE = { "Arcane", "Fire", "Frost" },
-    WARLOCK = { "Affliction", "Demonology", "Destruction" },
-    DRUID = { "Balance", "Feral Combat", "Restoration" },
-}
-
 local ROLE_LABELS = {
-    [CLASS_ROLE_DAMAGER] = "Damage",
-    [CLASS_ROLE_HEALER] = "Healer",
-    [CLASS_ROLE_TANK] = "Tank",
+    [CLASS_ROLE_DAMAGER] = ExtraStats:translate("role.damage"),
+    [CLASS_ROLE_HEALER] = ExtraStats:translate("role.healer"),
+    [CLASS_ROLE_TANK] = ExtraStats:translate("role.tank"),
 }
 local ROLE_ICON_TEXTURES = {
     [CLASS_ROLE_TANK] = "Interface\\Icons\\Ability_Warrior_DefensiveStance",
@@ -326,7 +313,7 @@ function Module:CreateCharacterFrames()
     button:SetWidth(18)
     button:SetHeight(18)
     button:SetNormalFontObject("GameFontNormal")
-    button.tooltip = "Settings"
+    button.tooltip = ExtraStats:translate("window.settings")
 
     button:SetScript("OnEnter", function()
         GameTooltip:Show()
@@ -566,10 +553,7 @@ function Module:GetPrimaryTalentTreeName()
             bestPoints = points;
             bestName = GetTalentTabName(i);
             if not bestName then
-                local class = select(2, UnitClass("player"));
-                if class and SPEC_TABLE[class] then
-                    bestName = SPEC_TABLE[class][i];
-                end
+                bestName = ExtraStats:translate("gearsets.spec", i);
             end
         end
     end
@@ -595,9 +579,9 @@ function Module:SetLevel()
     end
 
     if (specName and specName ~= "") then
-        CharacterLevelText:SetFormattedText("Level %s |c%s%s %s|r", level, classColorString, specName, classDisplayName);
+        CharacterLevelText:SetFormattedText(ExtraStats:translate("window.level_with_spec", level, classColorString, specName, classDisplayName));
     else
-        CharacterLevelText:SetFormattedText("Level %s |c%s%s|r", level, classColorString, classDisplayName);
+        CharacterLevelText:SetFormattedText(ExtraStats:translate("window.level_without_spec", level, classColorString, classDisplayName));
     end
 
     ---- Hack: if the string is very long, move it a bit so that it has more room (although it will no longer be centered)

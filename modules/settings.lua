@@ -2,32 +2,32 @@ local Module = ExtraStats.modules:NewModule("settings")
 
 local categories = {
     base = {
-        label = "Base",
-        desc = "Health and power."
+        label = ExtraStats:translate("stats.base"),
+        desc = ExtraStats:translate("settings.category.base_desc")
     },
     attributes = {
         label = PLAYERSTAT_BASE_STATS,
-        desc = "Primary attributes."
+        desc = ExtraStats:translate("settings.category.attributes_desc")
     },
     melee = {
         label = PLAYERSTAT_MELEE_COMBAT,
-        desc = "Melee damage and ratings."
+        desc = ExtraStats:translate("settings.category.melee_desc")
     },
     ranged = {
         label = PLAYERSTAT_RANGED_COMBAT,
-        desc = "Ranged damage and ratings."
+        desc = ExtraStats:translate("settings.category.ranged_desc")
     },
     spell = {
         label = PLAYERSTAT_SPELL_COMBAT,
-        desc = "Spell damage and ratings."
+        desc = ExtraStats:translate("settings.category.spell_desc")
     },
     defenses = {
         label = PLAYERSTAT_DEFENSES,
-        desc = "Mitigation and avoidance."
+        desc = ExtraStats:translate("settings.category.defenses_desc")
     },
     enhancements = {
-        label = "Enhancements",
-        desc = "Secondary bonuses."
+        label = ExtraStats:translate("stats.enhancements"),
+        desc = ExtraStats:translate("settings.category.enhancements_desc")
     }
 }
 
@@ -60,7 +60,7 @@ function Module:Settings(tab)
     end
 
     tab.categories.args.list = {
-        name = "Categories",
+        name = ExtraStats:translate("settings.categories"),
         type = "group",
         inline = true,
         order = 1,
@@ -68,19 +68,19 @@ function Module:Settings(tab)
     }
 
     tab.categories.args.support = {
-        name = "Support",
+        name = ExtraStats:translate("settings.support"),
         type = "group",
         inline = true,
         order = 2,
         args = {
             message = {
-                name = "If you want to support ExtraStats, check out the Patreon below.",
+                name = ExtraStats:translate("settings.support_desc"),
                 type = "description",
                 order = 1,
                 width = "full"
             },
             url = {
-                name = "Patreon",
+                name = ExtraStats:translate("settings.patreon"),
                 type = "input",
                 order = 2,
                 width = "full",

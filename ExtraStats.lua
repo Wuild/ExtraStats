@@ -70,9 +70,9 @@ function ExtraStats:EventHandler(event, target, ...)
 
     if event == "PLAYER_LOGIN" then
         C_Timer.After(5, function()
-            ExtraStats:print(ExtraStats:Colorize(stats.version, "blue"), "has been loaded");
-            ExtraStats:print("use |cFF00FF00/stats|r to access addon settings");
-            ExtraStats:print("Keep this addon alive by donating a coffee at " .. ExtraStats:Colorize("https://www.buymeacoffee.com/yuImx6KOY", "cyan"));
+            ExtraStats:print(ExtraStats:translate("message.loaded", ExtraStats:Colorize(stats.version, "blue")));
+            ExtraStats:print(ExtraStats:translate("message.settings_hint"));
+            ExtraStats:print(ExtraStats:translate("message.support", ExtraStats:Colorize("https://www.buymeacoffee.com/yuImx6KOY", "cyan")));
         end);
     else
         local dirtyCategories = GetDirtyCategories(event, target)
@@ -110,14 +110,14 @@ function ExtraStats:DefaultSettings()
     return {
         general = {
             name = function()
-                return "General";
+                return ExtraStats:translate("settings.general");
             end,
             type = "group",
             order = 1,
-            desc = "Core settings for the character stats panel.",
+            desc = ExtraStats:translate("settings.general_desc"),
             args = {
                 about = {
-                    name = "About",
+                    name = ExtraStats:translate("settings.about"),
                     type = "group",
                     inline = true,
                     order = 1,
@@ -131,14 +131,14 @@ function ExtraStats:DefaultSettings()
                         },
                         version = {
                             name = function()
-                                return "Version: " .. (stats.version or "unknown");
+                                return ExtraStats:translate("settings.version", stats.version or ExtraStats:translate("common.unknown"));
                             end,
                             type = "description",
                             order = 2,
                             width = "full",
                         },
                         support = {
-                            name = "Support: https://www.patreon.com/c/Wuild",
+                            name = ExtraStats:translate("settings.support_link", "https://www.patreon.com/c/Wuild"),
                             type = "description",
                             order = 3,
                             width = "full",
@@ -146,13 +146,13 @@ function ExtraStats:DefaultSettings()
                     }
                 },
                 behavior = {
-                    name = "Behavior",
+                    name = ExtraStats:translate("settings.behavior"),
                     type = "group",
                     inline = true,
                     order = 2,
                     args = {
                         debug = {
-                            name = "Enable debug output",
+                            name = ExtraStats:translate("settings.enable_debug"),
                             type = "toggle",
                             order = 1,
                             width = "full",
@@ -164,7 +164,7 @@ function ExtraStats:DefaultSettings()
                             end
                         },
                         rolePresets = {
-                            name = "Enable role presets",
+                            name = ExtraStats:translate("settings.enable_role_presets"),
                             type = "toggle",
                             order = 2,
                             width = "full",
@@ -180,15 +180,15 @@ function ExtraStats:DefaultSettings()
                             end
                         },
                         rolePresetValue = {
-                            name = "Role preset",
+                            name = ExtraStats:translate("settings.role_preset"),
                             type = "select",
                             order = 3,
                             width = "full",
                             values = {
-                                AUTO = "Auto (from talents)",
-                                [CLASS_ROLE_DAMAGER] = "Damage",
-                                [CLASS_ROLE_HEALER] = "Healer",
-                                [CLASS_ROLE_TANK] = "Tank",
+                                AUTO = ExtraStats:translate("settings.auto_from_talents"),
+                                [CLASS_ROLE_DAMAGER] = ExtraStats:translate("role.damage"),
+                                [CLASS_ROLE_HEALER] = ExtraStats:translate("role.healer"),
+                                [CLASS_ROLE_TANK] = ExtraStats:translate("role.tank"),
                             },
                             set = function(_, val)
                                 ExtraStats.db.char.rolePreset = val
@@ -207,13 +207,13 @@ function ExtraStats:DefaultSettings()
                     }
                 },
                 actions = {
-                    name = "Quick Actions",
+                    name = ExtraStats:translate("settings.quick_actions"),
                     type = "group",
                     inline = true,
                     order = 3,
                     args = {
                         resetLayout = {
-                            name = "Reset layout (order + collapsed state)",
+                            name = ExtraStats:translate("settings.reset_layout"),
                             type = "execute",
                             order = 1,
                             func = function()
@@ -222,7 +222,7 @@ function ExtraStats:DefaultSettings()
                             end
                         },
                         resetVisibility = {
-                            name = "Reset category visibility",
+                            name = ExtraStats:translate("settings.reset_visibility"),
                             type = "execute",
                             order = 2,
                             func = function()
@@ -230,7 +230,7 @@ function ExtraStats:DefaultSettings()
                             end
                         },
                         expandAll = {
-                            name = "Expand all categories",
+                            name = ExtraStats:translate("settings.expand_all"),
                             type = "execute",
                             order = 3,
                             func = function()
@@ -238,7 +238,7 @@ function ExtraStats:DefaultSettings()
                             end
                         },
                         collapseAll = {
-                            name = "Collapse all categories",
+                            name = ExtraStats:translate("settings.collapse_all"),
                             type = "execute",
                             order = 4,
                             func = function()
@@ -252,24 +252,24 @@ function ExtraStats:DefaultSettings()
 
         categories = {
             name = function()
-                return "Categories";
+                return ExtraStats:translate("settings.categories");
             end,
             type = "group",
             order = 2,
-            desc = "Show or hide entire stat categories.",
+            desc = ExtraStats:translate("settings.categories_desc"),
             args = {}
         },
 
         layout = {
             name = function()
-                return "Layout";
+                return ExtraStats:translate("settings.layout");
             end,
             type = "group",
             order = 3,
-            desc = "Manage category order and collapsed state.",
+            desc = ExtraStats:translate("settings.layout_desc"),
             args = {
                 collapseAll = {
-                    name = "Collapse all categories",
+                    name = ExtraStats:translate("settings.collapse_all"),
                     type = "execute",
                     order = 1,
                     func = function()
@@ -277,7 +277,7 @@ function ExtraStats:DefaultSettings()
                     end
                 },
                 expandAll = {
-                    name = "Expand all categories",
+                    name = ExtraStats:translate("settings.expand_all"),
                     type = "execute",
                     order = 2,
                     func = function()
@@ -285,7 +285,7 @@ function ExtraStats:DefaultSettings()
                     end
                 },
                 resetOrder = {
-                    name = "Reset category order",
+                    name = ExtraStats:translate("settings.reset_order"),
                     type = "execute",
                     order = 3,
                     func = function()
@@ -297,11 +297,11 @@ function ExtraStats:DefaultSettings()
 
         plugins = {
             name = function()
-                return "Plugins";
+                return ExtraStats:translate("settings.plugins");
             end,
             type = "group",
             order = 4,
-            desc = "Enable or disable integrations with other addons.",
+            desc = ExtraStats:translate("settings.plugins_desc"),
             args = {}
         }
     }
@@ -355,8 +355,9 @@ function ExtraStats:OnEnable()
         end
 
         local pluginName = plugin.name;
+        local pluginDisplayName = plugin.displayNameKey and ExtraStats:translate(plugin.displayNameKey) or pluginName;
         configsTable.plugins.args["plugin." .. pluginName] = {
-            name = pluginName,
+            name = pluginDisplayName,
             type = "toggle",
             set = function(_, val)
                 if not val then
@@ -375,7 +376,7 @@ function ExtraStats:OnEnable()
 
     configsTable.plugins.args["reloadUI"] = {
         name = function()
-            return "Reload ui";
+            return ExtraStats:translate("settings.reload_ui");
         end,
         type = "execute",
         order = 99999,
