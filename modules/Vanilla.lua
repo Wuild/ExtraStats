@@ -1032,19 +1032,24 @@ Module.stats = {
             end
 
             local unitClassId = select(3, UnitClass(unit));
+            local arcaneHit, frostHit, fireHit, afflictionHit;
             if unitClassId == INDEX_CLASS_MAGE then
-                local arcaneHit, frostFireHit = GetMageSpellHitFromTalents();
-                statFrame.arcaneHit = arcaneHit;
-                statFrame.frostHit = frostFireHit;
-                statFrame.fireHit = frostFireHit;
+                local mageArcaneHit, frostFireHit = GetMageSpellHitFromTalents();
+                arcaneHit = mageArcaneHit or 0;
+                frostHit = frostFireHit or 0;
+                fireHit = frostFireHit or 0;
             elseif unitClassId == INDEX_CLASS_WARLOCK then
-                statFrame.afflictionHit = GetWarlockSpellHitFromTalents();
+                afflictionHit = GetWarlockSpellHitFromTalents() or 0;
             end
 
             return {
                 value = format("%.2F%%", hitChance),
                 hitChance = hitChance,
                 unitClassId = unitClassId,
+                arcaneHit = arcaneHit,
+                frostHit = frostHit,
+                fireHit = fireHit,
+                afflictionHit = afflictionHit,
                 onEnter = SpellHitChanceFrame_OnEnter
             }
         end

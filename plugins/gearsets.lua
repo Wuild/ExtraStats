@@ -140,6 +140,23 @@ local function ShowMenu(anchor)
     ToggleDropDownMenu(1, nil, menuFrame, anchor, 0, 0)
 end
 
+local function OpenEquipmentTab()
+    if not CharacterFrame then
+        return
+    end
+
+    ShowUIPanel(CharacterFrame)
+    if CharacterFrame_ShowSubFrame then
+        CharacterFrame_ShowSubFrame("PaperDollFrame")
+    elseif PaperDollFrame then
+        PaperDollFrame:Show()
+    end
+
+    if ExtraStats.window and ExtraStats.window.HandleTabClick then
+        ExtraStats.window:HandleTabClick(3)
+    end
+end
+
 function Plugin:Settings(configsTable)
     configsTable.general.args.behavior.args.gearSetsMinimap = {
         name = "Show gear-set minimap button",
@@ -182,8 +199,12 @@ function Plugin:Setup()
         label = "ExtraStats Gear Sets",
         icon = BROKER_ICON,
         text = "Gear Sets",
-        OnClick = function(self)
-            ShowMenu(self)
+        OnClick = function(self, button)
+            if button == "RightButton" then
+                OpenEquipmentTab()
+            else
+                ShowMenu(self)
+            end
         end,
         OnTooltipShow = function(tooltip)
             local equipment, setID, name, _, missing = GetActiveSetInfo()
@@ -191,8 +212,9 @@ function Plugin:Setup()
                 AddSetTooltip(tooltip, equipment, setID, name, missing)
             else
                 tooltip:AddLine("No active gear set")
-                tooltip:AddLine("Click to choose a gear set.", 1, 1, 1)
             end
+            tooltip:AddLine("Left-click to choose a gear set.", 1, 1, 1)
+            tooltip:AddLine("Right-click to open the equipment tab.", 1, 1, 1)
         end,
     })
 
