@@ -20,7 +20,7 @@ ExtraStats.modules = ExtraStats:NewModule("Modules")
 --ExtraStats.modules:SetDefaultModuleState(false)
 
 
-ExtraStats.categoryYOffset = 3;
+ExtraStats.categoryYOffset = -5;
 ExtraStats.statYOffset = 0;
 
 stats.DEBUG_DEFAULT = 1;

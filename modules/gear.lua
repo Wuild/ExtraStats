@@ -871,6 +871,17 @@ local function SetGearFrameQualityColor(gearFrame, r, g, b, a)
     gearFrame.qualityTexture:SetVertexColor(r, g, b, a)
 end
 
+local function GetItemLevelColor(itemLevel)
+    if itemLevel >= 400 then
+        return 0.80, 0.62, 1.00
+    elseif itemLevel >= 300 then
+        return 0.22, 0.80, 1.00
+    elseif itemLevel >= 200 then
+        return 0.20, 1.00, 0.20
+    end
+    return 1.00, 1.00, 1.00
+end
+
 local function UpdateGearFrame(gearFrame)
     if not gearFrame or not gearFrame.qualityTexture then
         return
@@ -878,13 +889,28 @@ local function UpdateGearFrame(gearFrame)
 
     local itemLink = GetInventoryItemLink("player", gearFrame:GetID())
     if itemLink ~= nil then
-        local _, itemInfo = GetItemInfo(itemLink)
+        local _, itemInfo, itemQuality, itemLevel = GetItemInfo(itemLink)
         if itemInfo ~= nil then
             gearFrame.ExtraStatsPendingItemInfoRetry = nil
-            local itemQuality = C_Item.GetItemQualityByID(itemInfo)
             local r, g, b, _ = GetItemQualityColor(itemQuality)
             SetGearFrameQualityColor(gearFrame, r, g, b, 0.75)
+
+            if GetDetailedItemLevelInfo then
+                itemLevel = GetDetailedItemLevelInfo(itemLink) or itemLevel
+            end
+            itemLevel = tonumber(itemLevel)
+            if itemQuality and itemQuality >= 2 and itemLevel and itemLevel > 0 then
+                r, g, b = GetItemLevelColor(itemLevel)
+                gearFrame.itemLevelText:SetTextColor(r, g, b, 1)
+                gearFrame.itemLevelText:SetText(tostring(math.floor(itemLevel + 0.5)))
+                gearFrame.itemLevelText:Show()
+            else
+                gearFrame.itemLevelText:SetText("")
+                gearFrame.itemLevelText:Hide()
+            end
         elseif not gearFrame.ExtraStatsPendingItemInfoRetry then
+            gearFrame.itemLevelText:SetText("")
+            gearFrame.itemLevelText:Hide()
             gearFrame.ExtraStatsPendingItemInfoRetry = true
             C_Timer.After(0.2, function()
                 gearFrame.ExtraStatsPendingItemInfoRetry = nil
@@ -894,6 +920,8 @@ local function UpdateGearFrame(gearFrame)
     else
         gearFrame.ExtraStatsPendingItemInfoRetry = nil
         SetGearFrameQualityColor(gearFrame, 0, 0, 0, 0)
+        gearFrame.itemLevelText:SetText("")
+        gearFrame.itemLevelText:Hide()
     end
 end
 
@@ -921,6 +949,16 @@ local function SetupGearFrames()
             frame.qualityTexture:SetPoint("TOPLEFT", frame, "TOPLEFT", -2, 2)
             frame.qualityTexture:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", 2, -2)
             frame.qualityTexture:SetTexture(stats.iconPath .. "resources\\WhiteIconFrame.blp")
+        end
+        if not frame.itemLevelText then
+            frame.itemLevelText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+            frame.itemLevelText:SetPoint("TOPLEFT", frame, "TOPLEFT", 2, -2)
+            frame.itemLevelText:SetJustifyH("LEFT")
+            frame.itemLevelText:SetFont(stats.iconPath .. "resources\\Expressway.ttf", 10, "MONOCHROME,OUTLINE")
+            frame.itemLevelText:SetShadowColor(0, 0, 0, 0.9)
+            frame.itemLevelText:SetShadowOffset(1, -1)
+            frame.itemLevelText:SetText("")
+            frame.itemLevelText:Hide()
         end
     end
 

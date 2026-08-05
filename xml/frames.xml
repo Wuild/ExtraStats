@@ -1,38 +1,66 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/
 ..\FrameXML\UI.xsd">
 
-    <Frame name="ExtraStatsFrameCategoryTemplate" virtual="true">
-        <Size x="197" y="44"/>
+    <Frame name="ExtraStatsFrameCategoryTemplate" virtual="true" enableMouse="true">
+        <Size x="207" y="29"/>
         <Layers>
             <Layer level="BACKGROUND">
-                <Texture parentKey="Background" atlas="UI-Character-Info-Title" useAtlasSize="true">
+                <Texture parentKey="Background" file="Interface\Buttons\WHITE8X8" alpha="0.72">
                     <Anchors>
                         <Anchor point="TOPLEFT"/>
+                        <Anchor point="BOTTOMRIGHT"/>
                     </Anchors>
+                    <Color r="0.055" g="0.075" b="0.10"/>
+                </Texture>
+                <Texture parentKey="Accent" file="Interface\Buttons\WHITE8X8">
+                    <Size x="3"/>
+                    <Anchors>
+                        <Anchor point="TOPLEFT"/>
+                        <Anchor point="BOTTOMLEFT"/>
+                    </Anchors>
+                    <Color r="0.82" g="0.62" b="0.20"/>
+                </Texture>
+                <Texture parentKey="Divider" file="Interface\Buttons\WHITE8X8" alpha="0.6">
+                    <Size y="1"/>
+                    <Anchors>
+                        <Anchor point="BOTTOMLEFT" x="3"/>
+                        <Anchor point="BOTTOMRIGHT"/>
+                    </Anchors>
+                    <Color r="0.38" g="0.30" b="0.16"/>
                 </Texture>
             </Layer>
             <Layer level="ARTWORK">
-                <FontString parentKey="Title" inherits="GameFontHighlight">
+                <FontString parentKey="Title" inherits="GameFontNormal" justifyH="LEFT">
                     <Anchors>
-                        <Anchor point="CENTER" x="0" y="2"/>
+                        <Anchor point="LEFT" x="30" y="0"/>
+                        <Anchor point="RIGHT" x="-24" y="0"/>
                     </Anchors>
                 </FontString>
+            </Layer>
+            <Layer level="HIGHLIGHT">
+                <Texture parentKey="Hover" file="Interface\Buttons\WHITE8X8" alpha="0.08" hidden="true">
+                    <Anchors>
+                        <Anchor point="TOPLEFT"/>
+                        <Anchor point="BOTTOMRIGHT"/>
+                    </Anchors>
+                    <Color r="1" g="0.82" b="0.35"/>
+                </Texture>
             </Layer>
         </Layers>
         <Frames>
             <Button parentKey="CollapseButton">
-                <Size x="20" y="20"/>
+                <Size x="18" y="18"/>
                 <Anchors>
-                    <Anchor point="LEFT" x="4" y="1"/>
+                    <Anchor point="LEFT" x="6" y="0"/>
                 </Anchors>
                 <NormalTexture file="Interface\Buttons\UI-MinusButton-Up"/>
                 <PushedTexture file="Interface\Buttons\UI-MinusButton-Down"/>
                 <HighlightTexture file="Interface\Buttons\UI-Common-MouseHilight" alphaMode="ADD"/>
             </Button>
             <Button parentKey="UpButton">
-                <Size x="22" y="22"/>
+                <Size x="15" y="15"/>
                 <Anchors>
-                    <Anchor point="TOPRIGHT" x="-12" y="-2"/>
+                    <Anchor point="TOPRIGHT" x="-5" y="-1"/>
                 </Anchors>
                 <NormalTexture file="Interface\Buttons\UI-ScrollBar-ScrollUpButton-Up"/>
                 <PushedTexture file="Interface\Buttons\UI-ScrollBar-ScrollUpButton-Down"/>
@@ -40,9 +68,9 @@
                 <HighlightTexture file="Interface\Buttons\UI-Common-MouseHilight" alphaMode="ADD"/>
             </Button>
             <Button parentKey="DownButton">
-                <Size x="22" y="22"/>
+                <Size x="15" y="15"/>
                 <Anchors>
-                    <Anchor point="BOTTOMRIGHT" x="-12" y="7"/>
+                    <Anchor point="BOTTOMRIGHT" x="-5" y="1"/>
                 </Anchors>
                 <NormalTexture file="Interface\Buttons\UI-ScrollBar-ScrollUpButton-Up">
                     <TexCoords left="0" right="1" top="1" bottom="0"/>
@@ -62,41 +90,78 @@
                 <!--                self:RegisterForDrag("LeftButton");-->
                 self.expanded = true
             </OnLoad>
+            <OnEnter>
+                self.Hover:Show();
+            </OnEnter>
+            <OnLeave>
+                self.Hover:Hide();
+            </OnLeave>
         </Scripts>
     </Frame>
 
     <Frame name="ExtraStatsCharacterStatFrameTemplate" virtual="true" enableMouse="true">
-        <Size x="187" y="18"/>
+        <Size x="207" y="21"/>
         <Layers>
             <Layer level="BACKGROUND">
-                <Texture parentKey="Background" atlas="UI-Character-Info-Line-Bounce" useAtlasSize="true" alpha="0.3">
+                <Texture parentKey="Surface" file="Interface\Buttons\WHITE8X8" alpha="0.34">
                     <Anchors>
-                        <Anchor point="CENTER"/>
+                        <Anchor point="TOPLEFT"/>
+                        <Anchor point="BOTTOMRIGHT"/>
                     </Anchors>
+                    <Color r="0.035" g="0.045" b="0.06"/>
+                </Texture>
+                <Texture parentKey="Background" file="Interface\Buttons\WHITE8X8" alpha="0.12">
+                    <Anchors>
+                        <Anchor point="TOPLEFT"/>
+                        <Anchor point="BOTTOMRIGHT"/>
+                    </Anchors>
+                    <Color r="0.45" g="0.55" b="0.68"/>
+                </Texture>
+                <Texture parentKey="Divider" file="Interface\Buttons\WHITE8X8" alpha="0.12">
+                    <Size y="1"/>
+                    <Anchors>
+                        <Anchor point="BOTTOMLEFT" x="8"/>
+                        <Anchor point="BOTTOMRIGHT" x="-8"/>
+                    </Anchors>
+                    <Color r="0.72" g="0.72" b="0.72"/>
                 </Texture>
             </Layer>
             <Layer level="ARTWORK">
-                <FontString parentKey="Label" inherits="GameFontNormalSmall">
+                <FontString parentKey="Label" inherits="GameFontNormalSmall" justifyH="LEFT">
                     <Anchors>
-                        <Anchor point="LEFT" x="11" y="0"/>
+                        <Anchor point="LEFT" x="10" y="0"/>
+                        <Anchor point="RIGHT" x="-76" y="0"/>
                     </Anchors>
                 </FontString>
-                <FontString parentKey="Value" inherits="GameFontHighlightSmall">
+                <FontString parentKey="Value" inherits="GameFontHighlightSmall" justifyH="RIGHT">
                     <Anchors>
-                        <Anchor point="RIGHT" x="-8" y="0"/>
+                        <Anchor point="RIGHT" x="-12" y="0"/>
                     </Anchors>
                 </FontString>
+            </Layer>
+            <Layer level="HIGHLIGHT">
+                <Texture parentKey="Hover" file="Interface\Buttons\WHITE8X8" alpha="0.10" hidden="true">
+                    <Anchors>
+                        <Anchor point="TOPLEFT"/>
+                        <Anchor point="BOTTOMRIGHT"/>
+                    </Anchors>
+                    <Color r="1" g="0.82" b="0.35"/>
+                </Texture>
             </Layer>
         </Layers>
         <Scripts>
             <OnEnter>
+                self.Hover:Show();
                 if self.onEnter ~= nil then
                 self.onEnter(self);
                 else
                 PaperDollStatTooltip(self);
                 end
             </OnEnter>
-            <OnLeave function="GameTooltip_Hide"/>
+            <OnLeave>
+                self.Hover:Hide();
+                GameTooltip_Hide();
+            </OnLeave>
             <OnLoad>
                 if (STATFRAME_STATTEXT_FONT_OVERRIDE) then
                 self.Value:SetFontObject(STATFRAME_STATTEXT_FONT_OVERRIDE);

@@ -217,7 +217,7 @@ function Plugin:Setup()
     end
 
     ExtraStats.categoryYOffset = -5;
-    ExtraStats.statYOffset = -5;
+    ExtraStats.statYOffset = 0;
 
     ExtraStats:debug("ELVUI Detected")
 

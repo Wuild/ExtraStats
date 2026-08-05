@@ -63,7 +63,7 @@ end
 function tab:init()
     local frame = CreateFrame("ScrollFrame", "CharacterStatsPane", PaperDollFrame, "CharacterStatsPaneScrollViewTemplate")
     frame.ScrollChild = CreateFrame("Frame", nil, frame)
-    frame.ScrollChild:SetSize(242, 160)
+    frame.ScrollChild:SetSize(215, 1)
 
     frame:SetScrollChild(frame.ScrollChild)
 
@@ -230,7 +230,7 @@ end
 
 
 local function GetFirstCategoryOffsetY()
-    return -16
+    return 0
 end
 
 function tab:update(force)
@@ -369,7 +369,7 @@ function tab:update(force)
             if not catFrame.expanded then
                 catFrame:Show()
                 if not lastAnchor then
-                    catFrame:SetPoint("TOPLEFT", 8, GetFirstCategoryOffsetY());
+                    catFrame:SetPoint("TOPLEFT", 4, GetFirstCategoryOffsetY());
                 else
                     catFrame:SetPoint("TOP", lastAnchor, "BOTTOM", 0, ExtraStats.categoryYOffset);
                 end
@@ -426,7 +426,7 @@ function tab:update(force)
 
                     catFrame:Show()
                     if not lastAnchor then
-                        catFrame:SetPoint("TOPLEFT", 8, GetFirstCategoryOffsetY());
+                        catFrame:SetPoint("TOPLEFT", 4, GetFirstCategoryOffsetY());
                     end
 
                     if stat.value then
@@ -492,5 +492,14 @@ function tab:update(force)
             catFrame = categoryFramePool:Acquire();
         end
     end
+    local contentHeight = 1
+    if lastAnchor and tab.frame.ScrollChild.GetTop and lastAnchor.GetBottom then
+        local top = tab.frame.ScrollChild:GetTop()
+        local bottom = lastAnchor:GetBottom()
+        if top and bottom then
+            contentHeight = math.max(1, top - bottom + 8)
+        end
+    end
+    tab.frame.ScrollChild:SetHeight(contentHeight)
     ExtraStats:Trigger("stats.update.end")
 end

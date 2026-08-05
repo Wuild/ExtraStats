@@ -2,8 +2,8 @@ local tab = ExtraStats:CreateModule("character.titles")
 
 local STRIPE_COLOR = { r = 0.9, g = 0.9, b = 1 };
 
-local PLAYER_TITLE_HEIGHT = 32;
-local TITLE_BUTTON_OFFSET_X = 2;
+local PLAYER_TITLE_HEIGHT = 28;
+local TITLE_BUTTON_OFFSET_X = 4;
 local TITLE_BUTTON_OFFSET_Y = -4;
 
 tab.frame = nil
@@ -37,9 +37,11 @@ local function PaperDollTitlesPane_UpdateScrollFrame()
             if (tab.frame.selected == playerTitle.id) then
                 buttons[i].Check:Show();
                 buttons[i].SelectedBar:Show();
+                buttons[i].SelectedAccent:Show();
             else
                 buttons[i].Check:Hide();
                 buttons[i].SelectedBar:Hide();
+                buttons[i].SelectedAccent:Hide();
             end
 
             buttons[i].BgMiddle:Hide();

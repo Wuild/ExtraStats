@@ -326,7 +326,7 @@
     </Button>
 
     <Button name="ExtraStatsPlayerTitleButtonTemplate" virtual="true">
-        <Size x="229" y="32"/>
+        <Size x="207" y="28"/>
         <Anchors>
             <Anchor point="LEFT">
                 <Offset x="2" y="0"/>
@@ -334,6 +334,13 @@
         </Anchors>
         <Layers>
             <Layer level="BACKGROUND">
+                <Texture parentKey="Surface" file="Interface\Buttons\WHITE8X8" alpha="0.34">
+                    <Anchors>
+                        <Anchor point="TOPLEFT"/>
+                        <Anchor point="BOTTOMRIGHT"/>
+                    </Anchors>
+                    <Color r="0.035" g="0.045" b="0.06"/>
+                </Texture>
                 <Texture name="$parentBgMiddle" file="Interface\CharacterFrame\Char-Stat-Middle" parentKey="BgMiddle"
                          vertTile="true">
                     <Size x="229" y="8"/>
@@ -344,7 +351,7 @@
                 </Texture>
             </Layer>
             <Layer level="BACKGROUND" textureSubLevel="1">
-                <Texture name="$parentStripe" parentKey="Stripe">
+                <Texture name="$parentStripe" parentKey="Stripe" file="Interface\Buttons\WHITE8X8">
                     <Anchors>
                         <Anchor point="TOPLEFT" x="1" y="0"/>
                         <Anchor point="BOTTOMRIGHT" x="0" y="0"/>
@@ -363,17 +370,28 @@
             </Layer>
             <Layer level="OVERLAY">
                 <Texture name="$parentSelectedBar" parentKey="SelectedBar"
-                         file="Interface\FriendsFrame\UI-FriendsFrame-HighlightBar" alpha="0.4" alphaMode="ADD"
-                         hidden="true"/>
+                         file="Interface\Buttons\WHITE8X8" alpha="0.16" hidden="true">
+                    <Color r="1" g="0.72" b="0.18"/>
+                </Texture>
+                <Texture parentKey="SelectedAccent" file="Interface\Buttons\WHITE8X8" hidden="true">
+                    <Size x="3"/>
+                    <Anchors>
+                        <Anchor point="TOPLEFT"/>
+                        <Anchor point="BOTTOMLEFT"/>
+                    </Anchors>
+                    <Color r="0.82" g="0.62" b="0.20"/>
+                </Texture>
             </Layer>
         </Layers>
         <ButtonText name="$parentTitleText" inherits="GameFontNormalSmallLeft" justifyH="LEFT" parentKey="text">
             <Anchors>
-                <Anchor point="LEFT" relativeTo="$parentCheck" relativePoint="RIGHT" x="3" y="0"/>
-                <Anchor point="RIGHT" x="-3" y="0"/>
+                <Anchor point="LEFT" relativeTo="$parentCheck" relativePoint="RIGHT" x="4" y="0"/>
+                <Anchor point="RIGHT" x="-10" y="0"/>
             </Anchors>
         </ButtonText>
-        <HighlightTexture file="Interface\FriendsFrame\UI-FriendsFrame-HighlightBar-Blue" alphaMode="ADD"/>
+        <HighlightTexture file="Interface\Buttons\WHITE8X8" alpha="0.10">
+            <Color r="1" g="0.82" b="0.35"/>
+        </HighlightTexture>
     </Button>
 
     <ScrollFrame name="CharacterStatsPaneScrollViewTemplate" hidden="true" inherits="UIPanelScrollFrameTemplate"
@@ -382,6 +400,18 @@
             <Anchor point="TOPLEFT" relativeTo="CharacterFrameInsetRight" x="4" y="-4"/>
             <Anchor point="BOTTOMRIGHT" relativeTo="CharacterFrameInsetRight" x="-27" y="2"/>
         </Anchors>
+        <Layers>
+            <Layer level="OVERLAY">
+                <Texture parentKey="TopAccent" file="Interface\Buttons\WHITE8X8" alpha="0.7">
+                    <Size y="1"/>
+                    <Anchors>
+                        <Anchor point="TOPLEFT"/>
+                        <Anchor point="TOPRIGHT"/>
+                    </Anchors>
+                    <Color r="0.82" g="0.62" b="0.20"/>
+                </Texture>
+            </Layer>
+        </Layers>
         <Frames>
             <Slider name="$parentScrollBar" inherits="HybridScrollBarTemplate" parentKey="scrollBar">
                 <Anchors>
@@ -401,6 +431,18 @@
             <Anchor point="TOPLEFT" relativeTo="CharacterFrameInsetRight" x="4" y="-4"/>
             <Anchor point="BOTTOMRIGHT" relativeTo="CharacterFrameInsetRight" x="-27" y="2"/>
         </Anchors>
+        <Layers>
+            <Layer level="OVERLAY">
+                <Texture parentKey="TopAccent" file="Interface\Buttons\WHITE8X8" alpha="0.7">
+                    <Size y="1"/>
+                    <Anchors>
+                        <Anchor point="TOPLEFT"/>
+                        <Anchor point="TOPRIGHT"/>
+                    </Anchors>
+                    <Color r="0.82" g="0.62" b="0.20"/>
+                </Texture>
+            </Layer>
+        </Layers>
         <Frames>
             <Slider name="$parentScrollBar" inherits="HybridScrollBarTemplate" parentKey="scrollBar">
                 <Anchors>

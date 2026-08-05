@@ -296,6 +296,12 @@ function Module:CreateCharacterFrames()
     frame.InsetRight:SetPoint("TOPLEFT", "CharacterFrameInset", "TOPRIGHT", 0, 0);
     frame.InsetRight:SetPoint("BOTTOMRIGHT", CharacterFrame, "BOTTOMRIGHT", -36, 78);
 
+    frame.InsetRight.ModernSurface = frame.InsetRight:CreateTexture(nil, "BACKGROUND", nil, 1)
+    frame.InsetRight.ModernSurface:SetTexture("Interface\\Buttons\\WHITE8X8")
+    frame.InsetRight.ModernSurface:SetVertexColor(0.018, 0.025, 0.035, 0.82)
+    frame.InsetRight.ModernSurface:SetPoint("TOPLEFT", 3, -3)
+    frame.InsetRight.ModernSurface:SetPoint("BOTTOMRIGHT", -3, 3)
+
     frame.Sidebar = CreateFrame("Frame", "PaperDollSidebarTabs", frame, "ExtraPaperDollSidebarTabsTemplate");
     frame.Sidebar.tab1:SetScript("OnClick", function(self)
         Module:HandleTabClick(1)
