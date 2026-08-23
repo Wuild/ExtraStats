@@ -18,7 +18,7 @@ local function RefreshDisplay()
     local equipment = GetEquipmentSet()
     local name, icon
     if equipment then
-        for _, setID in ipairs(equipment:GetEquipmentSetIDs()) do
+        for _, setID in ipairs(equipment:GetEquipmentSetIDsSorted()) do
             local setName, setIcon, _, equipped = equipment:GetEquipmentSetInfo(setID)
             if equipped then
                 name = setName
@@ -39,7 +39,7 @@ local function GetActiveSetInfo()
         return nil
     end
 
-    for _, setID in ipairs(equipment:GetEquipmentSetIDs()) do
+    for _, setID in ipairs(equipment:GetEquipmentSetIDsSorted()) do
         local name, icon, _, equipped, missing = equipment:GetEquipmentSetInfo(setID)
         if equipped then
             return equipment, setID, name, icon, missing
@@ -47,16 +47,53 @@ local function GetActiveSetInfo()
     end
 end
 
+local function GetItemLocationText(item)
+    local location = ExtraStats:translate("gearsets.location_" .. item.location)
+    if item.ignored then
+        location = ExtraStats:translate("gearsets.location_ignored", location)
+    end
+    return location
+end
+
+local function AddSetItemsToTooltip(tooltip, equipment, setID, items)
+    items = items or equipment:GetEquipmentSetTooltipItems(setID)
+    if #items == 0 then
+        return
+    end
+    tooltip:AddLine(" ")
+    tooltip:AddLine(ExtraStats:translate("gearsets.items_header"), 1, 0.82, 0.2)
+    for _, item in ipairs(items) do
+        local location = GetItemLocationText(item)
+        local r, g, b = 1, 1, 1
+        if item.location == "equipped" then
+            r, g, b = 0.2, 1, 0.2
+        elseif item.location == "missing" then
+            r, g, b = 1, 0.2, 0.2
+        end
+        local itemText = item.slotLabel .. ": " .. (item.itemLink or item.itemName)
+        if tooltip.AddDoubleLine then
+            tooltip:AddDoubleLine(itemText, location, 1, 1, 1, r, g, b)
+        else
+            tooltip:AddLine(itemText .. " — " .. location, r, g, b)
+        end
+    end
+end
+
 local function AddSetTooltip(tooltip, equipment, setID, name, missing)
+    local items = equipment:GetEquipmentSetTooltipItems(setID)
+    missing = 0
+    for _, item in ipairs(items) do
+        if item.location == "missing" then
+            missing = missing + 1
+        end
+    end
     tooltip:AddLine(name or ExtraStats:translate("gearsets.single"))
     if (missing or 0) > 0 then
         tooltip:AddLine(ExtraStats:translate("gearsets.missing_count", missing), 1, 0.1, 0.1)
-        for _, item in ipairs(equipment:GetMissingEquipmentSetItems(setID)) do
-            tooltip:AddLine(string.format("%s: %s", item.slotLabel or ExtraStats:translate("common.slot"), item.itemName or ExtraStats:translate("common.unknown")), 1, 0.2, 0.2)
-        end
     else
         tooltip:AddLine(ExtraStats:translate("gearsets.all_equipped"), 0.2, 1, 0.2)
     end
+    AddSetItemsToTooltip(tooltip, equipment, setID, items)
 end
 
 local function AddAllSetsTooltip(tooltip)
@@ -66,7 +103,7 @@ local function AddAllSetsTooltip(tooltip)
         return
     end
 
-    local setIDs = equipment:GetEquipmentSetIDs()
+    local setIDs = equipment:GetEquipmentSetIDsSorted()
     if #setIDs == 0 then
         tooltip:AddLine(ExtraStats:translate("gearsets.none_saved"))
         return
@@ -86,40 +123,95 @@ local function AddAllSetsTooltip(tooltip)
     end
 end
 
-local function InitializeMenu(_, level)
-    if level ~= 1 then
-        return
-    end
-
+local function InitializeMenu(_, level, menuList)
     local equipment = GetEquipmentSet()
     if not equipment then
         return
     end
 
-    local setIDs = equipment:GetEquipmentSetIDs()
+    if level == 2 then
+        local setID = menuList or UIDROPDOWNMENU_MENU_VALUE
+        if not setID then
+            return
+        end
+
+        local equipInfo = UIDropDownMenu_CreateInfo()
+        equipInfo.text = ExtraStats:translate("gearsets.equip")
+        equipInfo.notCheckable = true
+        equipInfo.func = function()
+            equipment:UseEquipmentSet(setID)
+            CloseDropDownMenus()
+        end
+        UIDropDownMenu_AddButton(equipInfo, level)
+
+        if equipment:CanMoveEquipmentSetBank(setID, "toBank") then
+            local moveToBankInfo = UIDropDownMenu_CreateInfo()
+            moveToBankInfo.text = ExtraStats:translate("gearsets.move_to_bank")
+            moveToBankInfo.notCheckable = true
+            moveToBankInfo.disabled = equipment:IsBankTransferActive()
+            moveToBankInfo.func = function()
+                CloseDropDownMenus()
+                ExtraStats_RequestEquipmentSetBankMove(setID, "toBank")
+            end
+            UIDropDownMenu_AddButton(moveToBankInfo, level)
+        end
+
+        if equipment:CanMoveEquipmentSetBank(setID, "fromBank") then
+            local moveFromBankInfo = UIDropDownMenu_CreateInfo()
+            moveFromBankInfo.text = ExtraStats:translate("gearsets.move_from_bank")
+            moveFromBankInfo.notCheckable = true
+            moveFromBankInfo.disabled = equipment:IsBankTransferActive()
+            moveFromBankInfo.func = function()
+                CloseDropDownMenus()
+                ExtraStats_RequestEquipmentSetBankMove(setID, "fromBank")
+            end
+            UIDropDownMenu_AddButton(moveFromBankInfo, level)
+        end
+        return
+    end
+
+    if level ~= 1 then
+        return
+    end
+
+    local setIDs = equipment:GetEquipmentSetIDsSorted()
     for _, setID in ipairs(setIDs) do
         local name, icon, _, equipped = equipment:GetEquipmentSetInfo(setID)
-        local _, _, _, _, missing = equipment:GetEquipmentSetInfo(setID)
+        local locationItems = equipment:GetEquipmentSetTooltipItems(setID)
+        local missing = 0
+        for _, item in ipairs(locationItems) do
+            if item.location == "missing" then
+                missing = missing + 1
+            end
+        end
         local info = UIDropDownMenu_CreateInfo()
         local displayName = name or ExtraStats:translate("gearsets.default_name", setID)
         info.text = (missing or 0) > 0 and "|cffff3333" .. displayName .. "|r" or displayName
         info.icon = icon or BROKER_ICON
         info.checked = equipped == true
+        info.hasArrow = true
+        info.menuList = setID
+        info.value = setID
         info.tooltipTitle = displayName
         local tooltipLines = {}
         if (missing or 0) > 0 then
             tooltipLines[#tooltipLines + 1] = "|cffff3333" .. ExtraStats:translate("gearsets.missing_count", missing) .. "|r"
-            for _, item in ipairs(equipment:GetMissingEquipmentSetItems(setID)) do
-                tooltipLines[#tooltipLines + 1] = "|cffff6666" .. (item.slotLabel or ExtraStats:translate("common.slot")) .. ": " .. (item.itemName or ExtraStats:translate("common.unknown")) .. "|r"
+        end
+        tooltipLines[#tooltipLines + 1] = ExtraStats:translate("gearsets.items_header")
+        for _, item in ipairs(locationItems) do
+            local line = (item.slotLabel or ExtraStats:translate("common.slot"))
+                .. ": " .. (item.itemLink or item.itemName or ExtraStats:translate("common.unknown"))
+                .. " — " .. GetItemLocationText(item)
+            if item.location == "missing" then
+                line = "|cffff6666" .. line .. "|r"
+            elseif item.location == "equipped" then
+                line = "|cff66ff66" .. line .. "|r"
             end
+            tooltipLines[#tooltipLines + 1] = line
         end
-        info.tooltipText = #tooltipLines > 0 and table.concat(tooltipLines, "\n") or nil
-        info.tooltipOnButton = #tooltipLines > 0
-        info.keepShownOnClick = false
-        info.func = function()
-            equipment:UseEquipmentSet(setID)
-            CloseDropDownMenus()
-        end
+        info.tooltipText = table.concat(tooltipLines, "\n")
+        info.tooltipOnButton = true
+        info.keepShownOnClick = true
         UIDropDownMenu_AddButton(info, level)
     end
 

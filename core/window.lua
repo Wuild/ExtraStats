@@ -439,6 +439,30 @@ function Module:SetUpCharacterModelFrame()
     frame:CreateTexture("PaperDollInnerBorderTop", "OVERLAY", "ExtraPaperDollInnerBorderTopTemplate");
     frame:CreateTexture("PaperDollInnerBorderBottom", "OVERLAY", "ExtraPaperDollInnerBorderBottomTemplate");
     frame:CreateTexture("PaperDollInnerBorderBottom2", "OVERLAY", "ExtraPaperDollInnerBorderBottom2Template");
+
+    if not frame.ExtraStatsDrawnWeaponHooked then
+        frame.ExtraStatsDrawnWeaponHooked = true
+        if type(hooksecurefunc) == "function" then
+            pcall(hooksecurefunc, frame, "SetUnit", function(self, unit)
+                if unit == "player" then
+                    C_Timer.After(0, function()
+                        Module:SetCharacterModelWeaponsDrawn()
+                    end)
+                end
+            end)
+        end
+    end
+end
+
+function Module:SetCharacterModelWeaponsDrawn()
+    local frame = CharacterModelFrame
+    if not frame or not frame.SetSheathed or not PaperDollFrame or not PaperDollFrame:IsShown() then
+        return
+    end
+    if ExtraStats_IsEquipmentSetEditMode and ExtraStats_IsEquipmentSetEditMode() then
+        return
+    end
+    pcall(frame.SetSheathed, frame, false)
 end
 
 function Module:SetPaperDollBackground(model, unit)
@@ -619,6 +643,7 @@ function Module:EventHandler(event, ...)
 
         Module:SetUpCharacterModelFrame()
         Module:SetPaperDollBackground(CharacterModelFrame, "player");
+        Module:SetCharacterModelWeaponsDrawn()
         CharacterHeadSlot:SetPoint("TOPLEFT", CharacterFrame.Inset, "TOPLEFT", 3, -2);
         CharacterHandsSlot:SetPoint("TOPLEFT", CharacterFrame.Inset, "TOPRIGHT", -43, -2);
         CharacterMainHandSlot:SetPoint("TOPLEFT", PaperDollItemsFrame, "BOTTOMLEFT", 120, 129);
@@ -636,6 +661,9 @@ function Module:EventHandler(event, ...)
             Module:Expand()
 
             Module:SetPaperDollBackground(CharacterModelFrame, "player");
+            C_Timer.After(0, function()
+                Module:SetCharacterModelWeaponsDrawn()
+            end)
             Module:PaperDollBgDesaturate(false);
             Module:CleanDefaultFrame();
             HideDefaultTitleDropDown();
@@ -694,6 +722,17 @@ function ExtraStats:CreateWindow()
     local mainFrame = CreateFrame("Frame");
     mainFrame:RegisterEvent("PLAYER_ENTERING_WORLD");
     mainFrame:SetScript("OnEvent", Module.EventHandler);
+
+    local modelStateFrame = CreateFrame("Frame")
+    modelStateFrame:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
+    modelStateFrame:RegisterEvent("UNIT_MODEL_CHANGED")
+    modelStateFrame:SetScript("OnEvent", function(_, event, unit)
+        if event ~= "UNIT_MODEL_CHANGED" or unit == "player" then
+            C_Timer.After(0, function()
+                Module:SetCharacterModelWeaponsDrawn()
+            end)
+        end
+    end)
     --mainFrame:SetScript("OnUpdate", function()
     --
     --end);

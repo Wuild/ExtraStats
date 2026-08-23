@@ -5,18 +5,17 @@ tab.frame = nil
 
 tab.pendingNewSet = false
 
-ExtraStats_EQUIPMENTSET_BUTTON_HEIGHT = 44
+ExtraStats_EQUIPMENTSET_BUTTON_HEIGHT = 38
 MAX_EQUIPMENT_SETS_PER_PLAYER = 10
 NUM_GEARSET_ICONS_SHOWN = 80
 NUM_GEARSET_ICONS_PER_ROW = 10
 NUM_GEARSET_ICON_ROWS = 8
 GEARSET_ICON_ROW_HEIGHT = 36
 
-local STRIPE_COLOR = { r = 0.9, g = 0.9, b = 1 }
 local DEFAULT_ICON = 134400
 local EQUIPMENT_SET_BUTTON_OFFSET_X = 4
-local EQUIPMENT_SET_BUTTON_OFFSET_Y = -24
-local EQUIPMENT_SET_TOP_MASK_HEIGHT = 24
+local EQUIPMENT_SET_BUTTON_OFFSET_Y = -34
+local EQUIPMENT_SET_TOP_MASK_HEIGHT = 32
 local ShowGearSetTooltip
 local HideGearSetTooltip
 local HookNativeGearSetButtonTooltips
@@ -32,8 +31,11 @@ local HookItemSlotIgnoreEditing
 local RestoreItemSlotIgnoreEditing
 local SetIgnoredSlotVisual
 local ClearIgnoredSlotVisuals
+local LoadSelectedSetDraft
+local RefreshEquipmentSetPreview
+local ClearEquipmentSetPreview
 
-local itemSlotButtons = {
+local nativeItemSlotButtons = {
     CharacterHeadSlot,
     CharacterNeckSlot,
     CharacterShoulderSlot,
@@ -54,9 +56,241 @@ local itemSlotButtons = {
     CharacterRangedSlot,
     CharacterTabardSlot,
 }
+local itemSlotButtons = {}
+local editorSlotButtons = {}
+local editorSlotByNativeButton = {}
+
+local EDITOR_SLOT_BACKGROUND_TEXTURES = {
+    [INVSLOT_HEAD] = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Head",
+    [INVSLOT_NECK] = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Neck",
+    [INVSLOT_SHOULDER] = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Shoulder",
+    [INVSLOT_BODY] = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Shirt",
+    [INVSLOT_CHEST] = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Chest",
+    [INVSLOT_WAIST] = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Waist",
+    [INVSLOT_LEGS] = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Legs",
+    [INVSLOT_FEET] = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Feet",
+    [INVSLOT_WRIST] = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Wrists",
+    [INVSLOT_HAND] = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Hands",
+    [INVSLOT_FINGER1] = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Finger",
+    [INVSLOT_FINGER2] = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Finger",
+    [INVSLOT_TRINKET1] = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Trinket",
+    [INVSLOT_TRINKET2] = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Trinket",
+    [INVSLOT_BACK] = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Chest",
+    [INVSLOT_MAINHAND] = "Interface\\PaperDoll\\UI-PaperDoll-Slot-MainHand",
+    [INVSLOT_OFFHAND] = "Interface\\PaperDoll\\UI-PaperDoll-Slot-SecondaryHand",
+    [INVSLOT_RANGED] = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Ranged",
+    [INVSLOT_TABARD] = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Tabard",
+}
+
+local LEFT_EDITOR_SLOTS = {
+    [INVSLOT_HEAD] = true, [INVSLOT_NECK] = true, [INVSLOT_SHOULDER] = true,
+    [INVSLOT_BACK] = true, [INVSLOT_CHEST] = true, [INVSLOT_BODY] = true,
+    [INVSLOT_TABARD] = true, [INVSLOT_WRIST] = true,
+}
+local BOTTOM_EDITOR_SLOTS = {
+    [INVSLOT_MAINHAND] = true, [INVSLOT_OFFHAND] = true, [INVSLOT_RANGED] = true,
+}
+
+local EDIT_SLOT_EQUIP_LOCS = {
+    [INVSLOT_HEAD] = { INVTYPE_HEAD = true },
+    [INVSLOT_NECK] = { INVTYPE_NECK = true },
+    [INVSLOT_SHOULDER] = { INVTYPE_SHOULDER = true },
+    [INVSLOT_BODY] = { INVTYPE_BODY = true },
+    [INVSLOT_BACK] = { INVTYPE_CLOAK = true },
+    [INVSLOT_CHEST] = { INVTYPE_CHEST = true, INVTYPE_ROBE = true },
+    [INVSLOT_TABARD] = { INVTYPE_TABARD = true },
+    [INVSLOT_WRIST] = { INVTYPE_WRIST = true },
+    [INVSLOT_HAND] = { INVTYPE_HAND = true },
+    [INVSLOT_WAIST] = { INVTYPE_WAIST = true },
+    [INVSLOT_LEGS] = { INVTYPE_LEGS = true },
+    [INVSLOT_FEET] = { INVTYPE_FEET = true },
+    [INVSLOT_FINGER1] = { INVTYPE_FINGER = true },
+    [INVSLOT_FINGER2] = { INVTYPE_FINGER = true },
+    [INVSLOT_TRINKET1] = { INVTYPE_TRINKET = true },
+    [INVSLOT_TRINKET2] = { INVTYPE_TRINKET = true },
+    [INVSLOT_MAINHAND] = { INVTYPE_WEAPON = true, INVTYPE_WEAPONMAINHAND = true, INVTYPE_2HWEAPON = true },
+    [INVSLOT_OFFHAND] = { INVTYPE_WEAPON = true, INVTYPE_WEAPONOFFHAND = true, INVTYPE_2HWEAPON = true, INVTYPE_SHIELD = true, INVTYPE_HOLDABLE = true },
+    [INVSLOT_RANGED] = { INVTYPE_RANGED = true, INVTYPE_THROWN = true, INVTYPE_RANGEDRIGHT = true, INVTYPE_RELIC = true },
+}
+
+local function SyncGearSetEditorSlotLayout()
+    for _, nativeButton in ipairs(nativeItemSlotButtons) do
+        local button = editorSlotByNativeButton[nativeButton]
+        if button then
+            button:SetSize(nativeButton:GetWidth(), nativeButton:GetHeight())
+            button:SetFrameLevel(nativeButton:GetFrameLevel() + 12)
+            button:ClearAllPoints()
+            for pointIndex = 1, nativeButton:GetNumPoints() do
+                local point, relativeTo, relativePoint, xOffset, yOffset = nativeButton:GetPoint(pointIndex)
+                button:SetPoint(point, editorSlotByNativeButton[relativeTo] or relativeTo, relativePoint, xOffset, yOffset)
+            end
+
+            local nativeIcon = nativeButton.icon or nativeButton.Icon
+                or (nativeButton.GetName and _G[(nativeButton:GetName() or "") .. "IconTexture"])
+            if nativeIcon and button.icon then
+                button.icon:ClearAllPoints()
+                button.icon:SetSize(nativeIcon:GetWidth(), nativeIcon:GetHeight())
+                local nativeIconX, nativeIconY = nativeIcon:GetCenter()
+                local nativeButtonX, nativeButtonY = nativeButton:GetCenter()
+                if nativeIconX and nativeIconY and nativeButtonX and nativeButtonY then
+                    button.icon:SetPoint("CENTER", button, "CENTER", nativeIconX - nativeButtonX, nativeIconY - nativeButtonY)
+                else
+                    button.icon:SetAllPoints(button)
+                end
+                button.icon:SetTexCoord(nativeIcon:GetTexCoord())
+            end
+        end
+    end
+end
+
+local function EnsureGearSetEditorSlotButtons()
+    if #editorSlotButtons > 0 then
+        return
+    end
+
+    for _, nativeButton in ipairs(nativeItemSlotButtons) do
+        if nativeButton then
+            local slotID = nativeButton:GetID()
+            local buttonName = "ExtraStatsGearSetEditorSlot" .. tostring(slotID)
+            local button = CreateFrame("Button", buttonName, PaperDollFrame)
+            button:SetSize(nativeButton:GetWidth(), nativeButton:GetHeight())
+            button:SetID(slotID)
+            button.ExtraStatsGearSetEditorSlot = true
+            button:SetFrameLevel(nativeButton:GetFrameLevel() + 12)
+            button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+            button:RegisterForDrag("LeftButton")
+
+            local frameTemplate = LEFT_EDITOR_SLOTS[slotID] and "ExtraLeftItemSlotTemplate"
+                or (BOTTOM_EDITOR_SLOTS[slotID] and "ExtraBottomItemSlotTemplate" or "ExtraRightItemSlotTemplate")
+            button.frameTexture = button:CreateTexture("$parentFrame", "BACKGROUND", frameTemplate, -1)
+            if slotID == INVSLOT_MAINHAND then
+                button:CreateTexture(nil, "BACKGROUND", "ExtraBottomItemSlotLeftBorderTemplate")
+            elseif slotID == INVSLOT_RANGED then
+                button:CreateTexture(nil, "BACKGROUND", "ExtraBottomItemSlotRightBorderTemplate")
+            end
+
+            button.background = button:CreateTexture(nil, "BACKGROUND", nil, 0)
+            button.background:SetAllPoints()
+            local nativeNormal = nativeButton.GetNormalTexture and nativeButton:GetNormalTexture()
+            local nativeNormalTexture = nativeNormal and nativeNormal.GetTexture and nativeNormal:GetTexture()
+            if nativeNormalTexture then
+                button.background:SetTexture(nativeNormalTexture)
+                button.background:SetTexCoord(nativeNormal:GetTexCoord())
+            else
+                button.background:SetTexture(EDITOR_SLOT_BACKGROUND_TEXTURES[slotID])
+            end
+
+            button.icon = button:CreateTexture(nil, "ARTWORK")
+            button.icon:SetPoint("TOPLEFT", 2, -2)
+            button.icon:SetPoint("BOTTOMRIGHT", -2, 2)
+            button.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+
+            button:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
+            button:Hide()
+            editorSlotButtons[#editorSlotButtons + 1] = button
+            editorSlotByNativeButton[nativeButton] = button
+        end
+    end
+
+    -- Copy the paperdoll layout, replacing any slot-to-slot anchors with
+    -- editor-to-editor anchors. The editor frames never remain anchored to a
+    -- live inventory button.
+    SyncGearSetEditorSlotLayout()
+    itemSlotButtons = editorSlotButtons
+end
+
+function ExtraStats_GetGearSetEditorSlotButtons()
+    return editorSlotButtons
+end
+
+local function SetNativeAndEditorSlotsForEditMode(editing)
+    for _, button in ipairs(nativeItemSlotButtons) do
+        if button then
+            button:SetAlpha(editing and 0 or 1)
+            button:EnableMouse(not editing)
+        end
+    end
+    for _, button in ipairs(editorSlotButtons) do
+        button:SetShown(editing == true)
+    end
+end
 
 local ignoreEditToggleButtons = {}
 local EM_ICON_FILENAMES = {}
+local equipmentSetPreviewModel
+local equipmentSetPreviewModelUnavailable = false
+local previewRefreshRequestID = 0
+
+local function IsModelAppearanceShown(queryFunction, cvarName)
+    if type(queryFunction) == "function" then
+        local ok, shown = pcall(queryFunction)
+        if ok then
+            return shown == true or shown == 1
+        end
+    end
+    if GetCVarBool then
+        local ok, shown = pcall(GetCVarBool, cvarName)
+        if ok then
+            return shown == true or shown == 1
+        end
+    end
+    if GetCVar then
+        local ok, value = pcall(GetCVar, cvarName)
+        if ok and value ~= nil then
+            return tostring(value) == "1"
+        end
+    end
+    return true
+end
+
+local function ScheduleEquipmentSetPreviewRefresh()
+    previewRefreshRequestID = previewRefreshRequestID + 1
+    local requestID = previewRefreshRequestID
+    C_Timer.After(0, function()
+        if requestID == previewRefreshRequestID and tab.frame and tab.frame:IsShown() then
+            RefreshEquipmentSetPreview()
+        end
+    end)
+end
+
+local function CopyTable(source)
+    local copy = {}
+    for key, value in pairs(source or {}) do
+        copy[key] = value
+    end
+    return copy
+end
+
+local function GetSlotName(slotID)
+    for _, slot in ipairs(EquipmentSet:SlotInfo()) do
+        if slot.id == slotID then
+            return slot.name
+        end
+    end
+end
+
+LoadSelectedSetDraft = function(setID)
+    if not tab.frame then
+        return
+    end
+    if not setID then
+        tab.frame.editDraft = nil
+        return
+    end
+
+    local items, itemLinks, ignoredSlots = EquipmentSet:GetEquipmentSetItems(setID)
+    if not items then
+        tab.frame.editDraft = nil
+        return
+    end
+    tab.frame.editDraft = {
+        setID = setID,
+        items = CopyTable(items),
+        itemLinks = CopyTable(itemLinks),
+        ignoredSlots = CopyTable(ignoredSlots),
+        dirty = false,
+    }
+end
 
 local function BuildEquipMacroBody(setName)
     local safeName = tostring(setName):gsub('"', "'")
@@ -158,19 +392,11 @@ local function DeleteEquipMacros(setName)
     end
 end
 
-local function GetSetIDsSorted()
-    local ids = EquipmentSet:GetEquipmentSetIDs()
-    table.sort(ids, function(a, b)
-        local aName = select(1, EquipmentSet:GetEquipmentSetInfo(a)) or ""
-        local bName = select(1, EquipmentSet:GetEquipmentSetInfo(b)) or ""
-        return aName < bName
-    end)
-    return ids
-end
-
-local function IgnoreDefaultNewSetSlots()
-    ExtraStats_PaperDollFrame_IgnoreSlot(INVSLOT_BODY)
-    ExtraStats_PaperDollFrame_IgnoreSlot(INVSLOT_TABARD)
+local function PrepareDefaultNewSetSlots()
+    EquipmentSet:SetIgnoredSlotsForSave({
+        [INVSLOT_BODY] = true,
+        [INVSLOT_TABARD] = true,
+    })
 end
 
 local function ApplyIgnoredSlotsForSet(setID)
@@ -196,7 +422,9 @@ local function SelectSetByID(setID)
     if not setID then
         tab.frame.selectedSetID = nil
         tab.frame.selectedSetName = nil
+        LoadSelectedSetDraft(nil)
         ApplyIgnoredSlotsForSet(nil)
+        RefreshEquipmentSetPreview()
         return
     end
 
@@ -204,17 +432,28 @@ local function SelectSetByID(setID)
     if not name then
         tab.frame.selectedSetID = nil
         tab.frame.selectedSetName = nil
+        LoadSelectedSetDraft(nil)
         ApplyIgnoredSlotsForSet(nil)
+        RefreshEquipmentSetPreview()
         return
     end
 
     tab.frame.selectedSetID = setID
     tab.frame.selectedSetName = name
+    LoadSelectedSetDraft(setID)
     ApplyIgnoredSlotsForSet(setID)
+    RefreshEquipmentSetPreview()
 end
 
 local function SelectCurrentlyEquippedSet()
-    for _, setID in ipairs(GetSetIDsSorted()) do
+    local setIDs = EquipmentSet:GetEquipmentSetIDsSorted()
+    local activeSetID = EquipmentSet:GetCurrentEquipmentSetID()
+    if activeSetID and EquipmentSet:GetEquipmentSetInfo(activeSetID) then
+        SelectSetByID(activeSetID)
+        return true
+    end
+
+    for _, setID in ipairs(setIDs) do
         local _, _, _, isEquipped = EquipmentSet:GetEquipmentSetInfo(setID)
         if isEquipped then
             SelectSetByID(setID)
@@ -222,8 +461,10 @@ local function SelectCurrentlyEquippedSet()
         end
     end
 
-    SelectSetByID(nil)
-    return false
+    -- Entering the tab always enters edit mode. If none is currently equipped,
+    -- begin by editing the first saved set instead of showing the live gear.
+    SelectSetByID(setIDs[1])
+    return setIDs[1] ~= nil
 end
 
 StaticPopupDialogs["CONFIRM_SAVE_EQUIPMENT_SET"] = {
@@ -233,7 +474,13 @@ StaticPopupDialogs["CONFIRM_SAVE_EQUIPMENT_SET"] = {
     OnAccept = function(self)
         local setID = self.data
         if setID then
-            EquipmentSet:SaveEquipmentSet(setID)
+            local draft = tab.frame and tab.frame.editDraft
+            if draft and draft.setID == setID then
+                EquipmentSet:SaveEquipmentSetItems(setID, draft.items, draft.itemLinks, draft.ignoredSlots)
+                draft.dirty = false
+            else
+                return
+            end
             local setName, setIcon = EquipmentSet:GetEquipmentSetInfo(setID)
             UpdateEquipMacros(setName, setIcon)
             ExtraStats_PaperDollEquipmentManagerPane_Update()
@@ -287,6 +534,9 @@ StaticPopupDialogs["ExtraStats_CONFIRM_OVERWRITE_EQUIPMENT_SET"] = {
             local popup = ExtraStats_GearManagerDialogPopup
             local oldName = select(1, EquipmentSet:GetEquipmentSetInfo(setID))
             EquipmentSet:ModifyEquipmentSet(setID, popup.name, self.selectedIcon)
+            if tab.pendingNewSet then
+                PrepareDefaultNewSetSlots()
+            end
             EquipmentSet:SaveEquipmentSet(setID)
             RenameEquipMacros(oldName, popup.name, self.selectedIcon)
             UpdateEquipMacros(popup.name, self.selectedIcon)
@@ -305,6 +555,54 @@ StaticPopupDialogs["ExtraStats_CONFIRM_OVERWRITE_EQUIPMENT_SET"] = {
     whileDead = 1,
 }
 
+StaticPopupDialogs["ExtraStats_CONFIRM_SHARED_BANK_ITEMS"] = {
+    text = ExtraStats:translate("gearsets.bank_shared_prompt"),
+    button1 = ExtraStats:translate("gearsets.bank_move_shared"),
+    button2 = CANCEL,
+    button3 = ExtraStats:translate("gearsets.bank_leave_shared"),
+    OnAccept = function(self)
+        local data = self.data
+        if data then
+            EquipmentSet:MoveEquipmentSetBank(data.setID, data.direction, true)
+        end
+    end,
+    OnAlt = function(self)
+        local data = self.data
+        if data then
+            EquipmentSet:MoveEquipmentSetBank(data.setID, data.direction, false)
+        end
+    end,
+    OnHide = function(self)
+        self.data = nil
+    end,
+    hideOnEscape = 1,
+    timeout = 0,
+    exclusive = 1,
+    whileDead = 1,
+}
+
+function ExtraStats_RequestEquipmentSetBankMove(setID, direction)
+    local setName = select(1, EquipmentSet:GetEquipmentSetInfo(setID))
+    if not setName then
+        return false
+    end
+    if not EquipmentSet:IsBankOpen() then
+        UIErrorsFrame:AddMessage(ExtraStats:translate("gearsets.bank_open_required"), 1.0, 0.1, 0.1, 1.0)
+        return false
+    end
+
+    local sharedCount = EquipmentSet:GetEquipmentSetBankSharedItemCount(setID, direction)
+    if sharedCount > 0 then
+        local dialog = StaticPopup_Show("ExtraStats_CONFIRM_SHARED_BANK_ITEMS", setName, sharedCount)
+        if dialog then
+            dialog.data = { setID = setID, direction = direction }
+            return true
+        end
+        return false
+    end
+    return EquipmentSet:MoveEquipmentSetBank(setID, direction, true)
+end
+
 function ExtraStats_PaperDollEquipmentManagerPane_OnLoad(self)
     HookNativeGearSetButtonTooltips()
     HybridScrollFrame_OnLoad(self)
@@ -315,26 +613,36 @@ function ExtraStats_PaperDollEquipmentManagerPane_OnLoad(self)
     self:RegisterEvent("EQUIPMENT_SETS_CHANGED")
     self:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
     self:RegisterEvent("BAG_UPDATE")
+    self:RegisterEvent("CVAR_UPDATE")
 
     ExtraStats:On("gear.update", function()
         if self and self:IsShown() then
             ExtraStats_PaperDollEquipmentManagerPane_Update()
+            RefreshEquipmentSetPreview()
         end
     end)
     ExtraStats:On("gear.swap.finished", function(success, setID)
         if success and setID and tab.frame and self:IsShown() then
             SelectSetByID(setID)
             ExtraStats_PaperDollEquipmentManagerPane_Update()
+            ScheduleEquipmentSetPreviewRefresh()
         end
     end)
 end
 
 function ExtraStats_PaperDollEquipmentManagerPane_OnShow(self)
     self.equipmentEditMode = true
+    EnsureGearSetEditorSlotButtons()
+    SyncGearSetEditorSlotLayout()
+    SetNativeAndEditorSlotsForEditMode(true)
     HookItemSlotIgnoreEditing()
     EnsureEquipmentSetTopMask(self)
     EnsureEquipmentSetButtons(self)
-    SelectCurrentlyEquippedSet()
+    if self.selectedSetID and EquipmentSet:GetEquipmentSetInfo(self.selectedSetID) then
+        SelectSetByID(self.selectedSetID)
+    else
+        SelectCurrentlyEquippedSet()
+    end
     UpdateEquipmentEditModeVisuals()
     ExtraStats_PaperDollEquipmentManagerPane_Update()
     C_Timer.After(0, function()
@@ -349,12 +657,15 @@ end
 function ExtraStats_PaperDollEquipmentManagerPane_OnHide(self)
     self.equipmentEditMode = nil
     RestoreItemSlotIgnoreEditing()
+    ClearEquipmentSetPreview()
+    SetNativeAndEditorSlotsForEditMode(false)
     ExtraStats_PaperDollFrame_ClearIgnoredSlots()
     UpdateEquipmentEditModeVisuals()
     ExtraStats_GearManagerDialogPopup:Hide()
     StaticPopup_Hide("CONFIRM_SAVE_EQUIPMENT_SET")
     StaticPopup_Hide("CONFIRM_DELETE_EQUIPMENT_SET")
     StaticPopup_Hide("ExtraStats_CONFIRM_OVERWRITE_EQUIPMENT_SET")
+    StaticPopup_Hide("ExtraStats_CONFIRM_SHARED_BANK_ITEMS")
     ExtraStats:Trigger("gear.tab.hide", self)
 end
 
@@ -365,6 +676,11 @@ function ExtraStats_PaperDollEquipmentManagerPane_OnEvent(self, event, ...)
             PlaySound(SOUNDKIT.PUT_DOWN_SMALL_CHAIN)
             SelectSetByID(setID)
         end
+    end
+
+    if (event == "CVAR_UPDATE" or event == "PLAYER_EQUIPMENT_CHANGED" or event == "BAG_UPDATE" or event == "EQUIPMENT_SETS_CHANGED") and self:IsShown() then
+        RefreshEquipmentSetPreview()
+        ScheduleEquipmentSetPreviewRefresh()
     end
 
     if self:IsShown() then
@@ -401,7 +717,7 @@ function ExtraStats_PaperDollEquipmentManagerPane_OnUpdate(self)
     if not hoveredSetButton then
         for i = 1, #(self.buttons or {}) do
             local button = self.buttons[i]
-            if button:IsShown() and button.name and button.IsMouseOver and button:IsMouseOver() then
+            if button:IsShown() and button.IsMouseOver and button:IsMouseOver() then
                 hoveredSetButton = button
                 break
             end
@@ -418,14 +734,19 @@ function ExtraStats_PaperDollEquipmentManagerPane_OnUpdate(self)
 
     for i = 1, #(self.buttons or {}) do
         local button = self.buttons[i]
-        if button == hoveredSetButton and button.name then
+        if button == hoveredSetButton then
             hoveredSetButton = button
-            if button.EditButton and button.EditButton.Dropdown then
-                button.EditButton.Dropdown.gearSetButton = button
-            end
-            button.DeleteButton:Show()
-            button.EditButton:Show()
             button.HighlightBar:Show()
+            if button.setID then
+                if button.EditButton and button.EditButton.Dropdown then
+                    button.EditButton.Dropdown.gearSetButton = button
+                end
+                button.DeleteButton:Show()
+                button.EditButton:Show()
+            else
+                button.DeleteButton:Hide()
+                button.EditButton:Hide()
+            end
         else
             button.DeleteButton:Hide()
             button.EditButton:Hide()
@@ -636,7 +957,7 @@ function ExtraStats_PaperDollEquipmentManagerPane_Update()
         ExtraStatsPaperDollEquipmentManagerPaneEquipSet:Disable()
     end
 
-    local ids = GetSetIDsSorted()
+    local ids = EquipmentSet:GetEquipmentSetIDsSorted()
     local numSets = #ids
     local numRows = numSets
     if numSets < MAX_EQUIPMENT_SETS_PER_PLAYER then
@@ -671,11 +992,14 @@ function ExtraStats_PaperDollEquipmentManagerPane_Update()
                 end
 
                 button.icon:SetTexture(icon or "Interface\\Icons\\INV_Misc_QuestionMark")
-                button.icon:SetSize(36, 36)
-                button.icon:SetPoint("LEFT", 4, 0)
+                button.icon:SetSize(26, 26)
+                button.icon:ClearAllPoints()
+                button.icon:SetPoint("LEFT", 5, 0)
 
                 button.Check:SetShown(setEquipped == true)
-                button.SelectedBar:SetShown(button.setID == tab.frame.selectedSetID)
+                local selected = button.setID == tab.frame.selectedSetID
+                button.SelectedBar:SetShown(selected)
+                button.SelectedAccent:SetShown(selected)
                 if isEquipInProgress then
                     button:Disable()
                     button.DeleteButton:Hide()
@@ -687,14 +1011,16 @@ function ExtraStats_PaperDollEquipmentManagerPane_Update()
                 button.name = nil
                 button.iconTexture = nil
                 button.text:SetText(PAPERDOLL_NEWEQUIPMENTSET)
-                button.text:SetTextColor(GREEN_FONT_COLOR.r, GREEN_FONT_COLOR.g, GREEN_FONT_COLOR.b)
+                button.text:SetTextColor(NORMAL_FONT_COLOR.r, NORMAL_FONT_COLOR.g, NORMAL_FONT_COLOR.b)
                 button.text:ClearAllPoints()
-                button.text:SetPoint("LEFT", button.icon, "RIGHT", 4, 0)
-                button.icon:SetTexture("Interface\\PaperDollInfoFrame\\Character-Plus")
-                button.icon:SetSize(30, 30)
-                button.icon:SetPoint("LEFT", 7, 0)
+                button.text:SetPoint("LEFT", button.icon, "RIGHT", 6, 0)
+                button.icon:SetTexture("Interface\\Buttons\\UI-PlusButton-Up")
+                button.icon:SetSize(18, 18)
+                button.icon:ClearAllPoints()
+                button.icon:SetPoint("LEFT", 9, 0)
                 button.Check:Hide()
                 button.SelectedBar:Hide()
+                button.SelectedAccent:Hide()
                 if isEquipInProgress then
                     button:Disable()
                 else
@@ -704,22 +1030,10 @@ function ExtraStats_PaperDollEquipmentManagerPane_Update()
 
             if button.setID then
                 button.text:ClearAllPoints()
-                button.text:SetPoint("TOPLEFT", 44, -5)
+                button.text:SetPoint("TOPLEFT", 40, -4)
             end
 
-            button.BgTop:Hide()
-            button.BgBottom:Hide()
-            button.BgMiddle:Hide()
-            button.BgMiddle:SetPoint("TOP")
-            button.BgMiddle:SetPoint("BOTTOM")
-
-            if row % 2 == 0 then
-                button.Stripe:SetColorTexture(STRIPE_COLOR.r, STRIPE_COLOR.g, STRIPE_COLOR.b)
-                button.Stripe:SetAlpha(0.1)
-                button.Stripe:Show()
-            else
-                button.Stripe:Hide()
-            end
+            button.Background:SetShown((row % 2) == 0)
 
             GearSetButton_UpdateSpecInfo(button)
         else
@@ -747,6 +1061,14 @@ ShowGearSetTooltip = function(button)
 
     local setID = button.setID or EquipmentSet:GetEquipmentSetID(setName)
     local _, _, _, isEquipped, numLost = EquipmentSet:GetEquipmentSetInfo(setID or 0)
+    local setItems = setID and EquipmentSet:GetEquipmentSetTooltipItems(setID) or {}
+    local tooltipMissing = 0
+    for _, item in ipairs(setItems) do
+        if item.location == "missing" then
+            tooltipMissing = tooltipMissing + 1
+        end
+    end
+    numLost = tooltipMissing
 
     GameTooltip:SetOwner(button, "ANCHOR_RIGHT")
     GameTooltip:ClearLines()
@@ -760,12 +1082,26 @@ ShowGearSetTooltip = function(button)
             GameTooltip:AddLine(EQUIPSET_EQUIP or ExtraStats:translate("gearsets.equip"), NORMAL_FONT_COLOR.r, NORMAL_FONT_COLOR.g, NORMAL_FONT_COLOR.b)
         end
 
-        local missingItems = EquipmentSet:GetMissingEquipmentSetItems(setID)
-        if #missingItems > 0 then
+        if #setItems > 0 then
             GameTooltip:AddLine(" ")
-            GameTooltip:AddLine(ExtraStats:translate("gearsets.missing_header"), RED_FONT_COLOR.r, RED_FONT_COLOR.g, RED_FONT_COLOR.b)
-            for _, item in ipairs(missingItems) do
-                GameTooltip:AddLine(item.slotLabel .. " -> " .. item.itemName, HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g, HIGHLIGHT_FONT_COLOR.b)
+            GameTooltip:AddLine(ExtraStats:translate("gearsets.items_header"), NORMAL_FONT_COLOR.r, NORMAL_FONT_COLOR.g, NORMAL_FONT_COLOR.b)
+            for _, item in ipairs(setItems) do
+                local location = ExtraStats:translate("gearsets.location_" .. item.location)
+                if item.ignored then
+                    location = ExtraStats:translate("gearsets.location_ignored", location)
+                end
+                local r, g, b = HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g, HIGHLIGHT_FONT_COLOR.b
+                if item.location == "equipped" then
+                    r, g, b = GREEN_FONT_COLOR.r, GREEN_FONT_COLOR.g, GREEN_FONT_COLOR.b
+                elseif item.location == "missing" then
+                    r, g, b = RED_FONT_COLOR.r, RED_FONT_COLOR.g, RED_FONT_COLOR.b
+                end
+                GameTooltip:AddDoubleLine(
+                    item.slotLabel .. ": " .. (item.itemLink or item.itemName),
+                    location,
+                    HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g, HIGHLIGHT_FONT_COLOR.b,
+                    r, g, b
+                )
             end
         end
     end
@@ -836,14 +1172,11 @@ function ExtraStats_GearSetButton_OnClick(self, button)
     end
 
     tab.pendingNewSet = true
-    SelectSetByID(nil)
-    EquipmentSet:ClearIgnoredSlotsForSave()
-    IgnoreDefaultNewSetSlots()
     ExtraStats_GearManagerDialogPopup:Show()
 end
 
-function ExtraStats_GearSetButton_OnDoubleClick(self)
-    if self.setID then
+function ExtraStats_GearSetButton_OnDoubleClick(self, button)
+    if button == "LeftButton" and self.setID then
         ExtraStats_PaperDollEquipmentManagerPaneEquipSet_OnClick(self.setID)
     end
 end
@@ -960,6 +1293,382 @@ UpdateIgnoredSlotOverlays = function()
     end
 end
 
+local function GetSlotIconTexture(button)
+    if not button then
+        return nil
+    end
+    return button.icon or button.Icon or (button.GetName and _G[(button:GetName() or "") .. "IconTexture"])
+end
+
+local function SetEditedSlotFromCursor(button)
+    if not button or not GetCursorInfo then
+        return false
+    end
+
+    local cursorType, itemID, itemLink = GetCursorInfo()
+    if cursorType ~= "item" or (not itemID and not itemLink) then
+        return false
+    end
+
+    local slotID = button:GetID()
+    local acceptedEquipLocs = EDIT_SLOT_EQUIP_LOCS[slotID]
+    if not acceptedEquipLocs then
+        return false
+    end
+
+    local item = itemLink or itemID
+    local equipLoc = select(9, GetItemInfo(item))
+    if (not equipLoc or equipLoc == "") and GetItemInfoInstant then
+        equipLoc = select(4, GetItemInfoInstant(item))
+    end
+    if not equipLoc or not acceptedEquipLocs[equipLoc] then
+        if UIErrorsFrame then
+            UIErrorsFrame:AddMessage(ERR_WRONG_SLOT or ITEM_DOESNT_GO_TO_SLOT or "That item does not go in that slot.", 1.0, 0.1, 0.1, 1.0)
+        end
+        return false
+    end
+
+    local link = itemLink or ("item:" .. tostring(itemID))
+    if not ExtraStats_SetEditedEquipmentSetSlotItem(slotID, link) then
+        return false
+    end
+    if ClearCursor then
+        ClearCursor()
+    end
+    return true
+end
+
+local function EnsurePreviewSlotHooks(button)
+    if not button or button.ExtraStatsGearSetPreviewHooked then
+        return
+    end
+
+    local originalOnClick = button:GetScript("OnClick")
+    button:SetScript("OnClick", function(self, ...)
+        if ExtraStats_IsEquipmentSetEditMode() then
+            SetEditedSlotFromCursor(self)
+            return
+        end
+        if originalOnClick then
+            return originalOnClick(self, ...)
+        end
+    end)
+
+    local originalOnReceiveDrag = button:GetScript("OnReceiveDrag")
+    button:SetScript("OnReceiveDrag", function(self, ...)
+        if ExtraStats_IsEquipmentSetEditMode() then
+            SetEditedSlotFromCursor(self)
+            return
+        end
+        if originalOnReceiveDrag then
+            return originalOnReceiveDrag(self, ...)
+        end
+    end)
+
+    button:HookScript("OnEnter", function(self)
+        if not ExtraStats_IsEquipmentSetEditMode() then
+            return
+        end
+        local itemID = self.ExtraStatsPreviewItemID
+        local itemLink = self.ExtraStatsPreviewItemLink
+        local ignored = self.ExtraStatsPreviewIgnored == true
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:ClearLines()
+        if itemLink or itemID then
+            GameTooltip:SetHyperlink(itemLink or ("item:" .. tostring(itemID)))
+        else
+            local slotName = GetSlotName(self:GetID()) or EMPTY or "Empty"
+            GameTooltip:SetText(slotName)
+            GameTooltip:AddLine(ignored and IGNORED or EMPTY or "Empty", 0.65, 0.65, 0.65)
+        end
+        GameTooltip:Show()
+    end)
+    button:HookScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+
+    button.ExtraStatsGearSetPreviewHooked = true
+end
+
+local function GetEquipmentSetPreviewModel()
+    if equipmentSetPreviewModel then
+        return equipmentSetPreviewModel
+    end
+    if equipmentSetPreviewModelUnavailable then
+        return CharacterModelFrame
+    end
+    if not CharacterModelFrame then
+        return nil
+    end
+
+    local ok, model = pcall(CreateFrame, "DressUpModel", "ExtraStatsEquipmentSetPreviewModel", CharacterModelFrame)
+    if ok and model and model.TryOn then
+        model:SetAllPoints(CharacterModelFrame)
+        model:SetFrameLevel(CharacterModelFrame:GetFrameLevel() + 1)
+        model:EnableMouse(false)
+        model:SetScript("OnUpdate", function(self)
+            -- Mouse rotation is still handled by Blizzard's original
+            -- CharacterModelFrame. Mirror its facing onto the visible preview
+            -- model while the live model itself is cleared.
+            if self:IsShown() and self.SetFacing and CharacterModelFrame and CharacterModelFrame.GetFacing then
+                local facing = CharacterModelFrame:GetFacing()
+                local nativeModelVisible = false
+                if CharacterModelFrame.GetModelFileID then
+                    local ok, modelFileID = pcall(CharacterModelFrame.GetModelFileID, CharacterModelFrame)
+                    nativeModelVisible = ok and modelFileID ~= nil and modelFileID ~= 0
+                elseif CharacterModelFrame.GetModel then
+                    local ok, modelPath = pcall(CharacterModelFrame.GetModel, CharacterModelFrame)
+                    nativeModelVisible = ok and modelPath ~= nil and modelPath ~= ""
+                end
+                if nativeModelVisible and CharacterModelFrame.ClearModel then
+                    pcall(CharacterModelFrame.ClearModel, CharacterModelFrame)
+                end
+                if facing ~= nil then
+                    self:SetFacing(facing)
+                end
+            end
+        end)
+        model:Hide()
+        equipmentSetPreviewModel = model
+        return model
+    end
+
+    if ok and model then
+        model:Hide()
+    end
+    equipmentSetPreviewModelUnavailable = true
+
+    -- Older clients expose the dress-up methods directly on the character
+    -- model, so it remains a safe compatibility fallback.
+    return CharacterModelFrame
+end
+
+local function RefreshPreviewModel(draft)
+    local model = GetEquipmentSetPreviewModel()
+    if not model or not model.SetUnit then
+        return
+    end
+
+    if not draft then
+        if equipmentSetPreviewModel then
+            equipmentSetPreviewModel:Hide()
+        end
+        if model ~= CharacterModelFrame and CharacterModelFrame and CharacterModelFrame.SetUnit then
+            pcall(CharacterModelFrame.SetUnit, CharacterModelFrame, "player")
+        elseif model == CharacterModelFrame then
+            pcall(model.SetUnit, model, "player")
+        end
+        if CharacterModelFrame and CharacterModelFrame.SetSheathed then
+            pcall(CharacterModelFrame.SetSheathed, CharacterModelFrame, false)
+        end
+        return
+    end
+
+    -- The preview model is transparent, so clear the live unit model beneath
+    -- it before showing the edited set. This prevents two characters rendering
+    -- in the same paperdoll viewport.
+    if model ~= CharacterModelFrame and CharacterModelFrame then
+        if CharacterModelFrame.ClearModel then
+            pcall(CharacterModelFrame.ClearModel, CharacterModelFrame)
+        elseif CharacterModelFrame.SetUnit then
+            pcall(CharacterModelFrame.SetUnit, CharacterModelFrame, nil)
+        end
+    end
+    if equipmentSetPreviewModel then
+        equipmentSetPreviewModel:Show()
+    end
+    pcall(model.SetUnit, model, "player")
+    if model.Undress then
+        pcall(model.Undress, model)
+    end
+    if not model.TryOn then
+        return
+    end
+
+    local showHelm = IsModelAppearanceShown(ShowingHelm, "showHelm")
+    local showCloak = IsModelAppearanceShown(ShowingCloak, "showCloak")
+    local slots = EquipmentSet:SlotInfo()
+    table.sort(slots, function(a, b)
+        local function priority(slotID)
+            if slotID == INVSLOT_BODY then return 1 end
+            if slotID == INVSLOT_CHEST then return 2 end
+            if slotID == INVSLOT_TABARD then return 3 end
+            if slotID == INVSLOT_RANGED then return 20 end
+            if slotID == INVSLOT_MAINHAND then return 21 end
+            if slotID == INVSLOT_OFFHAND then return 22 end
+            return 10
+        end
+        return priority(a.id) < priority(b.id)
+    end)
+    for _, slot in ipairs(slots) do
+        local hiddenByAppearanceSetting = (slot.id == INVSLOT_HEAD and not showHelm)
+            or (slot.id == INVSLOT_BACK and not showCloak)
+        if not hiddenByAppearanceSetting then
+            local ignored = draft.ignoredSlots[slot.id] == true
+            local itemLink, itemID
+            if ignored then
+                itemLink = GetInventoryItemLink("player", slot.id)
+                itemID = GetInventoryItemID("player", slot.id)
+            else
+                itemLink = draft.itemLinks[slot.name]
+                itemID = draft.items[slot.name]
+            end
+            if itemLink or itemID then
+                local item = itemLink or itemID
+                if slot.id == INVSLOT_MAINHAND then
+                    local ok = pcall(model.TryOn, model, item, "MAINHANDSLOT")
+                    if not ok then
+                        pcall(model.TryOn, model, item)
+                    end
+                elseif slot.id == INVSLOT_OFFHAND then
+                    local ok = pcall(model.TryOn, model, item, "SECONDARYHANDSLOT")
+                    if not ok then
+                        pcall(model.TryOn, model, item)
+                    end
+                else
+                    pcall(model.TryOn, model, item)
+                end
+            end
+        end
+    end
+    if model.SetSheathed then
+        pcall(model.SetSheathed, model, false)
+    end
+end
+
+local function ApplyEquipmentSetPreviewToSlot(button, draft, unavailableSlots)
+    if not button or not draft then
+        return
+    end
+    EnsurePreviewSlotHooks(button)
+    local slotID = button:GetID()
+    local slotName = GetSlotName(slotID)
+    local iconTexture = GetSlotIconTexture(button)
+    if not slotName or not iconTexture then
+        return
+    end
+
+    local itemLink = draft.itemLinks[slotName]
+    local itemID = draft.items[slotName]
+    if draft.ignoredSlots[slotID] then
+        itemLink = GetInventoryItemLink("player", slotID)
+        itemID = GetInventoryItemID("player", slotID)
+    end
+
+    -- The tooltip reads the same immutable preview values as the icon. It must
+    -- never resolve through the live paperdoll slot while this draft is shown.
+    button.ExtraStatsPreviewItemID = itemID
+    button.ExtraStatsPreviewItemLink = itemLink
+    button.ExtraStatsPreviewIgnored = draft.ignoredSlots[slotID] == true or nil
+
+    local icon
+    if itemLink or itemID then
+        icon = select(10, GetItemInfo(itemLink or itemID))
+    end
+    if GetItemInfoInstant and (not icon or icon == 0) and (itemLink or itemID) then
+        icon = select(5, GetItemInfoInstant(itemLink or itemID))
+    end
+
+    if itemLink or itemID then
+        iconTexture:SetTexture(icon or "Interface\\Icons\\INV_Misc_QuestionMark")
+    else
+        iconTexture:SetTexture(nil)
+    end
+    if unavailableSlots and unavailableSlots[slotID] then
+        iconTexture:SetVertexColor(1.0, 0.18, 0.18)
+    else
+        iconTexture:SetVertexColor(1.0, 1.0, 1.0)
+    end
+end
+
+RefreshEquipmentSetPreview = function()
+    if not tab.frame then
+        return
+    end
+
+    local shown = tab.frame.equipmentEditMode == true
+    local draft = shown and tab.frame.editDraft or nil
+    local unavailableSlots = draft and EquipmentSet:GetUnavailableEquipmentSetSlots(draft.items, draft.itemLinks, draft.ignoredSlots) or {}
+    tab.frame.previewUnavailableSlots = unavailableSlots
+    for _, button in ipairs(itemSlotButtons) do
+        if button then
+            if draft then
+                ApplyEquipmentSetPreviewToSlot(button, draft, unavailableSlots)
+            else
+                local iconTexture = GetSlotIconTexture(button)
+                if iconTexture then
+                    iconTexture:SetVertexColor(1.0, 1.0, 1.0)
+                end
+            end
+        end
+    end
+    RefreshPreviewModel(draft)
+    if ExtraStats_RefreshGearSlotVisuals then
+        ExtraStats_RefreshGearSlotVisuals()
+    end
+    if ExtraStats_RefreshGearAlternatives then
+        ExtraStats_RefreshGearAlternatives()
+    end
+end
+
+ClearEquipmentSetPreview = function()
+    if tab.frame then
+        tab.frame.previewUnavailableSlots = nil
+    end
+    for _, button in ipairs(itemSlotButtons) do
+        if button then
+            local iconTexture = GetSlotIconTexture(button)
+            if iconTexture then
+                iconTexture:SetTexture(nil)
+                iconTexture:SetVertexColor(1.0, 1.0, 1.0)
+            end
+            button.ExtraStatsPreviewItemID = nil
+            button.ExtraStatsPreviewItemLink = nil
+            button.ExtraStatsPreviewIgnored = nil
+        end
+    end
+    RefreshPreviewModel(nil)
+    if ExtraStats_RefreshGearSlotVisuals then
+        ExtraStats_RefreshGearSlotVisuals()
+    end
+    if ExtraStats_RefreshGearAlternatives then
+        ExtraStats_RefreshGearAlternatives()
+    end
+end
+
+function ExtraStats_IsEquipmentSetEditMode()
+    return tab.frame and tab.frame.equipmentEditMode == true and tab.frame.editDraft ~= nil
+end
+
+function ExtraStats_GetEditedEquipmentSetSlotItem(slotID)
+    local draft = tab.frame and tab.frame.editDraft
+    local slotName = GetSlotName(slotID)
+    if not draft or not slotName then
+        return nil, nil, false
+    end
+    return draft.items[slotName], draft.itemLinks[slotName], draft.ignoredSlots[slotID] == true
+end
+
+function ExtraStats_SetEditedEquipmentSetSlotItem(slotID, itemLink)
+    local draft = tab.frame and tab.frame.editDraft
+    local slotName = GetSlotName(slotID)
+    if not draft or not slotName then
+        return false
+    end
+
+    local normalizedLink = itemLink and (string.match(itemLink, "|H(item:[^|]+)|h") or string.match(itemLink, "(item:[^|]+)") or itemLink)
+    draft.itemLinks[slotName] = normalizedLink
+    draft.items[slotName] = normalizedLink and tonumber(string.match(normalizedLink, "item:(%d+)")) or nil
+    draft.ignoredSlots[slotID] = nil
+    draft.dirty = true
+
+    EquipmentSet:UnignoreSlotForSave(slotID)
+    SetIgnoredSlotVisual(slotID, false)
+    RefreshEquipmentSetPreview()
+    ExtraStats_PaperDollEquipmentManagerPane_Update()
+    return true
+end
+
 local function IsIgnoringSlotsEditable()
     return tab.frame and tab.frame.equipmentEditMode == true
 end
@@ -977,10 +1686,15 @@ ToggleIgnoredSlotForSave = function(slotID)
     end
 
     if tab.frame.selectedSetID then
-        EquipmentSet:SetEquipmentSetSlotIgnored(tab.frame.selectedSetID, slotID, ignored)
+        local draft = tab.frame.editDraft
+        if draft and draft.setID == tab.frame.selectedSetID then
+            draft.ignoredSlots[slotID] = ignored or nil
+            draft.dirty = true
+        end
     end
 
     SetIgnoredSlotVisual(slotID, ignored)
+    RefreshEquipmentSetPreview()
     return true
 end
 
@@ -1009,7 +1723,6 @@ SetIgnoredSlotVisual = function(slot, ignored)
     end
 
     button.ignored = ignored == true or nil
-    PaperDollItemSlotButton_Update(button)
     UpdateIgnoreEditToggle(button)
     UpdateIgnoredSlotOverlays()
 end
@@ -1018,7 +1731,6 @@ ClearIgnoredSlotVisuals = function()
     for _, button in ipairs(itemSlotButtons) do
         if button and button.ignored then
             button.ignored = nil
-            PaperDollItemSlotButton_Update(button)
             UpdateIgnoreEditToggle(button)
         end
     end
@@ -1234,6 +1946,7 @@ function ExtraStats_GearManagerDialogPopupOkay_OnClick()
 
     local setID = EquipmentSet:CreateEquipmentSet(name)
     EquipmentSet:ModifyEquipmentSet(setID, name, icon)
+    PrepareDefaultNewSetSlots()
     EquipmentSet:SaveEquipmentSet(setID)
     UpdateEquipMacros(name, icon)
     SelectSetByID(setID)
@@ -1283,6 +1996,30 @@ function GearSetEditButtonDropDown_Initialize(dropdownFrame)
 
     if not setID then
         return
+    end
+
+    if EquipmentSet:CanMoveEquipmentSetBank(setID, "toBank") then
+        local moveToBankInfo = UIDropDownMenu_CreateInfo()
+        moveToBankInfo.text = ExtraStats:translate("gearsets.move_to_bank")
+        moveToBankInfo.notCheckable = true
+        moveToBankInfo.disabled = EquipmentSet:IsBankTransferActive()
+        moveToBankInfo.func = function()
+            CloseDropDownMenus()
+            ExtraStats_RequestEquipmentSetBankMove(setID, "toBank")
+        end
+        UIDropDownMenu_AddButton(moveToBankInfo, UIDROPDOWN_MENU_LEVEL)
+    end
+
+    if EquipmentSet:CanMoveEquipmentSetBank(setID, "fromBank") then
+        local moveFromBankInfo = UIDropDownMenu_CreateInfo()
+        moveFromBankInfo.text = ExtraStats:translate("gearsets.move_from_bank")
+        moveFromBankInfo.notCheckable = true
+        moveFromBankInfo.disabled = EquipmentSet:IsBankTransferActive()
+        moveFromBankInfo.func = function()
+            CloseDropDownMenus()
+            ExtraStats_RequestEquipmentSetBankMove(setID, "fromBank")
+        end
+        UIDropDownMenu_AddButton(moveFromBankInfo, UIDROPDOWN_MENU_LEVEL)
     end
 
     local mountSetID = EquipmentSet:GetMountEquipmentSet()
@@ -1440,6 +2177,7 @@ end
 
 function tab:init()
     HookNativeGearSetButtonTooltips()
+    EnsureGearSetEditorSlotButtons()
     local frame = CreateFrame("ScrollFrame", "ExtraStatsPaperDollEquipmentManagerPane", PaperDollFrame, "ExtraStatsPaperDollEquipmentManagerPaneTemplate")
     tab.DialogPopup = CreateFrame("Frame", "ExtraStats_GearManagerDialogPopup", frame, "ExtraGearManagerDialogPopupTemplate")
     tab.frame = frame

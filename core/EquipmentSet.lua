@@ -213,6 +213,11 @@ local function BuildSlotInfo()
 end
 
 local function IsSlotIgnored(set, slotID)
+    -- Ammunition is consumable inventory, not part of an equipment-set
+    -- identity. Never save, equip, transfer, or report it as missing.
+    if slotID == INVSLOT_AMMO then
+        return true
+    end
     if not set or not set.ignoredSlots then
         return false
     end
@@ -576,6 +581,37 @@ local function CountAvailableItemIDs()
     return counts
 end
 
+local function CountAvailableItemIdentities()
+    local itemIDs = {}
+    local itemLinks = {}
+
+    local function add(itemID, itemLink)
+        if itemID then
+            itemIDs[itemID] = (itemIDs[itemID] or 0) + 1
+        end
+        local normalized = NormalizeItemLink(itemLink)
+        if normalized then
+            itemLinks[normalized] = (itemLinks[normalized] or 0) + 1
+        end
+    end
+
+    for _, slotID in ipairs(SLOT_ORDER) do
+        add(GetEquippedItemID(slotID), GetEquippedItemLink(slotID))
+    end
+    for bag = 0, NUM_BAG_SLOTS do
+        for slot = 1, GetContainerNumSlotsCompat(bag) or 0 do
+            add(GetContainerItemIDCompat(bag, slot), GetContainerItemLinkCompat(bag, slot))
+        end
+    end
+    for _, bag in ipairs(GetBankContainerIDs()) do
+        for slot = 1, GetContainerNumSlotsCompat(bag) or 0 do
+            add(GetContainerItemIDCompat(bag, slot), GetContainerItemLinkCompat(bag, slot))
+        end
+    end
+
+    return itemIDs, itemLinks
+end
+
 local function CountRequiredItemIDs(set)
     local counts = {}
 
@@ -649,6 +685,8 @@ end
 
 local pendingEquip
 local queuedEquip
+local pendingBankTransfer
+local bankTransferToken = 0
 local equipToken = 0
 local knownItemLinksByLocation = {}
 local CheckMountEquipmentState
@@ -692,6 +730,19 @@ local function BuildKnownItemLocationSnapshot()
         local numSlots = GetContainerNumSlotsCompat(bag) or 0
         for slot = 1, numSlots do
             SetKnownItemLocation(snapshot, "bank:" .. tostring(bag) .. ":" .. tostring(slot), GetContainerItemIDCompat(bag, slot), GetContainerItemLinkCompat(bag, slot))
+        end
+    end
+
+    -- Bank containers cannot be queried after the bank closes. Retain the
+    -- last observed bank entries so tooltips can still report their location.
+    if not BANK_OPEN then
+        for location, item in pairs(knownItemLinksByLocation) do
+            if string.match(location, "^bank:") then
+                snapshot[location] = {
+                    itemID = item.itemID,
+                    itemLink = item.itemLink,
+                }
+            end
         end
     end
 
@@ -808,6 +859,18 @@ end
 
 local function RebuildKnownItemLinkSnapshot()
     knownItemLinksByLocation = BuildKnownItemLocationSnapshot()
+    if equipment.db and equipment.db.char then
+        local bankItems = {}
+        for location, item in pairs(knownItemLinksByLocation) do
+            if string.match(location, "^bank:") then
+                bankItems[location] = {
+                    itemID = item.itemID,
+                    itemLink = item.itemLink,
+                }
+            end
+        end
+        equipment.db.char.bankItemLocations = bankItems
+    end
 end
 
 local function CopyIgnoredSlots(ignoredSlots)
@@ -1060,6 +1123,266 @@ local function PullBankItemIntoBags(bankBag, bankSlot)
     return true, false
 end
 
+local function IsNormalBankContainer(bag)
+    if bag == (BANK_CONTAINER or -1) then
+        return true
+    end
+    local inventoryID = ContainerIDToInventoryIDCompat(bag)
+    if not inventoryID then
+        return false
+    end
+    local bagLink = GetInventoryItemLink("player", inventoryID)
+    if not bagLink then
+        return false
+    end
+    local itemFamily = GetItemFamily and GetItemFamily(bagLink)
+    return itemFamily == 0
+end
+
+local function FindFreeBankSlot()
+    for _, bag in ipairs(GetBankContainerIDs()) do
+        if IsNormalBankContainer(bag) then
+            local numSlots = GetContainerNumSlotsCompat(bag) or 0
+            for slot = 1, numSlots do
+                local info = GetContainerItemInfoCompat(bag, slot)
+                if not GetContainerItemIDCompat(bag, slot) and not (info and info.isLocked) then
+                    return bag, slot
+                end
+            end
+        end
+    end
+end
+
+local function ItemMatchesRequirement(itemID, itemLink, requirement)
+    if requirement.itemLink then
+        local normalized = NormalizeItemLink(itemLink)
+        if normalized then
+            return normalized == requirement.itemLink
+        end
+        -- Container links can briefly be unavailable immediately after a
+        -- move; the ID fallback keeps the transfer queue progressing until
+        -- the item cache catches up.
+        return itemID ~= nil and itemID == requirement.itemID
+    end
+    return itemID ~= nil and itemID == requirement.itemID
+end
+
+local function CountRequirementOnSide(requirement, bankSide)
+    local count = 0
+    if not bankSide then
+        for _, slotID in ipairs(SLOT_ORDER) do
+            if ItemMatchesRequirement(GetEquippedItemID(slotID), GetEquippedItemLink(slotID), requirement) then
+                count = count + 1
+            end
+        end
+        for bag = 0, NUM_BAG_SLOTS do
+            for slot = 1, GetContainerNumSlotsCompat(bag) or 0 do
+                if ItemMatchesRequirement(GetContainerItemIDCompat(bag, slot), GetContainerItemLinkCompat(bag, slot), requirement) then
+                    count = count + 1
+                end
+            end
+        end
+    else
+        for _, bag in ipairs(GetBankContainerIDs()) do
+            for slot = 1, GetContainerNumSlotsCompat(bag) or 0 do
+                if ItemMatchesRequirement(GetContainerItemIDCompat(bag, slot), GetContainerItemLinkCompat(bag, slot), requirement) then
+                    count = count + 1
+                end
+            end
+        end
+    end
+    return count
+end
+
+local function FindRequirementLocation(requirement, bankSide)
+    if not bankSide then
+        for _, slotID in ipairs(SLOT_ORDER) do
+            if not IsInventorySlotLocked(slotID) and ItemMatchesRequirement(GetEquippedItemID(slotID), GetEquippedItemLink(slotID), requirement) then
+                return "inventory", slotID
+            end
+        end
+        for bag = 0, NUM_BAG_SLOTS do
+            for slot = 1, GetContainerNumSlotsCompat(bag) or 0 do
+                local info = GetContainerItemInfoCompat(bag, slot)
+                if not (info and info.isLocked) and ItemMatchesRequirement(GetContainerItemIDCompat(bag, slot), GetContainerItemLinkCompat(bag, slot), requirement) then
+                    return "container", bag, slot
+                end
+            end
+        end
+    else
+        for _, bag in ipairs(GetBankContainerIDs()) do
+            for slot = 1, GetContainerNumSlotsCompat(bag) or 0 do
+                local info = GetContainerItemInfoCompat(bag, slot)
+                if not (info and info.isLocked) and ItemMatchesRequirement(GetContainerItemIDCompat(bag, slot), GetContainerItemLinkCompat(bag, slot), requirement) then
+                    return "container", bag, slot
+                end
+            end
+        end
+    end
+end
+
+local function RequirementKey(itemID, itemLink)
+    local normalized = NormalizeItemLink(itemLink)
+    if normalized then
+        return "link:" .. normalized, normalized
+    end
+    if itemID then
+        return "id:" .. tostring(itemID), nil
+    end
+end
+
+local function IsRequirementSharedWithOtherSet(setID, itemID, itemLink)
+    local normalizedLink = NormalizeItemLink(itemLink)
+    if not itemID and not normalizedLink then
+        return false
+    end
+    for otherSetID, otherSet in ipairs(equipment.db.char.sets) do
+        if otherSetID ~= setID then
+            for _, slotID in ipairs(SLOT_ORDER) do
+                if not IsSlotIgnored(otherSet, slotID) then
+                    local slotName = SLOT_NAME_BY_ID[slotID]
+                    local otherItemID = GetStoredItemID(otherSet, slotName)
+                    local otherItemLink = GetStoredItemLink(otherSet, slotName)
+                    local sameItem = normalizedLink and otherItemLink and normalizedLink == otherItemLink
+                    if (not normalizedLink or not otherItemLink) and itemID and otherItemID == itemID then
+                        sameItem = true
+                    end
+                    if sameItem then
+                        return true
+                    end
+                end
+            end
+        end
+    end
+    return false
+end
+
+local function BuildBankTransferRequirements(setID, includeShared)
+    local set = equipment.db.char.sets[setID]
+    if not set then
+        return nil, 0
+    end
+    local requirementsByKey = {}
+    local requirements = {}
+    local sharedKeys = {}
+    for _, slotID in ipairs(SLOT_ORDER) do
+        if not IsSlotIgnored(set, slotID) then
+            local slotName = SLOT_NAME_BY_ID[slotID]
+            local itemID = GetStoredItemID(set, slotName)
+            local itemLink = GetStoredItemLink(set, slotName)
+            local key, normalizedLink = RequirementKey(itemID, itemLink)
+            if key then
+                local shared = IsRequirementSharedWithOtherSet(setID, itemID, itemLink)
+                if shared then
+                    sharedKeys[key] = true
+                end
+                if includeShared or not shared then
+                    local requirement = requirementsByKey[key]
+                    if not requirement then
+                        requirement = { key = key, itemID = itemID, itemLink = normalizedLink, count = 0, shared = shared }
+                        requirementsByKey[key] = requirement
+                        requirements[#requirements + 1] = requirement
+                    end
+                    requirement.shared = requirement.shared or shared
+                    requirement.count = requirement.count + 1
+                end
+            end
+        end
+    end
+    local sharedCount = 0
+    for _ in pairs(sharedKeys) do
+        sharedCount = sharedCount + 1
+    end
+    return requirements, sharedCount
+end
+
+local ProcessBankTransfer
+local function FinishBankTransfer(success, errorMessage, token)
+    if token and (not pendingBankTransfer or pendingBankTransfer.token ~= token) then
+        return
+    end
+    pendingBankTransfer = nil
+    if UIErrorsFrame then
+        UIErrorsFrame:AddMessage(errorMessage or (success and ExtraStats:translate("gearsets.bank_move_complete") or ExtraStats:translate("gearsets.bank_move_failed")), success and 0.2 or 1.0, success and 1.0 or 0.1, success and 0.2 or 0.1, 1.0)
+    end
+    RebuildKnownItemLinkSnapshot()
+    ExtraStats:Trigger("gear.update")
+end
+
+local function ScheduleBankTransfer(token)
+    C_Timer.After(0.12, function()
+        if pendingBankTransfer and pendingBankTransfer.token == token then
+            ProcessBankTransfer(token)
+        end
+    end)
+end
+
+ProcessBankTransfer = function(token)
+    local transfer = pendingBankTransfer
+    if not transfer or transfer.token ~= token then
+        return
+    end
+    if not BANK_OPEN then
+        FinishBankTransfer(false, ExtraStats:translate("gearsets.bank_open_required"), token)
+        return
+    end
+    if HasPendingItemLocks() then
+        transfer.lockRetries = (transfer.lockRetries or 0) + 1
+        if transfer.lockRetries >= 100 then
+            FinishBankTransfer(false, ExtraStats:translate("gearsets.bank_move_failed"), token)
+            return
+        end
+        ScheduleBankTransfer(token)
+        return
+    end
+    transfer.lockRetries = 0
+
+    local targetIsBank = transfer.direction == "toBank"
+    for _, requirement in ipairs(transfer.requirements) do
+        if CountRequirementOnSide(requirement, targetIsBank) < requirement.count then
+            local locationType, sourceA, sourceB = FindRequirementLocation(requirement, not targetIsBank)
+            if not locationType then
+                FinishBankTransfer(false, ExtraStats:translate("gearsets.bank_item_missing"), token)
+                return
+            end
+
+            local targetBag, targetSlot
+            if targetIsBank then
+                targetBag, targetSlot = FindFreeBankSlot()
+            else
+                targetBag, targetSlot = FindFreeBagSlot()
+            end
+            if targetBag == nil or targetSlot == nil then
+                FinishBankTransfer(false, targetIsBank and ExtraStats:translate("gearsets.bank_full") or (ERR_EQUIPMENT_MANAGER_BAGS_FULL or ExtraStats:translate("common.inventory_full")), token)
+                return
+            end
+
+            if locationType == "inventory" then
+                PickupInventoryItem(sourceA)
+            else
+                PickupContainerItemCompat(sourceA, sourceB)
+            end
+            if not CursorHasItem() then
+                ScheduleBankTransfer(token)
+                return
+            end
+            PickupContainerItemCompat(targetBag, targetSlot)
+            if CursorHasItem() then
+                if locationType == "inventory" then
+                    PickupInventoryItem(sourceA)
+                else
+                    PickupContainerItemCompat(sourceA, sourceB)
+                end
+                FinishBankTransfer(false, ExtraStats:translate("gearsets.bank_move_failed"), token)
+                return
+            end
+            ScheduleBankTransfer(token)
+            return
+        end
+    end
+    FinishBankTransfer(true, nil, token)
+end
+
 local function GetActiveSpecGroup()
     if GetActiveTalentGroup then
         local ok, group = pcall(GetActiveTalentGroup)
@@ -1224,6 +1547,39 @@ local function ContinueEquipAfterItemLockChanged()
     return true
 end
 
+local function ClearPendingBankReturnSlot()
+    if pendingEquip then
+        pendingEquip.returnToBankBag = nil
+        pendingEquip.returnToBankSlot = nil
+    end
+end
+
+local function PutReplacedItemAway(preferredBag, preferredSlot)
+    if not CursorHasItem() then
+        ClearPendingBankReturnSlot()
+        return true, false
+    end
+
+    if pendingEquip and BANK_OPEN and pendingEquip.returnToBankBag ~= nil and pendingEquip.returnToBankSlot ~= nil then
+        local bankBag = pendingEquip.returnToBankBag
+        local bankSlot = pendingEquip.returnToBankSlot
+        local info = GetContainerItemInfoCompat(bankBag, bankSlot)
+        if not GetContainerItemIDCompat(bankBag, bankSlot) and not (info and info.isLocked) then
+            PickupContainerItemCompat(bankBag, bankSlot)
+            if not CursorHasItem() then
+                ClearPendingBankReturnSlot()
+                return true, false
+            end
+        end
+    end
+
+    local stored, blocked = PutCursorItemAway(preferredBag, preferredSlot)
+    if stored then
+        ClearPendingBankReturnSlot()
+    end
+    return stored, blocked
+end
+
 local function TryEquipSingleSlot(set, slotID)
     if SpellIsTargeting and SpellIsTargeting() then
         return false, true
@@ -1314,7 +1670,7 @@ local function TryEquipSingleSlot(set, slotID)
         PickupContainerItemCompat(bag, bagSlot)
         PickupInventoryItem(slotID)
         if CursorHasItem() then
-            local stored, blocked = PutCursorItemAway(bag, bagSlot)
+            local stored, blocked = PutReplacedItemAway(bag, bagSlot)
             if not stored then
                 if blocked then
                     pendingEquip.cursorPreferredBag = bag
@@ -1323,6 +1679,8 @@ local function TryEquipSingleSlot(set, slotID)
                 end
                 return false, false, ERR_EQUIPMENT_MANAGER_BAGS_FULL
             end
+        else
+            ClearPendingBankReturnSlot()
         end
         if pendingEquip then
             pendingEquip.cursorPreferredBag = nil
@@ -1337,6 +1695,10 @@ local function TryEquipSingleSlot(set, slotID)
         if err then
             return false, false, err
         end
+        if pulled and pendingEquip then
+            pendingEquip.returnToBankBag = bankBag
+            pendingEquip.returnToBankSlot = bankSlot
+        end
         return pulled, blocked == true
     end
 
@@ -1350,7 +1712,7 @@ local function TryEquipSingleSlot(set, slotID)
         PickupContainerItemCompat(bag, bagSlot)
         PickupInventoryItem(slotID)
         if CursorHasItem() then
-            local stored, blocked = PutCursorItemAway(bag, bagSlot)
+            local stored, blocked = PutReplacedItemAway(bag, bagSlot)
             if not stored then
                 if blocked then
                     pendingEquip.cursorPreferredBag = bag
@@ -1359,6 +1721,8 @@ local function TryEquipSingleSlot(set, slotID)
                 end
                 return false, false, ERR_EQUIPMENT_MANAGER_BAGS_FULL
             end
+        else
+            ClearPendingBankReturnSlot()
         end
         if pendingEquip then
             pendingEquip.cursorPreferredBag = nil
@@ -1391,6 +1755,10 @@ local function TryEquipSingleSlot(set, slotID)
         local pulled, blocked, err = PullBankItemIntoBags(bankBag, bankSlot)
         if err then
             return false, false, err
+        end
+        if pulled and pendingEquip then
+            pendingEquip.returnToBankBag = bankBag
+            pendingEquip.returnToBankSlot = bankSlot
         end
         return pulled, blocked == true
     end
@@ -1535,7 +1903,7 @@ function ProcessEquip(token)
             return
         end
 
-        local stored, blocked = PutCursorItemAway(pendingEquip.cursorPreferredBag, pendingEquip.cursorPreferredSlot)
+        local stored, blocked = PutReplacedItemAway(pendingEquip.cursorPreferredBag, pendingEquip.cursorPreferredSlot)
         if not stored then
             if blocked then
                 ScheduleProcessEquip(token, EQUIP_LOCK_RETRY_DELAY)
@@ -1546,6 +1914,7 @@ function ProcessEquip(token)
         end
         pendingEquip.cursorPreferredBag = nil
         pendingEquip.cursorPreferredSlot = nil
+        pendingEquip.attempt = 0
 
         ScheduleProcessEquip(token, EQUIP_ACTION_DELAY)
         return
@@ -1562,12 +1931,13 @@ function ProcessEquip(token)
         return
     end
 
-    pendingEquip.attempt = pendingEquip.attempt + 1
-
     -- Direct bag equips do not use the cursor, so they can all be submitted
     -- in one frame.  Keep the cursor-based path below for swaps and bank
     -- items, where preserving the old item requires explicit placement.
-    if EquipItemByName then
+    -- While the bank is open, keep the swap strictly serialized. Bank pulls
+    -- change both container location and locks asynchronously, and batching
+    -- bag equips can race those updates and leave a partial set equipped.
+    if EquipItemByName and not BANK_OPEN then
         local directChanged = false
         for _, directSlotID in ipairs(SLOT_ORDER) do
             if not IsSlotIgnored(set, directSlotID) and not IsSlotSetMatched(set, directSlotID) then
@@ -1591,6 +1961,7 @@ function ProcessEquip(token)
         end
 
         if directChanged then
+            pendingEquip.attempt = 0
             ScheduleProcessEquip(token, EQUIP_ACTION_DELAY)
             return
         end
@@ -1611,6 +1982,7 @@ function ProcessEquip(token)
         end
 
         if changed then
+            pendingEquip.attempt = 0
             ScheduleProcessEquip(token, EQUIP_ACTION_DELAY)
             return
         end
@@ -1627,6 +1999,7 @@ function ProcessEquip(token)
         return
     end
 
+    pendingEquip.attempt = pendingEquip.attempt + 1
     if pendingEquip.attempt >= pendingEquip.maxAttempts then
         FinishEquip(false, nil, token)
         return
@@ -1641,8 +2014,19 @@ function equipment:OnInitialize()
             sets = {},
             mountSetID = nil,
             pvpSetID = nil,
+            bankItemLocations = {},
         },
     })
+
+    knownItemLinksByLocation = {}
+    for location, item in pairs(equipment.db.char.bankItemLocations or {}) do
+        if string.match(location, "^bank:") and item.itemID and item.itemLink then
+            knownItemLinksByLocation[location] = {
+                itemID = item.itemID,
+                itemLink = item.itemLink,
+            }
+        end
+    end
 
     self:ClearIgnoredSlotsForSave()
 end
@@ -1666,6 +2050,7 @@ function equipment:OnEnable()
 end
 
 function equipment:OnDisable()
+    pendingBankTransfer = nil
     self:UnregisterEvent("BAG_UPDATE_DELAYED")
     self:UnregisterEvent("ITEM_LOCK_CHANGED")
     self:UnregisterEvent("PLAYER_EQUIPMENT_CHANGED")
@@ -1728,7 +2113,7 @@ function equipment:CreateEquipmentSet(name)
         name = name,
         icon = nil,
         items = {},
-        ignoredSlots = {},
+        ignoredSlots = { [INVSLOT_AMMO] = true },
     }
     table.insert(self.db.char.sets, set)
     return #self.db.char.sets
@@ -1759,6 +2144,10 @@ function equipment:GetEquipmentSetInfo(id)
     local missing = GetMissingItemCountForSet(set)
 
     return set.name, set.icon, id, isEquipped, missing, set.items
+end
+
+function equipment:GetCurrentEquipmentSetID()
+    return self.currentSetID
 end
 
 function equipment:GetMissingEquipmentSetItems(id)
@@ -1840,6 +2229,283 @@ function equipment:SaveEquipmentSet(setId, icon)
     ExtraStats:Trigger("gear.update")
 end
 
+-- Save an explicitly edited equipment set without reading or changing the
+-- character's currently equipped items.  The equipment-manager UI uses this
+-- while previewing a set that is not equipped.
+function equipment:SaveEquipmentSetItems(setId, items, itemLinks, ignoredSlots, icon)
+    local set = self.db.char.sets[setId]
+    if not set then
+        return false
+    end
+
+    set.items = {}
+    set.itemLinks = {}
+    set.ignoredSlots = {}
+
+    if icon then
+        set.icon = icon
+    end
+
+    for _, slotID in ipairs(SLOT_ORDER) do
+        local key = SLOT_NAME_BY_ID[slotID]
+        if slotID == INVSLOT_AMMO or (ignoredSlots and ignoredSlots[slotID]) then
+            set.ignoredSlots[slotID] = true
+        else
+            local itemID = items and items[key]
+            local itemLink = NormalizeItemLink(itemLinks and itemLinks[key])
+            set.items[key] = itemID or GetItemIDFromLink(itemLink)
+            set.itemLinks[key] = itemLink
+        end
+    end
+
+    RebuildKnownItemLinkSnapshot()
+    ExtraStats:Trigger("gear.update")
+    return true
+end
+
+function equipment:GetEquipmentSetItems(setId)
+    local set = self.db.char.sets[setId]
+    if not set then
+        return nil
+    end
+
+    local items = {}
+    local itemLinks = {}
+    local ignoredSlots = {}
+    for _, slotID in ipairs(SLOT_ORDER) do
+        local key = SLOT_NAME_BY_ID[slotID]
+        items[key] = GetStoredItemID(set, key)
+        itemLinks[key] = GetStoredItemLink(set, key)
+        if IsSlotIgnored(set, slotID) then
+            ignoredSlots[slotID] = true
+        end
+    end
+
+    return items, itemLinks, ignoredSlots
+end
+
+function equipment:GetEquipmentSetTooltipItems(setId)
+    local set = self.db.char.sets[setId]
+    if not set then
+        return {}
+    end
+
+    local candidates = {}
+    for locationKey, item in pairs(knownItemLinksByLocation) do
+        local location
+        local priority
+        if string.match(locationKey, "^inventory:") then
+            location = "equipped"
+            priority = 1
+        elseif string.match(locationKey, "^bag:") then
+            location = "bags"
+            priority = 2
+        elseif string.match(locationKey, "^bank:") then
+            location = "bank"
+            priority = 3
+        end
+        if location then
+            candidates[#candidates + 1] = {
+                locationKey = locationKey,
+                location = location,
+                priority = priority,
+                itemID = item.itemID,
+                itemLink = item.itemLink,
+            }
+        end
+    end
+    table.sort(candidates, function(a, b)
+        if a.priority ~= b.priority then
+            return a.priority < b.priority
+        end
+        return a.locationKey < b.locationKey
+    end)
+
+    local usedLocations = {}
+    local function takeCandidate(itemID, itemLink, preferredLocationKey)
+        local normalizedLink = NormalizeItemLink(itemLink)
+        local function matches(candidate, exact)
+            if usedLocations[candidate.locationKey] then
+                return false
+            end
+            if exact and normalizedLink then
+                return candidate.itemLink == normalizedLink
+            end
+            return itemID and candidate.itemID == itemID
+        end
+
+        if preferredLocationKey then
+            for _, candidate in ipairs(candidates) do
+                if candidate.locationKey == preferredLocationKey and (matches(candidate, true) or matches(candidate, false)) then
+                    usedLocations[candidate.locationKey] = true
+                    return candidate
+                end
+            end
+        end
+        if normalizedLink then
+            for _, candidate in ipairs(candidates) do
+                if matches(candidate, true) then
+                    usedLocations[candidate.locationKey] = true
+                    return candidate
+                end
+            end
+        end
+        for _, candidate in ipairs(candidates) do
+            if matches(candidate, false) then
+                usedLocations[candidate.locationKey] = true
+                return candidate
+            end
+        end
+    end
+
+    local result = {}
+    for _, slotID in ipairs(SLOT_ORDER) do
+        if slotID ~= INVSLOT_AMMO and not IsSlotIgnored(set, slotID) then
+            local key = SLOT_NAME_BY_ID[slotID]
+            local itemID = GetStoredItemID(set, key)
+            local itemLink = GetStoredItemLink(set, key)
+            if itemID or itemLink then
+                local candidate = takeCandidate(itemID, itemLink, "inventory:" .. tostring(slotID))
+                local displayItem = itemLink or itemID
+                local itemName, resolvedLink = GetItemInfo(displayItem)
+                result[#result + 1] = {
+                    slotID = slotID,
+                    slotName = key,
+                    slotLabel = SLOT_LABEL_BY_ID[slotID] or key,
+                    itemID = itemID,
+                    itemLink = resolvedLink or itemLink,
+                    itemName = itemName or GetItemDisplayName(itemID, itemLink),
+                    location = candidate and candidate.location or "missing",
+                    ignored = false,
+                }
+            end
+        end
+    end
+
+    return result
+end
+
+function equipment:GetUnavailableEquipmentSetSlots(items, itemLinks, ignoredSlots)
+    local availableItemIDs, availableItemLinks = CountAvailableItemIdentities()
+    local unavailable = {}
+
+    for _, slotID in ipairs(SLOT_ORDER) do
+        if slotID ~= INVSLOT_AMMO and not (ignoredSlots and ignoredSlots[slotID]) then
+            local slotName = SLOT_NAME_BY_ID[slotID]
+            local itemID = items and items[slotName]
+            local itemLink = NormalizeItemLink(itemLinks and itemLinks[slotName])
+            if itemLink then
+                local count = availableItemLinks[itemLink] or 0
+                if count > 0 then
+                    availableItemLinks[itemLink] = count - 1
+                    if itemID and (availableItemIDs[itemID] or 0) > 0 then
+                        availableItemIDs[itemID] = availableItemIDs[itemID] - 1
+                    end
+                else
+                    unavailable[slotID] = true
+                end
+            elseif itemID then
+                local count = availableItemIDs[itemID] or 0
+                if count > 0 then
+                    availableItemIDs[itemID] = count - 1
+                else
+                    unavailable[slotID] = true
+                end
+            end
+        end
+    end
+
+    return unavailable
+end
+
+function equipment:GetEquipmentSetSlotItem(setId, slotID)
+    local set = self.db.char.sets[setId]
+    local key = SLOT_NAME_BY_ID[slotID]
+    if not set or not key then
+        return nil, nil
+    end
+    return GetStoredItemID(set, key), GetStoredItemLink(set, key)
+end
+
+function equipment:IsBankOpen()
+    return BANK_OPEN == true
+end
+
+function equipment:GetEquipmentSetBankSharedItemCount(setID, direction)
+    local requirements = BuildBankTransferRequirements(setID, true)
+    if not requirements or (direction ~= "toBank" and direction ~= "fromBank") then
+        return 0
+    end
+
+    local targetIsBank = direction == "toBank"
+    local sharedCount = 0
+    for _, requirement in ipairs(requirements) do
+        local targetCount = CountRequirementOnSide(requirement, targetIsBank)
+        local sourceCount = CountRequirementOnSide(requirement, not targetIsBank)
+        if requirement.shared and targetCount < requirement.count and sourceCount > 0 then
+            sharedCount = sharedCount + 1
+        end
+    end
+    return sharedCount
+end
+
+function equipment:CanMoveEquipmentSetBank(setID, direction)
+    if not BANK_OPEN or (direction ~= "toBank" and direction ~= "fromBank") then
+        return false
+    end
+    local requirements = BuildBankTransferRequirements(setID, true)
+    if not requirements then
+        return false
+    end
+
+    local targetIsBank = direction == "toBank"
+    for _, requirement in ipairs(requirements) do
+        local targetCount = CountRequirementOnSide(requirement, targetIsBank)
+        local sourceCount = CountRequirementOnSide(requirement, not targetIsBank)
+        if targetCount < requirement.count and sourceCount > 0 then
+            return true
+        end
+    end
+    return false
+end
+
+function equipment:MoveEquipmentSetBank(setID, direction, includeShared)
+    if not BANK_OPEN then
+        if UIErrorsFrame then
+            UIErrorsFrame:AddMessage(ExtraStats:translate("gearsets.bank_open_required"), 1.0, 0.1, 0.1, 1.0)
+        end
+        return false
+    end
+    if direction ~= "toBank" and direction ~= "fromBank" then
+        return false
+    end
+    if pendingBankTransfer or pendingEquip or CursorHasItem() then
+        if UIErrorsFrame then
+            UIErrorsFrame:AddMessage(ExtraStats:translate("gearsets.bank_busy"), 1.0, 0.1, 0.1, 1.0)
+        end
+        return false
+    end
+
+    local requirements = BuildBankTransferRequirements(setID, includeShared == true)
+    if not requirements then
+        return false
+    end
+    bankTransferToken = bankTransferToken + 1
+    pendingBankTransfer = {
+        token = bankTransferToken,
+        setID = setID,
+        direction = direction,
+        requirements = requirements,
+    }
+    ExtraStats:Trigger("gear.update")
+    ProcessBankTransfer(bankTransferToken)
+    return true
+end
+
+function equipment:IsBankTransferActive()
+    return pendingBankTransfer ~= nil
+end
+
 function equipment:SlotInfo()
     return BuildSlotInfo()
 end
@@ -1869,12 +2535,25 @@ function equipment:GetEquipmentSetIDs()
     return ids
 end
 
+function equipment:GetEquipmentSetIDsSorted()
+    local ids = self:GetEquipmentSetIDs()
+    table.sort(ids, function(a, b)
+        local aName = select(1, self:GetEquipmentSetInfo(a)) or ""
+        local bName = select(1, self:GetEquipmentSetInfo(b)) or ""
+        if aName == bName then
+            return a < b
+        end
+        return aName < bName
+    end)
+    return ids
+end
+
 function equipment:ClearIgnoredSlotsForSave()
-    self.ignoredSlotsForSave = {}
+    self.ignoredSlotsForSave = { [INVSLOT_AMMO] = true }
 end
 
 function equipment:SetIgnoredSlotsForSave(ignoredSlots)
-    self.ignoredSlotsForSave = {}
+    self.ignoredSlotsForSave = { [INVSLOT_AMMO] = true }
 
     if not ignoredSlots then
         return
@@ -1889,6 +2568,10 @@ end
 
 function equipment:UnignoreSlotForSave(slot)
     self.ignoredSlotsForSave = self.ignoredSlotsForSave or {}
+    if slot == INVSLOT_AMMO then
+        self.ignoredSlotsForSave[slot] = true
+        return
+    end
     self.ignoredSlotsForSave[slot] = nil
 end
 
@@ -1927,7 +2610,9 @@ function equipment:SetEquipmentSetSlotIgnored(setID, slotID, ignored)
 
     set.ignoredSlots = set.ignoredSlots or {}
 
-    if ignored then
+    if slotID == INVSLOT_AMMO then
+        set.ignoredSlots[slotID] = true
+    elseif ignored then
         set.ignoredSlots[slotID] = true
     else
         set.ignoredSlots[slotID] = nil
@@ -1947,7 +2632,7 @@ function equipment:FindItemInBags(itemID)
 end
 
 local function StartEquipmentSwap(setID, set, action)
-    if pendingEquip then
+    if pendingEquip or pendingBankTransfer then
         return false
     end
 

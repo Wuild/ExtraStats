@@ -67,7 +67,7 @@
     </ScrollFrame>
 
     <Button name="ExtraGearSetButtonTemplate" virtual="true">
-        <Size x="207" y="44"/>
+        <Size x="207" y="38"/>
         <Anchors>
             <Anchor point="LEFT" x="2" y="0"/>
         </Anchors>
@@ -80,31 +80,20 @@
                     </Anchors>
                     <Color r="0.035" g="0.045" b="0.06"/>
                 </Texture>
-                <Texture name="$parentBgTop" inherits="Char-Stat-Top" parentKey="BgTop">
+                <Texture parentKey="Background" file="Interface\Buttons\WHITE8X8" alpha="0.12" hidden="true">
                     <Anchors>
-                        <Anchor point="TOPLEFT" x="0" y="1"/>
+                        <Anchor point="TOPLEFT"/>
+                        <Anchor point="BOTTOMRIGHT"/>
                     </Anchors>
+                    <Color r="0.45" g="0.55" b="0.68"/>
                 </Texture>
-                <Texture name="$parentBgBottom" inherits="Char-Stat-Top" parentKey="BgBottom">
+                <Texture parentKey="Divider" file="Interface\Buttons\WHITE8X8" alpha="0.12">
+                    <Size y="1"/>
                     <Anchors>
-                        <Anchor point="BOTTOMLEFT" x="0" y="-4"/>
+                        <Anchor point="BOTTOMLEFT" x="8"/>
+                        <Anchor point="BOTTOMRIGHT" x="-8"/>
                     </Anchors>
-                </Texture>
-                <Texture name="$parentBgMiddle" file="Interface\CharacterFrame\Char-Stat-Middle" parentKey="BgMiddle"
-                         vertTile="true">
-                    <Size x="209" y="8"/>
-                    <Anchors>
-                        <Anchor point="LEFT" x="1"/>
-                    </Anchors>
-                    <TexCoords left="0.00390625" right="0.66406250" top="0.00000000" bottom="1.00000000"/>
-                </Texture>
-            </Layer>
-            <Layer level="BACKGROUND" textureSubLevel="1">
-                <Texture name="$parentStripe" parentKey="Stripe" file="Interface\Buttons\WHITE8X8">
-                    <Anchors>
-                        <Anchor point="TOPLEFT" x="1" y="0"/>
-                        <Anchor point="BOTTOMRIGHT" x="0" y="0"/>
-                    </Anchors>
+                    <Color r="0.72" g="0.72" b="0.72"/>
                 </Texture>
             </Layer>
             <Layer level="BORDER">
@@ -119,13 +108,13 @@
             </Layer>
             <Layer level="ARTWORK">
                 <FontString name="$parentText" inherits="GameFontNormalLeft" parentKey="text">
-                    <Size x="98" y="18"/>
+                    <Size x="116" y="17"/>
                     <Anchors>
-                        <Anchor point="TOPLEFT" x="44" y="-5"/>
+                        <Anchor point="TOPLEFT" x="40" y="-4"/>
                     </Anchors>
                 </FontString>
                 <FontString name="$parentSpecText" inherits="GameFontDisableSmall" parentKey="SpecText" hidden="true">
-                    <Size x="98" y="14"/>
+                    <Size x="116" y="13"/>
                     <Anchors>
                         <Anchor point="TOPLEFT" relativeKey="$parent.text" relativePoint="BOTTOMLEFT" x="0" y="-1"/>
                     </Anchors>
@@ -148,15 +137,30 @@
             </Layer>
             <Layer level="OVERLAY" textureSubLevel="-1">
                 <Texture name="$parentHighlightBar" parentKey="HighlightBar"
-                         file="Interface\FriendsFrame\UI-FriendsFrame-HighlightBar-Blue" alpha="0.4" alphaMode="ADD"
-                         hidden="true">
-                    <TexCoords left="0.2" right="0.8" top="0" bottom="1"/>
+                         file="Interface\Buttons\WHITE8X8" alpha="0.10" hidden="true">
+                    <Anchors>
+                        <Anchor point="TOPLEFT"/>
+                        <Anchor point="BOTTOMRIGHT"/>
+                    </Anchors>
+                    <Color r="1" g="0.82" b="0.35"/>
                 </Texture>
             </Layer>
             <Layer level="OVERLAY">
                 <Texture name="$parentSelectedBar" parentKey="SelectedBar"
-                         file="Interface\Buttons\WHITE8X8" alpha="0.16" hidden="true">
+                         file="Interface\Buttons\WHITE8X8" alpha="0.12" hidden="true">
+                    <Anchors>
+                        <Anchor point="TOPLEFT"/>
+                        <Anchor point="BOTTOMRIGHT"/>
+                    </Anchors>
                     <Color r="1" g="0.72" b="0.18"/>
+                </Texture>
+                <Texture parentKey="SelectedAccent" file="Interface\Buttons\WHITE8X8" hidden="true">
+                    <Size x="3"/>
+                    <Anchors>
+                        <Anchor point="TOPLEFT"/>
+                        <Anchor point="BOTTOMLEFT"/>
+                    </Anchors>
+                    <Color r="0.82" g="0.62" b="0.20"/>
                 </Texture>
             </Layer>
         </Layers>
@@ -241,7 +245,6 @@
                 self:RegisterForDrag("LeftButton");
                 self.text:SetJustifyH("LEFT");
                 self.SpecText:SetJustifyH("LEFT");
-                SetClampedTextureRotation(self.BgBottom, 180);
             </OnLoad>
             <OnClick>
                 ExtraStats_GearSetButton_OnClick(self, button, down);
@@ -257,17 +260,14 @@
                 ExtraStats_GearSetButton_OnDragStart(self);
             </OnDragStart>
         </Scripts>
-        <HighlightTexture file="Interface\Buttons\WHITE8X8" alpha="0.10">
-            <Color r="1" g="0.82" b="0.35"/>
-        </HighlightTexture>
         <NormalTexture name="$parentIcon" parentKey="icon">
             <Size>
-                <AbsDimension x="36" y="36"/>
+                <AbsDimension x="26" y="26"/>
             </Size>
             <Anchors>
                 <Anchor point="LEFT">
                     <Offset>
-                        <AbsDimension x="4" y="0"/>
+                        <AbsDimension x="5" y="0"/>
                     </Offset>
                 </Anchor>
             </Anchors>

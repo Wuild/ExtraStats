@@ -6,8 +6,10 @@ local GEAR_SLOT_FRAMES = {
     CharacterHeadSlot,
     CharacterNeckSlot,
     CharacterShoulderSlot,
+    CharacterShirtSlot,
     CharacterBackSlot,
     CharacterChestSlot,
+    CharacterTabardSlot,
     CharacterWristSlot,
     CharacterHandsSlot,
     CharacterWaistSlot,
@@ -21,6 +23,34 @@ local GEAR_SLOT_FRAMES = {
     CharacterSecondaryHandSlot,
     CharacterRangedSlot
 }
+
+local function GetEditorGearSlotFrames()
+    if ExtraStats_GetGearSetEditorSlotButtons then
+        return ExtraStats_GetGearSetEditorSlotButtons() or {}
+    end
+    return {}
+end
+
+local function GetActiveGearSlotFrames()
+    if ExtraStats_IsEquipmentSetEditMode and ExtraStats_IsEquipmentSetEditMode() then
+        local editorFrames = GetEditorGearSlotFrames()
+        if #editorFrames > 0 then
+            return editorFrames
+        end
+    end
+    return GEAR_SLOT_FRAMES
+end
+
+local function GetAllGearSlotFrames()
+    local frames = {}
+    for _, frame in ipairs(GEAR_SLOT_FRAMES) do
+        frames[#frames + 1] = frame
+    end
+    for _, frame in ipairs(GetEditorGearSlotFrames()) do
+        frames[#frames + 1] = frame
+    end
+    return frames
+end
 
 local ALT_BAR_BUTTON_SIZE = 37
 local ALT_BAR_BUTTON_GAP = 4
@@ -59,8 +89,10 @@ local SLOT_EQUIP_LOCS = {
     [INVSLOT_HEAD] = { INVTYPE_HEAD = true },
     [INVSLOT_NECK] = { INVTYPE_NECK = true },
     [INVSLOT_SHOULDER] = { INVTYPE_SHOULDER = true },
+    [INVSLOT_BODY] = { INVTYPE_BODY = true },
     [INVSLOT_BACK] = { INVTYPE_CLOAK = true },
     [INVSLOT_CHEST] = { INVTYPE_CHEST = true, INVTYPE_ROBE = true },
+    [INVSLOT_TABARD] = { INVTYPE_TABARD = true },
     [INVSLOT_WRIST] = { INVTYPE_WRIST = true },
     [INVSLOT_HAND] = { INVTYPE_HAND = true },
     [INVSLOT_WAIST] = { INVTYPE_WAIST = true },
@@ -71,7 +103,7 @@ local SLOT_EQUIP_LOCS = {
     [INVSLOT_TRINKET1] = { INVTYPE_TRINKET = true },
     [INVSLOT_TRINKET2] = { INVTYPE_TRINKET = true },
     [INVSLOT_MAINHAND] = { INVTYPE_WEAPON = true, INVTYPE_WEAPONMAINHAND = true, INVTYPE_2HWEAPON = true },
-    [INVSLOT_OFFHAND] = { INVTYPE_WEAPON = true, INVTYPE_WEAPONOFFHAND = true, INVTYPE_SHIELD = true, INVTYPE_HOLDABLE = true },
+    [INVSLOT_OFFHAND] = { INVTYPE_WEAPON = true, INVTYPE_WEAPONOFFHAND = true, INVTYPE_2HWEAPON = true, INVTYPE_SHIELD = true, INVTYPE_HOLDABLE = true },
     [INVSLOT_RANGED] = { INVTYPE_RANGED = true, INVTYPE_THROWN = true, INVTYPE_RANGEDRIGHT = true, INVTYPE_RELIC = true },
 }
 
@@ -79,8 +111,10 @@ local SLOT_ANCHOR_SIDE = {
     [INVSLOT_HEAD] = "RIGHT",
     [INVSLOT_NECK] = "RIGHT",
     [INVSLOT_SHOULDER] = "RIGHT",
+    [INVSLOT_BODY] = "RIGHT",
     [INVSLOT_BACK] = "RIGHT",
     [INVSLOT_CHEST] = "RIGHT",
+    [INVSLOT_TABARD] = "RIGHT",
     [INVSLOT_WRIST] = "RIGHT",
     [INVSLOT_HAND] = "LEFT",
     [INVSLOT_WAIST] = "LEFT",
@@ -237,7 +271,53 @@ local function GetAlternativesForSlot(slotID)
     if alternativesCacheDirty then
         RebuildAlternativesCache()
     end
-    return alternativesCacheBySlot[slotID] or {}
+    local alternatives = alternativesCacheBySlot[slotID] or {}
+    if not ExtraStats_IsEquipmentSetEditMode or not ExtraStats_IsEquipmentSetEditMode() then
+        return alternatives
+    end
+
+    local previewItemID, previewLink = ExtraStats_GetEditedEquipmentSetSlotItem(slotID)
+    previewLink = NormalizeItemLink(previewLink) or (previewItemID and ("item:" .. tostring(previewItemID)))
+    local result = {}
+    local seen = {}
+    for _, item in ipairs(alternatives) do
+        local normalized = NormalizeItemLink(item.link)
+        if normalized and normalized ~= previewLink and not seen[normalized] then
+            seen[normalized] = true
+            result[#result + 1] = item
+        end
+    end
+
+    -- An edited set may differ from the live character. Include compatible
+    -- equipped items as choices without moving them off the character.
+    for _, equippedFrame in ipairs(GEAR_SLOT_FRAMES) do
+        local equippedSlotID = equippedFrame and equippedFrame.GetID and equippedFrame:GetID()
+        local link = equippedSlotID and GetInventoryItemLink("player", equippedSlotID)
+        local normalized = NormalizeItemLink(link)
+        if normalized and normalized ~= previewLink and not seen[normalized] then
+            local _, itemLink, itemQuality, _, _, _, _, _, equipLoc, icon = GetItemInfo(link)
+            if GetItemInfoInstant and ((not equipLoc or equipLoc == "") or not icon) then
+                local _, _, _, instantEquipLoc, instantIcon = GetItemInfoInstant(link)
+                equipLoc = (equipLoc and equipLoc ~= "") and equipLoc or instantEquipLoc
+                icon = icon or instantIcon
+            end
+            if equipLoc and SLOT_EQUIP_LOCS[slotID][equipLoc] then
+                seen[normalized] = true
+                result[#result + 1] = {
+                    link = itemLink or link,
+                    count = 1,
+                    icon = icon,
+                    quality = itemQuality,
+                    equippedSlotID = equippedSlotID,
+                }
+            end
+        end
+    end
+
+    table.sort(result, function(a, b)
+        return tostring(a.link) < tostring(b.link)
+    end)
+    return result
 end
 
 local function HideAltBar()
@@ -255,7 +335,7 @@ local function IsMouseOverActiveSlot()
     if not activeSlotID then
         return false
     end
-    for _, frame in ipairs(GEAR_SLOT_FRAMES) do
+    for _, frame in ipairs(GetActiveGearSlotFrames()) do
         if frame and frame.GetID and frame:GetID() == activeSlotID and frame.IsMouseOver and frame:IsMouseOver() then
             return true
         end
@@ -267,7 +347,7 @@ local function IsMouseOverActiveSlotFlyoutButton()
     if not activeSlotID then
         return false
     end
-    for _, frame in ipairs(GEAR_SLOT_FRAMES) do
+    for _, frame in ipairs(GetActiveGearSlotFrames()) do
         if frame and frame.GetID and frame:GetID() == activeSlotID then
             local btn = frame.ExtraStatsFlyoutButton
             return btn and btn:IsShown() and btn.IsMouseOver and btn:IsMouseOver()
@@ -334,13 +414,33 @@ local function RefreshEquipmentSlotTooltipForModifiers()
     end
 
     local slotID
-    for _, gearSlotFrame in ipairs(GEAR_SLOT_FRAMES) do
+    for _, gearSlotFrame in ipairs(GetActiveGearSlotFrames()) do
         if owner == gearSlotFrame and gearSlotFrame.GetID then
             slotID = gearSlotFrame:GetID()
             break
         end
     end
     if not slotID or slotID <= 0 then
+        return
+    end
+
+    if ExtraStats_IsEquipmentSetEditMode and ExtraStats_IsEquipmentSetEditMode() then
+        local itemID, itemLink, ignored
+        if owner.ExtraStatsGearSetEditorSlot then
+            itemID = owner.ExtraStatsPreviewItemID
+            itemLink = owner.ExtraStatsPreviewItemLink
+            ignored = owner.ExtraStatsPreviewIgnored == true
+        else
+            itemID, itemLink, ignored = ExtraStats_GetEditedEquipmentSetSlotItem(slotID)
+        end
+        if ignored and not owner.ExtraStatsGearSetEditorSlot then
+            itemID = GetInventoryItemID("player", slotID)
+            itemLink = GetInventoryItemLink("player", slotID)
+        end
+        GameTooltip:ClearLines()
+        if itemLink or itemID then
+            GameTooltip:SetHyperlink(itemLink or ("item:" .. tostring(itemID)))
+        end
         return
     end
 
@@ -449,7 +549,17 @@ local function EnsureAltBarFrame()
                 return
             end
             if self.isUnequip then
+                if ExtraStats_IsEquipmentSetEditMode and ExtraStats_IsEquipmentSetEditMode() then
+                    ExtraStats_SetEditedEquipmentSetSlotItem(self.targetSlotID, nil)
+                    HideAltBar()
+                    return
+                end
                 UnequipInventorySlot(self.targetSlotID)
+                HideAltBar()
+                return
+            end
+            if ExtraStats_IsEquipmentSetEditMode and ExtraStats_IsEquipmentSetEditMode() then
+                ExtraStats_SetEditedEquipmentSetSlotItem(self.targetSlotID, self.itemLink)
                 HideAltBar()
                 return
             end
@@ -536,7 +646,13 @@ local function ShowAlternativesBar(slotFrame, animate)
     local alternatives = GetAlternativesForSlot(slotID)
     local bar = EnsureAltBarFrame()
 
-    local canUnequip = GetInventoryItemLink("player", slotID) ~= nil
+    local canUnequip
+    if ExtraStats_IsEquipmentSetEditMode and ExtraStats_IsEquipmentSetEditMode() then
+        local previewItemID, previewLink = ExtraStats_GetEditedEquipmentSetSlotItem(slotID)
+        canUnequip = previewItemID ~= nil or previewLink ~= nil
+    else
+        canUnequip = GetInventoryItemLink("player", slotID) ~= nil
+    end
     if #alternatives == 0 and not canUnequip then
         if not bar:IsShown() then
             HideAltBar()
@@ -567,6 +683,7 @@ local function ShowAlternativesBar(slotFrame, animate)
                 btn.itemLink = item.link
                 btn.bag = item.bag
                 btn.slot = item.slot
+                btn.equippedSlotID = item.equippedSlotID
                 btn.icon:SetTexture(item.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
                 btn.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
                 btn.count:SetText(item.count and item.count > 1 and tostring(item.count) or "")
@@ -584,6 +701,7 @@ local function ShowAlternativesBar(slotFrame, animate)
             btn.targetSlotID = nil
             btn.bag = nil
             btn.slot = nil
+            btn.equippedSlotID = nil
             btn:Hide()
         end
     end
@@ -635,7 +753,7 @@ local function ShowAlternativesBar(slotFrame, animate)
 end
 
 local function GetGearFrameBySlotID(slotID)
-    for _, frame in ipairs(GEAR_SLOT_FRAMES) do
+    for _, frame in ipairs(GetActiveGearSlotFrames()) do
         if frame and frame.GetID and frame:GetID() == slotID then
             return frame
         end
@@ -786,7 +904,7 @@ local function SetFlyoutButtonVisual(frame, isOpen)
 end
 
 UpdateFlyoutButtonsVisualState = function()
-    for _, frame in ipairs(GEAR_SLOT_FRAMES) do
+    for _, frame in ipairs(GetActiveGearSlotFrames()) do
         if frame and frame.ExtraStatsFlyoutButton and frame.ExtraStatsFlyoutButton:IsShown() then
             local isOpen = activeSlotID and frame.GetID and frame:GetID() == activeSlotID and AltBarFrame and AltBarFrame:IsShown()
             AnchorFlyoutButton(frame, isOpen and true or false)
@@ -796,11 +914,26 @@ UpdateFlyoutButtonsVisualState = function()
 end
 
 local function UpdateFlyoutButtonsVisibility()
-    for _, frame in ipairs(GEAR_SLOT_FRAMES) do
+    local activeFrames = GetActiveGearSlotFrames()
+    local active = {}
+    for _, frame in ipairs(activeFrames) do
+        active[frame] = true
+    end
+    for _, frame in ipairs(GetAllGearSlotFrames()) do
+        if not active[frame] and frame and frame.ExtraStatsFlyoutButton then
+            frame.ExtraStatsFlyoutButton:Hide()
+        end
+    end
+    for _, frame in ipairs(activeFrames) do
         if frame then
             SetupFlyoutButton(frame)
             local slotID = frame.GetID and frame:GetID()
-            local hasDrawerActions = slotID and slotID > 0 and (#GetAlternativesForSlot(slotID) > 0 or GetInventoryItemLink("player", slotID) ~= nil)
+            local hasCurrentItem = GetInventoryItemLink("player", slotID) ~= nil
+            if ExtraStats_IsEquipmentSetEditMode and ExtraStats_IsEquipmentSetEditMode() then
+                local previewItemID, previewLink = ExtraStats_GetEditedEquipmentSetSlotItem(slotID)
+                hasCurrentItem = previewItemID ~= nil or previewLink ~= nil
+            end
+            local hasDrawerActions = slotID and slotID > 0 and (#GetAlternativesForSlot(slotID) > 0 or hasCurrentItem)
             if hasDrawerActions then
                 ShowFlyoutButtonForFrame(frame)
             elseif frame.ExtraStatsFlyoutButton then
@@ -831,6 +964,14 @@ local function ScheduleFlyoutButtonsRefresh(delay)
     end)
 end
 
+function ExtraStats_RefreshGearAlternatives()
+    if not CharacterFrame or not CharacterFrame:IsShown() then
+        return
+    end
+    UpdateFlyoutButtonsVisibility()
+    RefreshActiveDrawer()
+end
+
 RefreshActiveDrawer = function()
     if not activeSlotID then
         return
@@ -849,7 +990,7 @@ RefreshActiveDrawer = function()
 end
 
 local function HookGearSlotAlternativesBar()
-    for _, frame in ipairs(GEAR_SLOT_FRAMES) do
+    for _, frame in ipairs(GetAllGearSlotFrames()) do
         if frame and not frame.ExtraStatsAltBarHooked then
             SetupFlyoutButton(frame)
             frame:HookScript("OnEnter", function() end)
@@ -882,21 +1023,52 @@ local function GetItemLevelColor(itemLevel)
     return 1.00, 1.00, 1.00
 end
 
-local function UpdateGearFrame(gearFrame)
-    if not gearFrame or not gearFrame.qualityTexture then
+local function EnsureGearFrameVisual(gearFrame)
+    if not gearFrame then
         return
     end
+    if not gearFrame.qualityTexture then
+        gearFrame.qualityTexture = gearFrame:CreateTexture(nil, "OVERLAY", nil)
+        gearFrame.qualityTexture:SetPoint("TOPLEFT", gearFrame, "TOPLEFT", -2, 2)
+        gearFrame.qualityTexture:SetPoint("BOTTOMRIGHT", gearFrame, "BOTTOMRIGHT", 2, -2)
+        gearFrame.qualityTexture:SetTexture(stats.iconPath .. "resources\\WhiteIconFrame.blp")
+    end
+    if not gearFrame.itemLevelText then
+        gearFrame.itemLevelText = gearFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        gearFrame.itemLevelText:SetPoint("TOPLEFT", gearFrame, "TOPLEFT", 2, -2)
+        gearFrame.itemLevelText:SetJustifyH("LEFT")
+        gearFrame.itemLevelText:SetFont(stats.iconPath .. "resources\\Expressway.ttf", 10, "MONOCHROME,OUTLINE")
+        gearFrame.itemLevelText:SetShadowColor(0, 0, 0, 0.9)
+        gearFrame.itemLevelText:SetShadowOffset(1, -1)
+        gearFrame.itemLevelText:SetText("")
+        gearFrame.itemLevelText:Hide()
+    end
+end
 
-    local itemLink = GetInventoryItemLink("player", gearFrame:GetID())
-    if itemLink ~= nil then
-        local _, itemInfo, itemQuality, itemLevel = GetItemInfo(itemLink)
+local function UpdateGearFrame(gearFrame)
+    if not gearFrame then
+        return
+    end
+    EnsureGearFrameVisual(gearFrame)
+
+    local item = GetInventoryItemLink("player", gearFrame:GetID())
+    if ExtraStats_IsEquipmentSetEditMode and ExtraStats_IsEquipmentSetEditMode() then
+        local previewItemID, previewLink, ignored = ExtraStats_GetEditedEquipmentSetSlotItem(gearFrame:GetID())
+        if ignored then
+            item = GetInventoryItemLink("player", gearFrame:GetID()) or GetInventoryItemID("player", gearFrame:GetID())
+        else
+            item = previewLink or previewItemID
+        end
+    end
+    if item ~= nil then
+        local _, itemInfo, itemQuality, itemLevel = GetItemInfo(item)
         if itemInfo ~= nil then
             gearFrame.ExtraStatsPendingItemInfoRetry = nil
             local r, g, b, _ = GetItemQualityColor(itemQuality)
             SetGearFrameQualityColor(gearFrame, r, g, b, 0.75)
 
             if GetDetailedItemLevelInfo then
-                itemLevel = GetDetailedItemLevelInfo(itemLink) or itemLevel
+                itemLevel = GetDetailedItemLevelInfo(item) or itemLevel
             end
             itemLevel = tonumber(itemLevel)
             if itemQuality and itemQuality >= 2 and itemLevel and itemLevel > 0 then
@@ -926,9 +1098,13 @@ local function UpdateGearFrame(gearFrame)
 end
 
 local function UpdateGearFrames()
-    for _, gearFrame in ipairs(GEAR_SLOT_FRAMES) do
+    for _, gearFrame in ipairs(GetActiveGearSlotFrames()) do
         UpdateGearFrame(gearFrame, "player")
     end
+end
+
+function ExtraStats_RefreshGearSlotVisuals()
+    UpdateGearFrames()
 end
 
 local function ScheduleGearFramesRefresh(delay)
@@ -943,23 +1119,8 @@ local function ScheduleGearFramesRefresh(delay)
 end
 
 local function SetupGearFrames()
-    for _, frame in ipairs(GEAR_SLOT_FRAMES) do
-        if not frame.qualityTexture then
-            frame.qualityTexture = frame:CreateTexture(nil, "OVERLAY", nil)
-            frame.qualityTexture:SetPoint("TOPLEFT", frame, "TOPLEFT", -2, 2)
-            frame.qualityTexture:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", 2, -2)
-            frame.qualityTexture:SetTexture(stats.iconPath .. "resources\\WhiteIconFrame.blp")
-        end
-        if not frame.itemLevelText then
-            frame.itemLevelText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-            frame.itemLevelText:SetPoint("TOPLEFT", frame, "TOPLEFT", 2, -2)
-            frame.itemLevelText:SetJustifyH("LEFT")
-            frame.itemLevelText:SetFont(stats.iconPath .. "resources\\Expressway.ttf", 10, "MONOCHROME,OUTLINE")
-            frame.itemLevelText:SetShadowColor(0, 0, 0, 0.9)
-            frame.itemLevelText:SetShadowOffset(1, -1)
-            frame.itemLevelText:SetText("")
-            frame.itemLevelText:Hide()
-        end
+    for _, frame in ipairs(GetAllGearSlotFrames()) do
+        EnsureGearFrameVisual(frame)
     end
 
     UpdateGearFrames()
@@ -1015,7 +1176,7 @@ function Module:OnDisable()
     self:UnregisterEvent("BAG_UPDATE_DELAYED")
     self:UnregisterEvent("MODIFIER_STATE_CHANGED")
     HideAltBar()
-    for _, frame in ipairs(GEAR_SLOT_FRAMES) do
+    for _, frame in ipairs(GetAllGearSlotFrames()) do
         if frame and frame.ExtraStatsFlyoutButton then
             frame.ExtraStatsFlyoutButton:Hide()
         end
