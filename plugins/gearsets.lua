@@ -192,6 +192,11 @@ local function InitializeMenu(_, level, menuList)
         info.hasArrow = true
         info.menuList = setID
         info.value = setID
+        local selectedSetID = setID
+        info.func = function()
+            equipment:UseEquipmentSet(selectedSetID)
+            CloseDropDownMenus()
+        end
         info.tooltipTitle = displayName
         local tooltipLines = {}
         if (missing or 0) > 0 then
@@ -211,7 +216,7 @@ local function InitializeMenu(_, level, menuList)
         end
         info.tooltipText = table.concat(tooltipLines, "\n")
         info.tooltipOnButton = true
-        info.keepShownOnClick = true
+        info.keepShownOnClick = false
         UIDropDownMenu_AddButton(info, level)
     end
 

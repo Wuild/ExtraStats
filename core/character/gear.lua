@@ -113,6 +113,23 @@ local EDIT_SLOT_EQUIP_LOCS = {
     [INVSLOT_RANGED] = { INVTYPE_RANGED = true, INVTYPE_THROWN = true, INVTYPE_RANGEDRIGHT = true, INVTYPE_RELIC = true },
 }
 
+local MODEL_PREVIEW_SLOTS = {
+    [INVSLOT_HEAD] = true,
+    [INVSLOT_SHOULDER] = true,
+    [INVSLOT_BODY] = true,
+    [INVSLOT_BACK] = true,
+    [INVSLOT_CHEST] = true,
+    [INVSLOT_TABARD] = true,
+    [INVSLOT_WRIST] = true,
+    [INVSLOT_HAND] = true,
+    [INVSLOT_WAIST] = true,
+    [INVSLOT_LEGS] = true,
+    [INVSLOT_FEET] = true,
+    [INVSLOT_MAINHAND] = true,
+    [INVSLOT_OFFHAND] = true,
+    [INVSLOT_RANGED] = true,
+}
+
 local function SyncGearSetEditorSlotLayout()
     for _, nativeButton in ipairs(nativeItemSlotButtons) do
         local button = editorSlotByNativeButton[nativeButton]
@@ -1503,7 +1520,7 @@ local function RefreshPreviewModel(draft)
     for _, slot in ipairs(slots) do
         local hiddenByAppearanceSetting = (slot.id == INVSLOT_HEAD and not showHelm)
             or (slot.id == INVSLOT_BACK and not showCloak)
-        if not hiddenByAppearanceSetting then
+        if MODEL_PREVIEW_SLOTS[slot.id] and not hiddenByAppearanceSetting then
             local ignored = draft.ignoredSlots[slot.id] == true
             local itemLink, itemID
             if ignored then
@@ -1515,17 +1532,25 @@ local function RefreshPreviewModel(draft)
             end
             if itemLink or itemID then
                 local item = itemLink or itemID
-                if slot.id == INVSLOT_MAINHAND then
+                local equipLoc = select(9, GetItemInfo(item))
+                if (not equipLoc or equipLoc == "") and GetItemInfoInstant then
+                    equipLoc = select(4, GetItemInfoInstant(item))
+                end
+                -- Relics occupy the ranged slot but have no model appearance.
+                if equipLoc == "INVTYPE_RELIC" then
+                    item = nil
+                end
+                if item and slot.id == INVSLOT_MAINHAND then
                     local ok = pcall(model.TryOn, model, item, "MAINHANDSLOT")
                     if not ok then
                         pcall(model.TryOn, model, item)
                     end
-                elseif slot.id == INVSLOT_OFFHAND then
+                elseif item and slot.id == INVSLOT_OFFHAND then
                     local ok = pcall(model.TryOn, model, item, "SECONDARYHANDSLOT")
                     if not ok then
                         pcall(model.TryOn, model, item)
                     end
-                else
+                elseif item then
                     pcall(model.TryOn, model, item)
                 end
             end
