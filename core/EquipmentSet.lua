@@ -69,6 +69,28 @@ local SLOT_ORDER = {
     INVSLOT_AMMO,
 }
 
+local EQUIP_LOCATIONS_BY_SLOT = {
+    [INVSLOT_HEAD] = { INVTYPE_HEAD = true },
+    [INVSLOT_NECK] = { INVTYPE_NECK = true },
+    [INVSLOT_SHOULDER] = { INVTYPE_SHOULDER = true },
+    [INVSLOT_BACK] = { INVTYPE_CLOAK = true },
+    [INVSLOT_CHEST] = { INVTYPE_CHEST = true, INVTYPE_ROBE = true },
+    [INVSLOT_BODY] = { INVTYPE_BODY = true },
+    [INVSLOT_TABARD] = { INVTYPE_TABARD = true },
+    [INVSLOT_WRIST] = { INVTYPE_WRIST = true },
+    [INVSLOT_HAND] = { INVTYPE_HAND = true },
+    [INVSLOT_WAIST] = { INVTYPE_WAIST = true },
+    [INVSLOT_LEGS] = { INVTYPE_LEGS = true },
+    [INVSLOT_FEET] = { INVTYPE_FEET = true },
+    [INVSLOT_FINGER1] = { INVTYPE_FINGER = true },
+    [INVSLOT_FINGER2] = { INVTYPE_FINGER = true },
+    [INVSLOT_TRINKET1] = { INVTYPE_TRINKET = true },
+    [INVSLOT_TRINKET2] = { INVTYPE_TRINKET = true },
+    [INVSLOT_MAINHAND] = { INVTYPE_WEAPON = true, INVTYPE_WEAPONMAINHAND = true, INVTYPE_2HWEAPON = true },
+    [INVSLOT_OFFHAND] = { INVTYPE_WEAPON = true, INVTYPE_WEAPONOFFHAND = true, INVTYPE_2HWEAPON = true, INVTYPE_SHIELD = true, INVTYPE_HOLDABLE = true },
+    [INVSLOT_RANGED] = { INVTYPE_RANGED = true, INVTYPE_THROWN = true, INVTYPE_RANGEDRIGHT = true, INVTYPE_RELIC = true },
+}
+
 local CONTAINER = C_Container or {}
 local BANK_OPEN = false
 
@@ -501,16 +523,163 @@ local function FindFreeBagSlot()
     end
 end
 
-local function IsTwoHandedWeapon(itemID, itemLink)
+local function GetItemEquipLocation(itemID, itemLink)
     local item = itemLink or itemID
+    if not item then
+        return nil
+    end
     if GetItemInfoInstant then
         local _, _, _, equipLoc = GetItemInfoInstant(item)
-        if equipLoc then
-            return equipLoc == "INVTYPE_2HWEAPON"
+        if equipLoc and equipLoc ~= "" then
+            return equipLoc
         end
     end
     local _, _, _, _, _, _, _, _, equipLoc = GetItemInfo(item)
-    return equipLoc == "INVTYPE_2HWEAPON"
+    return equipLoc
+end
+
+local function IsTwoHandedWeapon(itemID, itemLink)
+    return GetItemEquipLocation(itemID, itemLink) == "INVTYPE_2HWEAPON"
+end
+
+local function CanPlayerUseEquipmentItem(itemID, itemLink)
+    local item = itemLink or itemID
+    if not item then
+        return false
+    end
+
+    if C_PlayerInfo and type(C_PlayerInfo.CanUseItem) == "function" and itemID then
+        local canUse = C_PlayerInfo.CanUseItem(itemID)
+        if canUse ~= nil then
+            return canUse and true or false
+        end
+    end
+
+    if type(IsUsableItem) == "function" then
+        return IsUsableItem(item) and true or false
+    end
+
+    -- Older clients without either query will still let the server enforce
+    -- usability when the saved set is equipped.
+    return true
+end
+
+-- Ask Blizzard's equipment manager whether this exact owned item is eligible
+-- for a slot. This includes character capabilities that inventory type alone
+-- cannot express, such as shields, dual wielding, relics, and Titan's Grip.
+-- A nil result means the client does not provide the query and callers should
+-- fall back to inventory-type metadata.
+local function IsEquipmentItemAvailableForSlot(slotID, itemID, itemLink)
+    if type(GetInventoryItemsForSlot) ~= "function" then
+        return nil
+    end
+
+    local available = {}
+    local ok = pcall(GetInventoryItemsForSlot, slotID, available)
+    if not ok then
+        return nil
+    end
+
+    local normalizedLink = NormalizeItemLink(itemLink)
+    for _, candidateLink in pairs(available) do
+        local candidateNormalized = NormalizeItemLink(candidateLink)
+        if normalizedLink and candidateNormalized == normalizedLink then
+            return true
+        end
+        if not normalizedLink and itemID and GetItemIDFromLink(candidateNormalized) == itemID then
+            return true
+        end
+    end
+    return false
+end
+
+local function CanAssignEquipmentItemToSlot(slotID, itemID, itemLink)
+    if not CanPlayerUseEquipmentItem(itemID, itemLink) then
+        return false, ERR_CANT_EQUIP_EVER or ITEM_UNUSABLE or "You cannot use that item."
+    end
+
+    local availableForSlot = IsEquipmentItemAvailableForSlot(slotID, itemID, itemLink)
+    if availableForSlot == true then
+        return true
+    end
+
+    local acceptedEquipLocations = EQUIP_LOCATIONS_BY_SLOT[slotID]
+    local equipLocation = GetItemEquipLocation(itemID, itemLink)
+    if not acceptedEquipLocations or not equipLocation or not acceptedEquipLocations[equipLocation] then
+        return false, ERR_WRONG_SLOT or ITEM_DOESNT_GO_TO_SLOT or "That item does not go in that slot."
+    end
+    if availableForSlot == false then
+        return false, ERR_CANT_EQUIP_EVER or ITEM_UNUSABLE or "You cannot equip that item in that slot."
+    end
+
+    -- Inventory-type metadata is only a compatibility fallback for clients
+    -- that do not expose GetInventoryItemsForSlot.
+    return true
+end
+
+local function TwoHandedItemUsesBothHands(itemID, itemLink)
+    if not IsTwoHandedWeapon(itemID, itemLink) then
+        return false
+    end
+
+    -- If Blizzard offers this exact two-hander for the offhand, the current
+    -- character can wield it one-handed and it must not displace that hand.
+    return IsEquipmentItemAvailableForSlot(INVSLOT_OFFHAND, itemID, itemLink) ~= true
+end
+
+local function GetEquipmentItemUniqueness(itemID, itemLink)
+    local item = itemLink or itemID
+    if not item then
+        return nil, nil
+    end
+
+    local getUniqueness = C_Item and C_Item.GetItemUniqueness or GetItemUniqueness
+    if type(getUniqueness) ~= "function" then
+        return nil, nil
+    end
+
+    local ok, limitCategory, limitMax = pcall(getUniqueness, item)
+    if not ok or not limitCategory or limitCategory == 0 then
+        return nil, nil
+    end
+    return limitCategory, tonumber(limitMax) or 1
+end
+
+local function WouldExceedEquipmentItemLimit(items, itemLinks, ignoredSlots, targetSlotID, itemID, itemLink)
+    local limitCategory, limitMax = GetEquipmentItemUniqueness(itemID, itemLink)
+    if not limitCategory then
+        return false
+    end
+
+    local count = 1
+    for _, slotID in ipairs(SLOT_ORDER) do
+        if slotID ~= targetSlotID and not (ignoredSlots and ignoredSlots[slotID]) then
+            local slotName = SLOT_NAME_BY_ID[slotID]
+            local otherItemID = items and items[slotName]
+            local otherItemLink = itemLinks and itemLinks[slotName]
+            local otherLimitCategory = GetEquipmentItemUniqueness(otherItemID, otherItemLink)
+            if otherLimitCategory == limitCategory then
+                count = count + 1
+                if count > limitMax then
+                    return true
+                end
+            end
+        end
+    end
+    return false
+end
+
+local function SetSimulatedEquipmentSlot(items, itemLinks, ignoredSlots, slotID, itemLink)
+    local slotName = SLOT_NAME_BY_ID[slotID]
+    if not slotName then
+        return false
+    end
+
+    local normalizedLink = NormalizeItemLink(itemLink)
+    itemLinks[slotName] = normalizedLink
+    items[slotName] = GetItemIDFromLink(normalizedLink)
+    ignoredSlots[slotID] = nil
+    return true
 end
 
 local function ClearOffhandForTwoHander(set)
@@ -931,6 +1100,14 @@ local ProcessEquip
 local pendingSpecEquipToken = 0
 local lastAutoEquippedSpecGroup
 local MISSING_ITEMS_ERROR = ERR_EQUIPMENT_MANAGER_MISSING_ITEMS or ExtraStats:translate("gearsets.missing_error")
+
+local function IsEquipBindConfirmationVisible()
+    if type(StaticPopup_Visible) ~= "function" then
+        return false
+    end
+
+    return StaticPopup_Visible("EQUIP_BIND") or StaticPopup_Visible("AUTOEQUIP_BIND")
+end
 
 local SPEC_ICON_TEXTURES_BY_CLASS = {
     [INDEX_CLASS_WARRIOR] = {
@@ -1897,6 +2074,37 @@ function ProcessEquip(token)
         return
     end
 
+    -- EquipItemByName can raise a bind-on-equip confirmation. Do not submit
+    -- another equip while Blizzard is waiting for that decision: there is
+    -- only one equip-bind popup, so another request replaces it and makes
+    -- the Yes/Cancel buttons effectively impossible to click.
+    local awaitingBind = pendingEquip.awaitingBind
+    if awaitingBind then
+        if IsSlotSetMatched(set, awaitingBind.slotID) then
+            pendingEquip.awaitingBind = nil
+            pendingEquip.attempt = 0
+        elseif IsEquipBindConfirmationVisible() then
+            awaitingBind.sawPopup = true
+            awaitingBind.closedChecks = 0
+            ScheduleProcessEquip(token, EQUIP_LOCK_RETRY_DELAY)
+            return
+        elseif awaitingBind.sawPopup then
+            -- Give an accepted confirmation a few frames to update the
+            -- equipment slot. If it remains unchanged, Cancel was selected.
+            awaitingBind.closedChecks = (awaitingBind.closedChecks or 0) + 1
+            if awaitingBind.closedChecks < 3 then
+                ScheduleProcessEquip(token, EQUIP_LOCK_RETRY_DELAY)
+                return
+            end
+            FinishEquip(false, nil, token)
+            return
+        else
+            -- Non-binding equips normally update asynchronously. If no bind
+            -- popup appeared, allow the regular retry/lock handling below.
+            pendingEquip.awaitingBind = nil
+        end
+    end
+
     if CursorHasItem() then
         if HasPendingItemLocks() then
             ScheduleProcessEquip(token, EQUIP_LOCK_RETRY_DELAY)
@@ -1931,14 +2139,14 @@ function ProcessEquip(token)
         return
     end
 
-    -- Direct bag equips do not use the cursor, so they can all be submitted
-    -- in one frame.  Keep the cursor-based path below for swaps and bank
-    -- items, where preserving the old item requires explicit placement.
+    -- Direct bag equips do not use the cursor. Submit one per pass so a
+    -- bind-on-equip confirmation can be handled before the next request.
+    -- Keep the cursor-based path below for swaps and bank items, where
+    -- preserving the old item requires explicit placement.
     -- While the bank is open, keep the swap strictly serialized. Bank pulls
     -- change both container location and locks asynchronously, and batching
     -- bag equips can race those updates and leave a partial set equipped.
     if EquipItemByName and not BANK_OPEN then
-        local directChanged = false
         for _, directSlotID in ipairs(SLOT_ORDER) do
             if not IsSlotIgnored(set, directSlotID) and not IsSlotSetMatched(set, directSlotID) then
                 local directKey = SLOT_NAME_BY_ID[directSlotID]
@@ -1954,16 +2162,21 @@ function ProcessEquip(token)
                 end
 
                 if directBag and directBagSlot and (not IsInventoryItemLocked or not IsInventoryItemLocked(directSlotID)) then
+                    local bindRequest = {
+                        slotID = directSlotID,
+                        sawPopup = false,
+                        closedChecks = 0,
+                    }
+                    pendingEquip.awaitingBind = bindRequest
                     EquipItemByName(directLink or directID, directSlotID)
-                    directChanged = true
+                    bindRequest.sawPopup = IsEquipBindConfirmationVisible() and true or false
+                    if pendingEquip and pendingEquip.token == token then
+                        pendingEquip.attempt = 0
+                        ScheduleProcessEquip(token, EQUIP_ACTION_DELAY)
+                    end
+                    return
                 end
             end
-        end
-
-        if directChanged then
-            pendingEquip.attempt = 0
-            ScheduleProcessEquip(token, EQUIP_ACTION_DELAY)
-            return
         end
     end
 
@@ -2227,6 +2440,87 @@ function equipment:SaveEquipmentSet(setId, icon)
     self.currentSetID = setId
     RebuildKnownItemLinkSnapshot()
     ExtraStats:Trigger("gear.update")
+end
+
+-- Replace a saved set's included slots with the character's live equipment.
+-- Unlike SaveEquipmentSet, this uses the target set's own ignored-slot state
+-- so callers do not depend on whichever set is currently open in the editor.
+function equipment:UpdateEquipmentSetFromCurrentItems(setId)
+    local set = self.db.char.sets[setId]
+    if not set then
+        return false
+    end
+
+    set.items = set.items or {}
+    set.itemLinks = set.itemLinks or {}
+    set.ignoredSlots = set.ignoredSlots or {}
+
+    for _, slotID in ipairs(SLOT_ORDER) do
+        local key = SLOT_NAME_BY_ID[slotID]
+        if slotID == INVSLOT_AMMO or set.ignoredSlots[slotID] then
+            set.ignoredSlots[slotID] = true
+            set.items[key] = nil
+            set.itemLinks[key] = nil
+        else
+            set.ignoredSlots[slotID] = nil
+            set.items[key] = GetEquippedItemID(slotID)
+            set.itemLinks[key] = GetEquippedItemLink(slotID)
+        end
+    end
+
+    self.currentSetID = setId
+    RebuildKnownItemLinkSnapshot()
+    ExtraStats:Trigger("gear.update")
+    return true
+end
+
+-- Apply an editor slot change to an in-memory equipment state as though the
+-- item had actually been equipped, including character eligibility, slot
+-- capabilities, uniqueness limits, and changes to coupled hand slots.
+function equipment:CanUseEquipmentSetItem(itemID, itemLink)
+    return CanPlayerUseEquipmentItem(itemID, NormalizeItemLink(itemLink))
+end
+
+function equipment:CanAssignEquipmentSetItemToSlot(slotID, itemID, itemLink)
+    local normalizedLink = NormalizeItemLink(itemLink)
+    return CanAssignEquipmentItemToSlot(slotID, itemID or GetItemIDFromLink(normalizedLink), normalizedLink)
+end
+
+function equipment:SimulateEquipmentSetSlotChange(items, itemLinks, ignoredSlots, slotID, itemLink)
+    if type(items) ~= "table" or type(itemLinks) ~= "table" or type(ignoredSlots) ~= "table" then
+        return false
+    end
+    local normalizedLink = NormalizeItemLink(itemLink)
+    if normalizedLink then
+        local itemID = GetItemIDFromLink(normalizedLink)
+        local canAssign, errorMessage = CanAssignEquipmentItemToSlot(slotID, itemID, normalizedLink)
+        if not canAssign then
+            return false, nil, errorMessage
+        end
+        if WouldExceedEquipmentItemLimit(items, itemLinks, ignoredSlots, slotID, itemID, normalizedLink) then
+            return false, nil, ERR_ITEM_UNIQUE_EQUIPPABLE or ITEM_UNIQUE_EQUIPPABLE or "You cannot equip more than one of those items."
+        end
+    end
+    if not SetSimulatedEquipmentSlot(items, itemLinks, ignoredSlots, slotID, itemLink) then
+        return false
+    end
+
+    local changedSlots = { [slotID] = true }
+
+    if slotID == INVSLOT_MAINHAND and normalizedLink and TwoHandedItemUsesBothHands(nil, normalizedLink) then
+        SetSimulatedEquipmentSlot(items, itemLinks, ignoredSlots, INVSLOT_OFFHAND, nil)
+        changedSlots[INVSLOT_OFFHAND] = true
+    elseif slotID == INVSLOT_OFFHAND and normalizedLink then
+        local mainHandSlotName = SLOT_NAME_BY_ID[INVSLOT_MAINHAND]
+        local mainHandID = items[mainHandSlotName]
+        local mainHandLink = itemLinks[mainHandSlotName]
+        if TwoHandedItemUsesBothHands(mainHandID, mainHandLink) then
+            SetSimulatedEquipmentSlot(items, itemLinks, ignoredSlots, INVSLOT_MAINHAND, nil)
+            changedSlots[INVSLOT_MAINHAND] = true
+        end
+    end
+
+    return true, changedSlots
 end
 
 -- Save an explicitly edited equipment set without reading or changing the

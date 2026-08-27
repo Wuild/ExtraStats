@@ -91,28 +91,6 @@ local BOTTOM_EDITOR_SLOTS = {
     [INVSLOT_MAINHAND] = true, [INVSLOT_OFFHAND] = true, [INVSLOT_RANGED] = true,
 }
 
-local EDIT_SLOT_EQUIP_LOCS = {
-    [INVSLOT_HEAD] = { INVTYPE_HEAD = true },
-    [INVSLOT_NECK] = { INVTYPE_NECK = true },
-    [INVSLOT_SHOULDER] = { INVTYPE_SHOULDER = true },
-    [INVSLOT_BODY] = { INVTYPE_BODY = true },
-    [INVSLOT_BACK] = { INVTYPE_CLOAK = true },
-    [INVSLOT_CHEST] = { INVTYPE_CHEST = true, INVTYPE_ROBE = true },
-    [INVSLOT_TABARD] = { INVTYPE_TABARD = true },
-    [INVSLOT_WRIST] = { INVTYPE_WRIST = true },
-    [INVSLOT_HAND] = { INVTYPE_HAND = true },
-    [INVSLOT_WAIST] = { INVTYPE_WAIST = true },
-    [INVSLOT_LEGS] = { INVTYPE_LEGS = true },
-    [INVSLOT_FEET] = { INVTYPE_FEET = true },
-    [INVSLOT_FINGER1] = { INVTYPE_FINGER = true },
-    [INVSLOT_FINGER2] = { INVTYPE_FINGER = true },
-    [INVSLOT_TRINKET1] = { INVTYPE_TRINKET = true },
-    [INVSLOT_TRINKET2] = { INVTYPE_TRINKET = true },
-    [INVSLOT_MAINHAND] = { INVTYPE_WEAPON = true, INVTYPE_WEAPONMAINHAND = true, INVTYPE_2HWEAPON = true },
-    [INVSLOT_OFFHAND] = { INVTYPE_WEAPON = true, INVTYPE_WEAPONOFFHAND = true, INVTYPE_2HWEAPON = true, INVTYPE_SHIELD = true, INVTYPE_HOLDABLE = true },
-    [INVSLOT_RANGED] = { INVTYPE_RANGED = true, INVTYPE_THROWN = true, INVTYPE_RANGEDRIGHT = true, INVTYPE_RELIC = true },
-}
-
 local MODEL_PREVIEW_SLOTS = {
     [INVSLOT_HEAD] = true,
     [INVSLOT_SHOULDER] = true,
@@ -1328,23 +1306,6 @@ local function SetEditedSlotFromCursor(button)
     end
 
     local slotID = button:GetID()
-    local acceptedEquipLocs = EDIT_SLOT_EQUIP_LOCS[slotID]
-    if not acceptedEquipLocs then
-        return false
-    end
-
-    local item = itemLink or itemID
-    local equipLoc = select(9, GetItemInfo(item))
-    if (not equipLoc or equipLoc == "") and GetItemInfoInstant then
-        equipLoc = select(4, GetItemInfoInstant(item))
-    end
-    if not equipLoc or not acceptedEquipLocs[equipLoc] then
-        if UIErrorsFrame then
-            UIErrorsFrame:AddMessage(ERR_WRONG_SLOT or ITEM_DOESNT_GO_TO_SLOT or "That item does not go in that slot.", 1.0, 0.1, 0.1, 1.0)
-        end
-        return false
-    end
-
     local link = itemLink or ("item:" .. tostring(itemID))
     if not ExtraStats_SetEditedEquipmentSetSlotItem(slotID, link) then
         return false
@@ -1681,14 +1642,25 @@ function ExtraStats_SetEditedEquipmentSetSlotItem(slotID, itemLink)
         return false
     end
 
-    local normalizedLink = itemLink and (string.match(itemLink, "|H(item:[^|]+)|h") or string.match(itemLink, "(item:[^|]+)") or itemLink)
-    draft.itemLinks[slotName] = normalizedLink
-    draft.items[slotName] = normalizedLink and tonumber(string.match(normalizedLink, "item:(%d+)")) or nil
-    draft.ignoredSlots[slotID] = nil
+    local changed, changedSlots, errorMessage = EquipmentSet:SimulateEquipmentSetSlotChange(
+        draft.items,
+        draft.itemLinks,
+        draft.ignoredSlots,
+        slotID,
+        itemLink
+    )
+    if not changed then
+        if errorMessage and UIErrorsFrame then
+            UIErrorsFrame:AddMessage(errorMessage, 1.0, 0.1, 0.1, 1.0)
+        end
+        return false
+    end
     draft.dirty = true
 
-    EquipmentSet:UnignoreSlotForSave(slotID)
-    SetIgnoredSlotVisual(slotID, false)
+    for changedSlotID in pairs(changedSlots) do
+        EquipmentSet:UnignoreSlotForSave(changedSlotID)
+        SetIgnoredSlotVisual(changedSlotID, false)
+    end
     RefreshEquipmentSetPreview()
     ExtraStats_PaperDollEquipmentManagerPane_Update()
     return true
@@ -2022,6 +1994,18 @@ function GearSetEditButtonDropDown_Initialize(dropdownFrame)
     if not setID then
         return
     end
+
+    local updateFromEquippedInfo = UIDropDownMenu_CreateInfo()
+    updateFromEquippedInfo.text = ExtraStats:translate("gearsets.update_from_equipped")
+    updateFromEquippedInfo.notCheckable = true
+    updateFromEquippedInfo.func = function()
+        CloseDropDownMenus()
+        if EquipmentSet:UpdateEquipmentSetFromCurrentItems(setID) then
+            SelectSetByID(setID)
+            ExtraStats_PaperDollEquipmentManagerPane_Update()
+        end
+    end
+    UIDropDownMenu_AddButton(updateFromEquippedInfo, UIDROPDOWN_MENU_LEVEL)
 
     if EquipmentSet:CanMoveEquipmentSetBank(setID, "toBank") then
         local moveToBankInfo = UIDropDownMenu_CreateInfo()
