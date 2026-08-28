@@ -600,21 +600,17 @@ local function CanAssignEquipmentItemToSlot(slotID, itemID, itemLink)
         return true
     end
 
-    if not CanPlayerUseEquipmentItem(itemID, itemLink) then
-        return false, ERR_CANT_EQUIP_EVER or ITEM_UNUSABLE or "You cannot use that item."
-    end
-
     local acceptedEquipLocations = EQUIP_LOCATIONS_BY_SLOT[slotID]
     local equipLocation = GetItemEquipLocation(itemID, itemLink)
     if not acceptedEquipLocations or not equipLocation or not acceptedEquipLocations[equipLocation] then
         return false, ERR_WRONG_SLOT or ITEM_DOESNT_GO_TO_SLOT or "That item does not go in that slot."
     end
-    if availableForSlot == false then
-        return false, ERR_CANT_EQUIP_EVER or ITEM_UNUSABLE or "You cannot equip that item in that slot."
-    end
 
-    -- Inventory-type metadata is only a compatibility fallback for clients
-    -- that do not expose GetInventoryItemsForSlot.
+    -- Classic clients can return false negatives from both
+    -- GetInventoryItemsForSlot and CanUseItem for gear the character can
+    -- equip. The editor only simulates a saved set, so accept an owned item
+    -- with the correct inventory type and let the server remain authoritative
+    -- when the set is actually equipped.
     return true
 end
 
