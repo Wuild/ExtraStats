@@ -601,6 +601,9 @@ end
 function ExtraStats_PaperDollEquipmentManagerPane_OnLoad(self)
     HookNativeGearSetButtonTooltips()
     HybridScrollFrame_OnLoad(self)
+    -- HybridScrollFrame's mouse-wheel handler reads this before the first
+    -- update can run when the cursor is already over the pane as it opens.
+    self.range = 0
     EnsureEquipmentSetTopMask(self)
     self.update = ExtraStats_PaperDollEquipmentManagerPane_Update
 

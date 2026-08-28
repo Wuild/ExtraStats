@@ -1,6 +1,7 @@
 local name, stats = ...
 
 local Module = {  }
+local EquipmentSet = ExtraStats:GetModule("EquipmentSet")
 
 local GEAR_SLOT_FRAMES = {
     CharacterHeadSlot,
