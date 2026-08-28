@@ -1,7 +1,6 @@
 local name, stats = ...
 
 local Module = {  }
-local EquipmentSet = ExtraStats:GetModule("EquipmentSet")
 
 local GEAR_SLOT_FRAMES = {
     CharacterHeadSlot,
@@ -197,36 +196,11 @@ local function NormalizeItemLink(link)
     return string.match(link, "|H(item:[^|]+)|h") or string.match(link, "(item:[^|]+)") or link
 end
 
-local function BuildEligibleItemLinksBySlot()
-    if type(GetInventoryItemsForSlot) ~= "function" then
-        return nil
-    end
-
-    local eligibleBySlot = {}
-    for slotID in pairs(SLOT_EQUIP_LOCS) do
-        local available = {}
-        if not pcall(GetInventoryItemsForSlot, slotID, available) then
-            return nil
-        end
-
-        local eligible = {}
-        for _, itemLink in pairs(available) do
-            local normalized = NormalizeItemLink(itemLink)
-            if normalized then
-                eligible[normalized] = true
-            end
-        end
-        eligibleBySlot[slotID] = eligible
-    end
-    return eligibleBySlot
-end
-
 local function MarkAlternativesCacheDirty()
     alternativesCacheDirty = true
 end
 
 local function RebuildAlternativesCache()
-    local eligibleBySlot = BuildEligibleItemLinksBySlot()
     alternativesCacheBySlot = {}
     local seenBySlot = {}
     local equippedBySlot = {}
@@ -255,12 +229,10 @@ local function RebuildAlternativesCache()
                         end
                     end
 
-                    if EquipmentSet:CanUseEquipmentSetItem(nil, normalized) then
+                    if equipLoc and equipLoc ~= "" then
                         local stackCount = GetContainerItemCountCompat(bag, slot) or 1
                         for slotID, equipLocMap in pairs(SLOT_EQUIP_LOCS) do
-                            local eligibleForSlot = eligibleBySlot and eligibleBySlot[slotID][normalized]
-                                or (not eligibleBySlot and equipLoc and equipLocMap[equipLoc])
-                            if eligibleForSlot and normalized ~= equippedBySlot[slotID] then
+                            if equipLocMap[equipLoc] and normalized ~= equippedBySlot[slotID] then
                                 local existing = seenBySlot[slotID][normalized]
                                 if not existing then
                                     existing = {
@@ -329,8 +301,7 @@ local function GetAlternativesForSlot(slotID)
                 equipLoc = (equipLoc and equipLoc ~= "") and equipLoc or instantEquipLoc
                 icon = icon or instantIcon
             end
-            local canAssign = EquipmentSet:CanAssignEquipmentSetItemToSlot(slotID, nil, normalized)
-            if canAssign then
+            if equipLoc and SLOT_EQUIP_LOCS[slotID][equipLoc] then
                 seen[normalized] = true
                 result[#result + 1] = {
                     link = itemLink or link,

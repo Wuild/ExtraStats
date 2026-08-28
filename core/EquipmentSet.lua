@@ -548,8 +548,9 @@ local function CanPlayerUseEquipmentItem(itemID, itemLink)
         return false
     end
 
-    if C_PlayerInfo and type(C_PlayerInfo.CanUseItem) == "function" and itemID then
-        local canUse = C_PlayerInfo.CanUseItem(itemID)
+    local resolvedItemID = itemID or GetItemIDFromLink(itemLink)
+    if C_PlayerInfo and type(C_PlayerInfo.CanUseItem) == "function" and resolvedItemID then
+        local canUse = C_PlayerInfo.CanUseItem(resolvedItemID)
         if canUse ~= nil then
             return canUse and true or false
         end
