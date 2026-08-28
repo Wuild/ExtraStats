@@ -587,7 +587,7 @@ local function IsEquipmentItemAvailableForSlot(slotID, itemID, itemLink)
         if normalizedLink and candidateNormalized == normalizedLink then
             return true
         end
-        if not normalizedLink and itemID and GetItemIDFromLink(candidateNormalized) == itemID then
+        if itemID and GetItemIDFromLink(candidateNormalized) == itemID then
             return true
         end
     end
@@ -595,13 +595,13 @@ local function IsEquipmentItemAvailableForSlot(slotID, itemID, itemLink)
 end
 
 local function CanAssignEquipmentItemToSlot(slotID, itemID, itemLink)
-    if not CanPlayerUseEquipmentItem(itemID, itemLink) then
-        return false, ERR_CANT_EQUIP_EVER or ITEM_UNUSABLE or "You cannot use that item."
-    end
-
     local availableForSlot = IsEquipmentItemAvailableForSlot(slotID, itemID, itemLink)
     if availableForSlot == true then
         return true
+    end
+
+    if not CanPlayerUseEquipmentItem(itemID, itemLink) then
+        return false, ERR_CANT_EQUIP_EVER or ITEM_UNUSABLE or "You cannot use that item."
     end
 
     local acceptedEquipLocations = EQUIP_LOCATIONS_BY_SLOT[slotID]
