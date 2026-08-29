@@ -2136,14 +2136,13 @@ function ProcessEquip(token)
         return
     end
 
-    -- Direct bag equips do not use the cursor. Submit one per pass so a
-    -- bind-on-equip confirmation can be handled before the next request.
-    -- Keep the cursor-based path below for swaps and bank items, where
-    -- preserving the old item requires explicit placement.
-    -- While the bank is open, keep the swap strictly serialized. Bank pulls
-    -- change both container location and locks asynchronously, and batching
-    -- bag equips can race those updates and leave a partial set equipped.
-    if EquipItemByName and not BANK_OPEN then
+    -- Direct bag equips do not use the cursor, so submit all of them in one
+    -- pass. Only swaps that actually require a bank item need the serialized
+    -- cursor path below; merely having the bank open should not slow down a
+    -- bag-only equipment set.
+    local batchQueue = BuildBatchEquipQueue(set)
+    if EquipItemByName and batchQueue then
+        local directChanged = false
         for _, directSlotID in ipairs(SLOT_ORDER) do
             if not IsSlotIgnored(set, directSlotID) and not IsSlotSetMatched(set, directSlotID) then
                 local directKey = SLOT_NAME_BY_ID[directSlotID]
@@ -2167,13 +2166,23 @@ function ProcessEquip(token)
                     pendingEquip.awaitingBind = bindRequest
                     EquipItemByName(directLink or directID, directSlotID)
                     bindRequest.sawPopup = IsEquipBindConfirmationVisible() and true or false
-                    if pendingEquip and pendingEquip.token == token then
-                        pendingEquip.attempt = 0
-                        ScheduleProcessEquip(token, EQUIP_ACTION_DELAY)
+                    directChanged = true
+
+                    -- A bind confirmation must be handled before submitting
+                    -- another equip because Blizzard only exposes one popup.
+                    if bindRequest.sawPopup then
+                        break
                     end
-                    return
                 end
             end
+        end
+
+        if directChanged then
+            if pendingEquip and pendingEquip.token == token then
+                pendingEquip.attempt = 0
+                ScheduleProcessEquip(token, EQUIP_ACTION_DELAY)
+            end
+            return
         end
     end
 
