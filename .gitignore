@@ -39,3 +39,18 @@ luac.out
 *.x86_64
 *.hex
 
+
+# Local development checkouts
+.references/
+.worktrees/
+
+
+# Local builds and Python test caches
+dist/
+__pycache__/
+*.pyc
+
+# Local publication credentials
+.env
+.env.*
+!.env.example

@@ -1,0 +1,125 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <Frame name="ExtraStatsForeverCategoryTemplate" virtual="true" enableMouse="true">
+        <Size x="207" y="29"/>
+        <Layers>
+            <Layer level="BACKGROUND">
+                <Texture parentKey="Background" file="Interface\Buttons\WHITE8X8" alpha="0.72">
+                    <Anchors>
+                        <Anchor point="TOPLEFT"/>
+                        <Anchor point="BOTTOMRIGHT"/>
+                    </Anchors>
+                    <Color r="0.055" g="0.075" b="0.10"/>
+                </Texture>
+                <Texture parentKey="Accent" file="Interface\Buttons\WHITE8X8">
+                    <Size x="3"/>
+                    <Anchors>
+                        <Anchor point="TOPLEFT"/>
+                        <Anchor point="BOTTOMLEFT"/>
+                    </Anchors>
+                    <Color r="0.82" g="0.62" b="0.20"/>
+                </Texture>
+                <Texture parentKey="Divider" file="Interface\Buttons\WHITE8X8" alpha="0.6">
+                    <Size y="1"/>
+                    <Anchors>
+                        <Anchor point="BOTTOMLEFT" x="3"/>
+                        <Anchor point="BOTTOMRIGHT"/>
+                    </Anchors>
+                    <Color r="0.38" g="0.30" b="0.16"/>
+                </Texture>
+            </Layer>
+            <Layer level="ARTWORK">
+                <FontString parentKey="Title" inherits="GameFontNormal" justifyH="LEFT">
+                    <Anchors>
+                        <Anchor point="LEFT" x="30" y="0"/>
+                        <Anchor point="RIGHT" x="-24" y="0"/>
+                    </Anchors>
+                </FontString>
+            </Layer>
+            <Layer level="HIGHLIGHT">
+                <Texture parentKey="Hover" file="Interface\Buttons\WHITE8X8" alpha="0.08" hidden="true">
+                    <Anchors>
+                        <Anchor point="TOPLEFT"/>
+                        <Anchor point="BOTTOMRIGHT"/>
+                    </Anchors>
+                    <Color r="1" g="0.82" b="0.35"/>
+                </Texture>
+            </Layer>
+        </Layers>
+        <Frames>
+            <Button parentKey="CollapseButton">
+                <Size x="18" y="18"/>
+                <Anchors>
+                    <Anchor point="LEFT" x="6" y="0"/>
+                </Anchors>
+                <NormalTexture file="Interface\Buttons\UI-MinusButton-Up"/>
+                <PushedTexture file="Interface\Buttons\UI-MinusButton-Down"/>
+                <HighlightTexture file="Interface\Buttons\UI-Common-MouseHilight" alphaMode="ADD"/>
+            </Button>
+        </Frames>
+        <Scripts>
+            <OnLoad>
+                self.Title:SetText(self.titleText);
+                self.expanded = true
+            </OnLoad>
+            <OnEnter>
+                self.Hover:Show();
+            </OnEnter>
+            <OnLeave>
+                self.Hover:Hide();
+            </OnLeave>
+        </Scripts>
+    </Frame>
+
+    <Frame name="ExtraStatsForeverStatRowTemplate" virtual="true" enableMouse="true">
+        <Size x="207" y="21"/>
+        <Layers>
+            <Layer level="BACKGROUND">
+                <Texture parentKey="Surface" file="Interface\Buttons\WHITE8X8" alpha="0.34">
+                    <Anchors>
+                        <Anchor point="TOPLEFT"/>
+                        <Anchor point="BOTTOMRIGHT"/>
+                    </Anchors>
+                    <Color r="0.035" g="0.045" b="0.06"/>
+                </Texture>
+                <Texture parentKey="Background" file="Interface\Buttons\WHITE8X8" alpha="0.12">
+                    <Anchors>
+                        <Anchor point="TOPLEFT"/>
+                        <Anchor point="BOTTOMRIGHT"/>
+                    </Anchors>
+                    <Color r="0.45" g="0.55" b="0.68"/>
+                </Texture>
+                <Texture parentKey="Divider" file="Interface\Buttons\WHITE8X8" alpha="0.12">
+                    <Size y="1"/>
+                    <Anchors>
+                        <Anchor point="BOTTOMLEFT" x="8"/>
+                        <Anchor point="BOTTOMRIGHT" x="-8"/>
+                    </Anchors>
+                    <Color r="0.72" g="0.72" b="0.72"/>
+                </Texture>
+            </Layer>
+            <Layer level="ARTWORK">
+                <FontString parentKey="Label" inherits="GameFontNormalSmall" justifyH="LEFT">
+                    <Anchors>
+                        <Anchor point="LEFT" x="10" y="0"/>
+                        <Anchor point="RIGHT" x="-92" y="0"/>
+                    </Anchors>
+                </FontString>
+                <FontString parentKey="Value" inherits="GameFontHighlightSmall" justifyH="RIGHT">
+                    <Anchors>
+                        <Anchor point="RIGHT" x="-28" y="0"/>
+                    </Anchors>
+                </FontString>
+            </Layer>
+            <Layer level="HIGHLIGHT">
+                <Texture parentKey="Hover" file="Interface\Buttons\WHITE8X8" alpha="0.10" hidden="true">
+                    <Anchors>
+                        <Anchor point="TOPLEFT"/>
+                        <Anchor point="BOTTOMRIGHT"/>
+                    </Anchors>
+                    <Color r="1" g="0.82" b="0.35"/>
+                </Texture>
+            </Layer>
+        </Layers>
+</Frame>
+
+</Ui>

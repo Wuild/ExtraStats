@@ -1,5 +1,9 @@
 # ExtraStats
 
+WoW Forever support is available in the `forever-*` beta releases. See
+[Forever features and installation](forever/README.md) and [release instructions](RELEASING.md).
+The Classic implementation remains available through separate Classic packages.
+
 ExtraStats is a simple character screen extender which displays different kind of stats accurate, including buffs,
 flasks, racial benefits etc.
 

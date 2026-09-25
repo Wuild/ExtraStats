@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - "*"
+      - "!forever-*"
 
 jobs:
   publish:
@@ -18,15 +19,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for toc in ExtraStats*.toc; do
-            if [[ -f "$toc" ]]; then
-              sed -i "s/@project-version@/${GITHUB_REF_NAME}/g" "$toc"
-            fi
-          done
-          addon_name="$(basename "$GITHUB_WORKSPACE")"
-          zip_path="$GITHUB_WORKSPACE/${GITHUB_REF_NAME}.zip"
-          cd "$GITHUB_WORKSPACE/.."
-          zip -r "$zip_path" "$addon_name" -x "$addon_name/.git/*" "$addon_name/.github/*"
+          python3 scripts/package.py --flavor classic --version "$GITHUB_REF_NAME"
 
       - name: Publish
         id: publish_1
@@ -36,7 +29,7 @@ jobs:
           token: ${{ secrets.CURSEFORGE_TOKEN }}
           project_id: "803163"
           game_endpoint: "wow"
-          file_path: ${{ github.workspace }}/${{ github.ref_name }}.zip
+          file_path: ${{ github.workspace }}/dist/ExtraStats-${{ github.ref_name }}.zip
           display_name: ${{ github.ref_name }}
           game_versions: "2.5.5,1.15.8,3.4.5,4.4.2"
           release_type: release
@@ -55,7 +48,7 @@ jobs:
           token: ${{ secrets.CURSEFORGE_TOKEN }}
           project_id: "803163"
           game_endpoint: "wow"
-          file_path: ${{ github.workspace }}/${{ github.ref_name }}.zip
+          file_path: ${{ github.workspace }}/dist/ExtraStats-${{ github.ref_name }}.zip
           display_name: ${{ github.ref_name }}
           game_versions: "2.5.5,1.15.8,3.4.5,4.4.2"
           release_type: release
@@ -74,10 +67,10 @@ jobs:
           token: ${{ secrets.CURSEFORGE_TOKEN }}
           project_id: "803163"
           game_endpoint: "wow"
-          file_path: ${{ github.workspace }}/${{ github.ref_name }}.zip
+          file_path: ${{ github.workspace }}/dist/ExtraStats-${{ github.ref_name }}.zip
           display_name: ${{ github.ref_name }}
           game_versions: "2.5.5,1.15.8,3.4.5,4.4.2"
-          wrelease_type: release
+          release_type: release
 
       - name: Fail if publish failed
         if: steps.publish_1.outcome == 'failure' && steps.publish_2.outcome == 'failure' && steps.publish_3.outcome == 'failure'

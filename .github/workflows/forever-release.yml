@@ -1,0 +1,57 @@
+name: Publish Forever to CurseForge
+
+on:
+  push:
+    tags:
+      - 'forever-*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: forever-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install test runtime
+        run: python -m pip install lupa==2.6
+      - name: Check addon behavior
+        run: |
+          python tests/forever_settings_smoke.py
+          python tests/forever_controller_smoke.py
+          python tests/package_smoke.py
+          python tools/test_publish.py
+      - name: Package
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          version="${RELEASE_TAG#forever-}"
+          if [ "$EVENT" = "workflow_dispatch" ]; then version="0.0.0"; fi
+          python tools/package_forever.py --version "$version"
+          echo "RELEASE_VERSION=$version" >> "$GITHUB_ENV"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ExtraStats-Forever
+          path: dist/*.zip
+      - name: Publish tagged release
+        if: github.event_name == 'push'
+        uses: itsmeow/curseforge-upload@v3
+        with:
+          token: ${{ secrets.CURSEFORGE_TOKEN }}
+          project_id: '803163'
+          game_endpoint: wow
+          file_path: dist/ExtraStats-${{ env.RELEASE_VERSION }}.zip
+          display_name: ExtraStats ${{ github.ref_name }}
+          game_versions: '1.60.1'
+          release_type: beta
+          changelog: 'Forever beta: native character UI integration, class/role stat categories, paper-doll resistances, settings, controller navigation and native gear-set specialization assignments. See the included CHANGELOG.md.'
+          changelog_type: markdown

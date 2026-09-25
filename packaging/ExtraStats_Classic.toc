@@ -1,0 +1,10 @@
+## Interface: 11500
+## Title: ExtraStats
+## Author: Wuild
+## Version: @project-version@
+## SavedVariables: ExtraStatsSettings
+## OptionalDeps: ElvUI TacoTip ArkInventory
+
+embeds.xml
+modules\Wrath.lua
+ExtraStats.lua

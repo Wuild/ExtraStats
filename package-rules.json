@@ -1,0 +1,4 @@
+{
+  "include": ["ExtraStats.toc", "LICENSE", "CHANGELOG.md", "forever/*.lua", "forever/*.xml", "forever/README.md"],
+  "exclude": ["**/__pycache__/**", "**/*.pyc"]
+}

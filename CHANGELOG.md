@@ -1,3 +1,12 @@
+# Forever beta (unreleased)
+
+* Native Forever character window integration (interface 16001).
+* Class and role defaults, talent-based role detection, category drag sorting and stat filters.
+* Paper-doll resistances, native stat tooltips, combat refresh and protected-value handling.
+* Native equipment-set specialization assignments and automatic gear swapping.
+* Settings page, dark/light paper-doll appearance and controller navigation.
+* Separate Forever package; Classic release contents are preserved.
+
 # 1.5.0
 
 * Made it possible to use the same addon version on all flavors!
