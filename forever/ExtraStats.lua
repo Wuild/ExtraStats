@@ -1,5 +1,4 @@
 -- Forever uses its native character window, stat renderer, and equipment manager.
--- Do not load embeds.xml: it replaces those systems for the Classic clients.
 local addonName = ...
 local _, _, _, interface = GetBuildInfo()
 if interface < 16000 or interface >= 17000 then return end

@@ -651,11 +651,9 @@ print('PASS: controller public range/offset adapter, scrollbar sync/clamping, fo
 ''')
 
 # Exercise the exact native controller function from the reported stack trace.
-native_nav = (ROOT/'.references/wow-ui-source-forever/Interface/AddOns/Blizzard_GamepadSmartNavigation/SmartNavigation.lua').read_text()
-start = native_nav.index('function SmartNavigationMixin:HandleScroll(')
-end = native_nav.index('\nfunction ', start + 1)
+native_nav = (ROOT/'tests/fixtures/SmartNavigationHandleScroll.lua').read_text()
 lua.execute('SmartNavigationMixin = {}')
-lua.execute(native_nav[start:end])
+lua.execute(native_nav)
 lua.execute(r'''
 local ui=ExtraStatsForeverStats
 function ui.scroll:IsObjectType(kind) return kind=='ScrollFrame' end

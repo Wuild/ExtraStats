@@ -1,6 +1,0 @@
-## Interface: 20400
-## Title: Lib: Semver
-## Notes: Semver version string parser
-## Credits: Wuild
-
-Semver.xml

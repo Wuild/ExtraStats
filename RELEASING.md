@@ -11,12 +11,12 @@ Python 3.9+ is required; install `lupa==2.6` for the Lua smoke tests.
 python tests/forever_settings_smoke.py
 python tests/forever_controller_smoke.py
 python tests/package_smoke.py
-python scripts/package.py --flavor forever --version 0.1.0
+python scripts/package.py --version 0.1.0
 ```
 
 The archive is `dist/ExtraStats-0.1.0.zip`, containing a single
-`ExtraStats/` directory. It excludes the Classic implementation, downloaded UI
-sources, worktrees, tests and build scripts. The source TOC is not modified.
+`ExtraStats/` directory. It includes only the Forever runtime and release documentation, excluding
+downloaded UI sources, worktrees, tests and build scripts. The source TOC is not modified.
 
 ## Publish Forever
 
@@ -36,14 +36,7 @@ it does not publish. Verify the existing token has access to project 803163.
 Upload failures fail the workflow; check CurseForge before retrying an ambiguous
 upload to avoid duplicate files. No credentials belong in this repository.
 
-## Classic releases
-
-Other tags keep the existing Classic workflow and supported-version metadata.
-The package builder uses `packaging/ExtraStats_Classic.toc` as the generic Classic
-TOC, plus the existing Vanilla/TBC TOCs and implementation. Forever tags never
-trigger that upload. Use `--flavor classic` to inspect a Classic archive locally.
-
-## Local publisher (copied from GatherLite)
+## Local publisher
 
 The local `.env` is ignored by Git and excluded from packages. `.env.example`
 documents the settings. The default project is 803163; uploads are Forever betas.

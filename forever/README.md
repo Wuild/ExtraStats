@@ -1,10 +1,9 @@
 # ExtraStats for WoW Forever
 
-The generic `ExtraStats.toc` targets Forever (16001,
-Camelot) and loads only `forever/`. Classic-specific TOCs remain available.
-Install the packaged addon as `Interface/AddOns/ExtraStats`, not as a folder named
-`forever`. The old equipment manager, window replacement, libraries, and plugins
-are not loaded by the Forever entry point.
+`ExtraStats.toc` targets Forever (interface 16001, Camelot) and loads the
+runtime in `forever/`. Install the packaged addon as `Interface/AddOns/ExtraStats`,
+not as a folder named `forever`. It uses the native character window and equipment
+manager without bundled libraries or the legacy plugin system.
 
 ## Current behavior
 
