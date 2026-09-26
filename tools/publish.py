@@ -127,7 +127,7 @@ def multipart(archive, metadata):
 def upload(archive, version, notes, version_ids, token, project_id=DEFAULT_PROJECT_ID):
     metadata = {"displayName": f"ExtraStats {version}", "changelog": notes,
                 "changelogType": "markdown", "gameVersions": version_ids,
-                "releaseType": "beta"}
+                "releaseType": "release"}
     body, content_type = multipart(archive, metadata)
     try:
         result = api_json(f"/projects/{project_id}/upload-file", token, body, content_type)

@@ -213,7 +213,7 @@ class PublishTests(unittest.TestCase):
         self.assertEqual(path, "/projects/803163/upload-file")
         self.assertEqual(token, "private-token")
         self.assertIn(b'"gameVersions": [42]', body)
-        self.assertIn(b'"releaseType": "beta"', body)
+        self.assertIn(b'"releaseType": "release"', body)
         self.assertNotIn(b"private-token", body)
         self.assertIn("/extrastats/files/12345", output.getvalue())
         self.assertNotIn("private-token", output.getvalue())

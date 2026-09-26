@@ -52,6 +52,6 @@ jobs:
           file_path: dist/ExtraStats-${{ env.RELEASE_VERSION }}.zip
           display_name: ExtraStats ${{ github.ref_name }}
           game_versions: '1.60.1'
-          release_type: beta
-          changelog: 'Forever beta: native character UI integration, class/role stat categories, paper-doll resistances, settings, controller navigation and native gear-set specialization assignments. See the included CHANGELOG.md.'
+          release_type: release
+          changelog: 'Forever release: native character UI integration, class/role stat categories, paper-doll resistances, settings, controller navigation and native gear-set specialization assignments. See the included CHANGELOG.md.'
           changelog_type: markdown

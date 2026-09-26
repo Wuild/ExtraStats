@@ -25,13 +25,13 @@ settings, category ordering, controller focus, combat stats and spec gear swaps.
 Commit and merge into main. Create and push an unused `forever-*` tag, for example:
 
 ```sh
-git tag -a forever-0.1.0 -m "ExtraStats Forever beta"
+git tag -a forever-0.1.0 -m "ExtraStats Forever release"
 git push origin main
 git push origin forever-0.1.0
 ```
 
 Tag push runs `forever-release.yml`: tests, packaging, GitHub artifact, and CurseForge
-upload for 1.60.1 as a beta. A manual workflow run only builds a preview artifact;
+upload for 1.60.1 as a release. A manual workflow run only builds a preview artifact;
 it does not publish. Verify the existing token has access to project 803163.
 Upload failures fail the workflow; check CurseForge before retrying an ambiguous
 upload to avoid duplicate files. No credentials belong in this repository.
@@ -39,7 +39,7 @@ upload to avoid duplicate files. No credentials belong in this repository.
 ## Local publisher
 
 The local `.env` is ignored by Git and excluded from packages. `.env.example`
-documents the settings. The default project is 803163; uploads are Forever betas.
+documents the settings. The default project is 803163; uploads are Forever releases.
 The API version is resolved exactly before uploading, and ambiguous uploads are
 not retried automatically. Never print or commit the token.
 
